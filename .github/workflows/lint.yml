@@ -123,3 +123,8 @@ jobs:
         env:
           SKIP: ${{ inputs.skip-hooks }}
         run: uvx pre-commit run --all-files
+
+      # ── Copy-paste detection (informational) ────────────────
+      - name: Check for code duplication
+        if: always()
+        run: npx jscpd --config .jscpd.json .github/ || true

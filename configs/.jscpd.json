@@ -1,0 +1,15 @@
+{
+  "threshold": 5,
+  "min-lines": 10,
+  "min-tokens": 50,
+  "format": ["yaml", "markup"],
+  "ignore": [
+    "**/node_modules/**",
+    "**/.terraform/**",
+    "**/vendor/**",
+    "**/*.lock",
+    "**/package-lock.json"
+  ],
+  "absolute": true,
+  "gitignore": true
+}
