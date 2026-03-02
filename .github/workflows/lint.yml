@@ -1,0 +1,130 @@
+---
+# Reusable lint workflow — called by repos via workflow_call.
+#
+# Self-selecting: installs tools only when matching files exist.
+# Fully cached: pre-commit envs, uv, and all tool binaries.
+#
+# Repos call this via a thin caller workflow (lint-baseline.yml).
+# Repos with custom needs can pass skip-hooks or use their own workflow.
+name: Lint (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      skip-hooks:
+        type: string
+        default: ''
+        description: 'Comma-separated pre-commit hooks to skip'
+
+permissions:
+  contents: read
+
+env:
+  TOFU_VERSION: '1.11.5'
+  TFLINT_VERSION: '0.61.0'
+  JUST_VERSION: '1.46.0'
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      # ── uv + Python (always) ──────────────────────────────────
+      - uses: astral-sh/setup-uv@0ca8f610542aa7f4acaf39e65cf4eb3c35091883 # v7
+        with:
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install 3.13
+
+      # ── Pre-commit environment cache ──────────────────────────
+      - name: Cache pre-commit environments
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: pre-commit-${{ runner.os }}-
+
+      # ── Self-selecting tool installs (cached, version-pinned) ─
+      #
+      # Pattern: cache → install only on miss → add to PATH.
+      # Version in cache key — bumping version busts cache.
+
+      # just — for justfile formatting hooks
+      - name: Cache just binary
+        if: hashFiles('**/justfile', '**/Justfile') != ''
+        id: cache-just
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.just/bin
+          key: just-${{ runner.os }}-${{ env.JUST_VERSION }}
+
+      - name: Install just
+        if: hashFiles('**/justfile', '**/Justfile') != '' && steps.cache-just.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.just/bin
+          curl --proto '=https' -fsSL https://just.systems/install.sh | bash -s -- --to ~/.just/bin --tag ${{ env.JUST_VERSION }}
+
+      - name: Add just to PATH
+        if: hashFiles('**/justfile', '**/Justfile') != ''
+        run: echo "$HOME/.just/bin" >> "$GITHUB_PATH"
+
+      # OpenTofu — for tofu_fmt / tofu_tflint hooks
+      - name: Cache OpenTofu binary
+        if: hashFiles('**/*.tf') != ''
+        id: cache-tofu
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.tofu/bin
+          key: tofu-${{ runner.os }}-${{ env.TOFU_VERSION }}
+
+      - name: Install OpenTofu
+        if: hashFiles('**/*.tf') != '' && steps.cache-tofu.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.tofu/bin
+          curl -fsSL https://get.opentofu.org/install-opentofu.sh | sh -s -- \
+            --install-method standalone \
+            --install-path ~/.tofu/bin \
+            --opentofu-version ${{ env.TOFU_VERSION }} \
+            --symlinks false
+
+      - name: Add OpenTofu to PATH
+        if: hashFiles('**/*.tf') != ''
+        run: echo "$HOME/.tofu/bin" >> "$GITHUB_PATH"
+
+      # TFLint — for tofu_tflint hook
+      - name: Cache TFLint binary
+        if: hashFiles('**/*.tf') != ''
+        id: cache-tflint
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.tflint/bin
+          key: tflint-${{ runner.os }}-${{ env.TFLINT_VERSION }}
+
+      - name: Install TFLint
+        if: hashFiles('**/*.tf') != '' && steps.cache-tflint.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.tflint/bin
+          curl -fsSL https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+        env:
+          TFLINT_INSTALL_PATH: ~/.tflint/bin
+          TFLINT_VERSION: v${{ env.TFLINT_VERSION }}
+
+      - name: Add TFLint to PATH
+        if: hashFiles('**/*.tf') != ''
+        run: echo "$HOME/.tflint/bin" >> "$GITHUB_PATH"
+
+      # ── Run pre-commit ────────────────────────────────────────
+      - name: Run pre-commit
+        env:
+          SKIP: ${{ inputs.skip-hooks }}
+        run: uvx pre-commit run --all-files
+
+      # ── Copy-paste detection (informational) ────────────────
+      - name: Check for code duplication
+        if: always()
+        run: npx jscpd --config .jscpd.json .github/ || true

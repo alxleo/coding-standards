@@ -1,0 +1,24 @@
+# MegaLinter baseline — for local CLI use via mega-linter-runner.
+# CI integration planned for self-hosted runner (github-standards#22).
+#
+# Usage: npx mega-linter-runner --flavor ci_light
+#
+# Only enable linters we actively use. Keeps local runs fast (~30s).
+# Repos can override with a local .mega-linter.yml.
+
+APPLY_FIXES: none
+SHOW_ELAPSED_TIME: true
+FILEIO_REPORTER: false
+PRINT_ALL_FILES: false
+
+# ── Enable only what we care about ─────────────────────────
+ENABLE_LINTERS:
+  - ACTION_ACTIONLINT
+  - COPYPASTE_JSCPD
+  - BASH_SHELLCHECK
+  - YAML_YAMLLINT
+
+# ── Tool-specific config ──────────────────────────────────
+COPYPASTE_JSCPD_CONFIG_FILE: .jscpd.json
+YAML_YAMLLINT_CONFIG_FILE: .yamllint
+BASH_SHELLCHECK_CONFIG_FILE: .shellcheckrc
