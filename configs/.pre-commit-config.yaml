@@ -45,3 +45,13 @@ repos:
         entry: bash -c 'for f in "$@"; do if ! grep -q "^sops:" "$f" 2>/dev/null; then echo "ERROR: $f is not SOPS-encrypted — run: sops encrypt -i $f"; exit 1; fi; done' --
         language: system
         files: \.secrets\.yaml$
+
+  # ── Justfile formatting ─────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: just-fmt-check
+        name: Check justfile formatting
+        entry: just --fmt --check
+        language: system
+        files: (^|/)justfile$
+        pass_filenames: false
