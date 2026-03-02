@@ -1,0 +1,56 @@
+version: 2
+
+# Baseline dependabot config — covers common ecosystems.
+# An LLM agent adapts this per-repo: removes inapplicable ecosystems,
+# adds per-directory entries (e.g., multiple Dockerfiles), adjusts limits.
+
+updates:
+  # GHA action versions — present in nearly all repos
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+
+  # Python dependencies (pyproject.toml, requirements.txt)
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "python"
+      include: "scope"
+
+  # Node.js dependencies (package.json)
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "npm"
+      include: "scope"
+
+  # Docker base image updates
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "docker"
+      include: "scope"
+
+  # Terraform/OpenTofu provider updates
+  - package-ecosystem: terraform
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "terraform"
+      include: "scope"

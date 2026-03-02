@@ -1,0 +1,41 @@
+# Baseline pre-commit hooks — universal across all repos.
+# Language-specific hooks (shellcheck, hadolint, ruff, eslint, etc.)
+# are added per-repo by an LLM agent after sync.
+
+repos:
+  # ── Standard hygiene ─────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-case-conflict
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+
+  # ── Secret scanning ──────────────────────────────────────────
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.0
+    hooks:
+      - id: gitleaks
+
+  # ── Cruft & secrets blocking ─────────────────────────────────
+  - repo: local
+    hooks:
+      - id: forbid-cruft-files
+        name: Block cruft files (.bak, .del, .tmp, .old, .orig)
+        entry: "Found cruft file — delete or rename before committing"
+        language: fail
+        files: \.(bak|del|tmp|old|orig|swp|swo)$
+
+      - id: block-secret-files
+        name: Block secret files
+        entry: "Secret/env files must not be committed"
+        language: fail
+        files: (\.env$|\.env\.|\.secrets\.|\.key$|\.pem$|\.age$|sops\.yaml$)

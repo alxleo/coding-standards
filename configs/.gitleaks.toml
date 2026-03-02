@@ -1,0 +1,8 @@
+# Gitleaks configuration — baseline for all repos.
+# Per-repo allowlists can be added after sync.
+# https://github.com/gitleaks/gitleaks
+
+title = "coding-standards gitleaks baseline"
+
+[extend]
+useDefault = true

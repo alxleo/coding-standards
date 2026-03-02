@@ -1,0 +1,6 @@
+# Hadolint baseline — minimal suppressions for common Dockerfile patterns.
+# Per-repo suppressions should be added after sync with documented reasoning.
+
+trustedRegistries:
+  - docker.io
+  - ghcr.io
