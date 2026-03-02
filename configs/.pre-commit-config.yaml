@@ -42,6 +42,6 @@ repos:
 
       - id: verify-sops-encryption
         name: Verify SOPS files are encrypted
-        entry: bash -c 'for f in "$@"; do if ! grep -q "^sops:" "$f" 2>/dev/null; then echo "ERROR: $f is not SOPS-encrypted — run: sops encrypt -i $f"; exit 1; fi; done'
+        entry: bash -c 'for f in "$@"; do if ! grep -q "^sops:" "$f" 2>/dev/null; then echo "ERROR: $f is not SOPS-encrypted — run: sops encrypt -i $f"; exit 1; fi; done' --
         language: system
         files: \.secrets\.yaml$
