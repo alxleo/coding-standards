@@ -46,6 +46,7 @@ repos:
         entry: "Secret/env files must not be committed"
         language: fail
         files: (\.env$|\.env\.|\.secrets\.|\.key$|\.pem$|\.age$|sops\.yaml$)
+        exclude: \.secrets\.ya?ml$
 
       - id: verify-sops-encryption
         name: Verify SOPS files are encrypted
