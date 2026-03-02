@@ -9,6 +9,7 @@ repos:
     hooks:
       - id: check-yaml
       - id: check-json
+      - id: check-toml
       - id: check-merge-conflict
       - id: check-added-large-files
         args: [--maxkb=500]
@@ -25,6 +26,12 @@ repos:
     hooks:
       - id: gitleaks
 
+  # ── Typo detection ──────────────────────────────────────────
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.44.0
+    hooks:
+      - id: typos
+
   # ── Cruft & secrets blocking ─────────────────────────────────
   - repo: local
     hooks:
@@ -38,11 +45,11 @@ repos:
         name: Block secret files
         entry: "Secret/env files must not be committed"
         language: fail
-        files: (\.env$|\.env\.|\.key$|\.pem$|\.age$)
+        files: (\.env$|\.env\.|\.secrets\.|\.key$|\.pem$|\.age$|sops\.yaml$)
 
       - id: verify-sops-encryption
         name: Verify SOPS files are encrypted
-        entry: bash -c 'for f in "$@"; do if ! grep -q "^sops:" "$f" 2>/dev/null; then echo "ERROR: $f is not SOPS-encrypted — run: sops encrypt -i $f"; exit 1; fi; done' --
+        entry: "bash -c 'for f in \"$@\"; do if ! grep -q \"^sops:\" \"$f\" 2>/dev/null; then echo \"ERROR: $f is not SOPS-encrypted\"; exit 1; fi; done' --"
         language: system
         files: \.secrets\.yaml$
 
