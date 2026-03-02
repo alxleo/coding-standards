@@ -1,6 +1,12 @@
-# Hadolint baseline — minimal suppressions for common Dockerfile patterns.
-# Per-repo suppressions should be added after sync with documented reasoning.
+# Hadolint baseline — synced to all repos.
+# Per-repo overrides: add `ignore:` entries with documented reasoning.
 
 trustedRegistries:
   - docker.io
   - ghcr.io
+
+# Tightened rules for LLM-generated Dockerfiles.
+# LLMs routinely omit version pins and --no-install-recommends.
+failure-threshold: warning
+
+strict-labels: true
