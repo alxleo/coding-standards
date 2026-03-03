@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Pre-push: block direct push to main, run full validation.
 remote="$1"
 

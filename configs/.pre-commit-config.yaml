@@ -106,7 +106,7 @@ repos:
         types: [shell]
 
       - id: forbid-bare-python
-        name: Use uv run python3, not bare python3
+        name: Use uv run, not bare python/python3
         entry: "bash -c 'FOUND=0; for f in \"$@\"; do if grep -nE \"(^|[[:space:]])python3?[[:space:]]\" \"$f\" | grep -v \"uv run\"; then FOUND=1; fi; done; exit $FOUND' --"
         language: system
         types: [shell]

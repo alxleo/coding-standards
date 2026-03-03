@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Post-commit: auto-clean cruft files (.del/.bak/.old/.tmp/.orig) + empty dirs.
 # Only removes UNTRACKED cruft — tracked files are intentional (e.g. test fixtures).
 cruft_count=0
@@ -11,7 +11,7 @@ while IFS= read -r -d '' file; do
         rm -f "$file" 2>/dev/null
     fi
     cruft_count=$((cruft_count + 1))
-done < <(find . -not -path "./.git/*" -not -path "./.worktrees/*" \
+done < <(find . -not -path "./.git/*" -not -path "./.worktrees/*" -type f \
     \( -name "*.del" -o -name "*.bak" -o -name "*.old" -o -name "*.tmp" -o -name "*.orig" \) -print0 2>/dev/null)
 
 [ "$cruft_count" -gt 0 ] && echo "post-commit: cleaned $cruft_count cruft file(s)"

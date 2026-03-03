@@ -180,7 +180,7 @@ teardown() {
 }
 
 @test "pre-push: allows delete push (zero SHA)" {
-    run bash -c 'echo "0000000000000000000000000000000000000000 0000000000000000000000000000000000000000 refs/heads/main def456" | bash scripts/git-pre-push.sh origin'
+    run bash -c 'echo "refs/heads/main 0000000000000000000000000000000000000000 refs/heads/main def456" | bash scripts/git-pre-push.sh origin'
     refute_output --partial "Direct push to main is blocked"
 }
 
@@ -195,8 +195,8 @@ teardown() {
 @test "envrc snippet: skips when already installed" {
     bash scripts/setup-hooks.sh >/dev/null 2>&1
     local before after
-    before=$(md5 -q .git/hooks/post-commit)
+    before=$(shasum -a 256 .git/hooks/post-commit | cut -d' ' -f1)
     bash -c "source $REPO_ROOT/configs/.envrc.snippet"
-    after=$(md5 -q .git/hooks/post-commit)
+    after=$(shasum -a 256 .git/hooks/post-commit | cut -d' ' -f1)
     assert_equal "$before" "$after"
 }
