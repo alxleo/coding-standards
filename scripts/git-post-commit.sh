@@ -1,7 +1,10 @@
 #!/bin/bash
 # Post-commit: auto-clean cruft files (.del/.bak/.old/.tmp/.orig) + empty dirs.
+# Only removes UNTRACKED cruft — tracked files are intentional (e.g. test fixtures).
 cruft_count=0
 while IFS= read -r -d '' file; do
+    # Skip files tracked by git
+    git ls-files --error-unmatch "$file" >/dev/null 2>&1 && continue
     if command -v trash >/dev/null 2>&1; then
         trash "$file" 2>/dev/null
     else

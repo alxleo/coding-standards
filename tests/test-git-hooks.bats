@@ -11,6 +11,7 @@ setup() {
     export REPO_ROOT
 
     SANDBOX=$(mktemp -d)
+    trap 'rm -rf "$SANDBOX"' EXIT
     cd "$SANDBOX"
     git init --initial-branch=main >/dev/null 2>&1
     git config user.email "test@test.com"
@@ -148,6 +149,14 @@ teardown() {
     run bash scripts/git-post-commit.sh
     assert_success
     refute_output --partial "cruft"
+}
+
+@test "post-commit: skips git-tracked cruft files" {
+    echo "intentional" > tracked.bak
+    git add tracked.bak
+    git commit --no-verify -m "fix: add tracked bak" >/dev/null 2>&1
+    bash scripts/git-post-commit.sh >/dev/null 2>&1
+    assert [ -f tracked.bak ]
 }
 
 @test "post-commit: skips .git directory" {
