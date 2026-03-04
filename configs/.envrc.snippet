@@ -1,0 +1,4 @@
+# Auto-install pre-commit hooks on first cd (idempotent)
+if [ -d .git ] && [ ! -f .git/hooks/post-commit ]; then
+    bash scripts/setup-hooks.sh 2>/dev/null || true
+fi

@@ -1,6 +1,8 @@
 # Baseline pre-commit hooks — universal across all repos.
-# Language-specific hooks (shellcheck, hadolint, ruff, eslint, etc.)
+# Language-specific hooks (shellcheck, hadolint, eslint, etc.)
 # are added per-repo by an LLM agent after sync.
+
+exclude: ^tests/fixtures/
 
 repos:
   # ── Standard hygiene ─────────────────────────────────────────
@@ -32,6 +34,39 @@ repos:
     hooks:
       - id: typos
 
+  # ── GitHub Actions linting ─────────────────────────────────
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.11
+    hooks:
+      - id: actionlint
+
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: v1.22.0
+    hooks:
+      - id: zizmor
+
+  # ── Markdown linting ───────────────────────────────────────
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.21.0
+    hooks:
+      - id: markdownlint-cli2
+
+  # ── Commit message linting ─────────────────────────────────
+  - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
+    rev: v9.24.0
+    hooks:
+      - id: commitlint
+        stages: [commit-msg]
+        additional_dependencies: ['@commitlint/config-conventional']
+
+  # ── Python linting + formatting ────────────────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
   # ── Cruft & secrets blocking ─────────────────────────────────
   - repo: local
     hooks:
@@ -40,6 +75,7 @@ repos:
         entry: "Found cruft file — delete or rename before committing"
         language: fail
         files: \.(bak|del|tmp|old|orig|swp|swo)$
+        exclude: ^tests/fixtures/
 
       - id: block-secret-files
         name: Block secret files
@@ -53,6 +89,27 @@ repos:
         entry: "bash -c 'for f in \"$@\"; do if ! grep -q \"^sops:\" \"$f\" 2>/dev/null; then echo \"ERROR: $f is not SOPS-encrypted\"; exit 1; fi; done' --"
         language: system
         files: \.secrets\.yaml$
+
+  # ── Shell hygiene ──────────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: pin-npm-versions
+        name: Require pinned npm/npx versions
+        entry: "bash -c 'FOUND=0; for f in \"$@\"; do if grep -nE \"npx [a-z]\" \"$f\" | grep -vE \"npx (--yes|--no|-)|@[0-9]|^[^:]*:#|^[^:]*:.*name:\"; then FOUND=1; fi; done; exit $FOUND' --"
+        language: system
+        types_or: [shell, yaml]
+
+      - id: temp-file-needs-trap
+        name: Shell temp files need trap cleanup
+        entry: "bash -c 'for f in \"$@\"; do if grep -q \"mktemp\" \"$f\" && ! grep -q \"trap\" \"$f\"; then echo \"ERROR: $f uses mktemp without trap EXIT cleanup\"; exit 1; fi; done' --"
+        language: system
+        types: [shell]
+
+      - id: forbid-bare-python
+        name: Use uv run, not bare python/python3
+        entry: "bash -c 'FOUND=0; for f in \"$@\"; do if grep -nE \"(^|[[:space:]])python3?[[:space:]]\" \"$f\" | grep -v \"uv run\"; then FOUND=1; fi; done; exit $FOUND' --"
+        language: system
+        types: [shell]
 
   # ── Justfile formatting ─────────────────────────────────────
   - repo: local

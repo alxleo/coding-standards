@@ -66,8 +66,15 @@ jobs:
       - name: Install just
         if: hashFiles('**/justfile', '**/Justfile') != '' && steps.cache-just.outputs.cache-hit != 'true'
         run: |
-          mkdir -p ~/.just/bin
-          curl --proto '=https' -fsSL https://just.systems/install.sh | bash -s -- --to ~/.just/bin --tag ${{ env.JUST_VERSION }}
+          set -euo pipefail
+          mkdir -p ~/.just/bin && cd /tmp
+          JUST_VERSION="${{ env.JUST_VERSION }}"
+          JUST_TARBALL="just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+          BASE_URL="https://github.com/casey/just/releases/download/${JUST_VERSION}"
+          curl -fsSLO "${BASE_URL}/${JUST_TARBALL}"
+          curl -fsSLO "${BASE_URL}/SHA256SUMS"
+          grep "  ${JUST_TARBALL}" SHA256SUMS | sha256sum -c -
+          tar -xzf "${JUST_TARBALL}" -C ~/.just/bin just
 
       - name: Add just to PATH
         if: hashFiles('**/justfile', '**/Justfile') != ''
@@ -85,12 +92,16 @@ jobs:
       - name: Install OpenTofu
         if: hashFiles('**/*.tf') != '' && steps.cache-tofu.outputs.cache-hit != 'true'
         run: |
-          mkdir -p ~/.tofu/bin
-          curl -fsSL https://get.opentofu.org/install-opentofu.sh | sh -s -- \
-            --install-method standalone \
-            --install-path ~/.tofu/bin \
-            --opentofu-version ${{ env.TOFU_VERSION }} \
-            --symlinks false
+          set -euo pipefail
+          mkdir -p ~/.tofu/bin && cd /tmp
+          TOFU_VERSION="${{ env.TOFU_VERSION }}"
+          TOFU_ZIP="tofu_${TOFU_VERSION}_linux_amd64.zip"
+          BASE_URL="https://github.com/opentofu/opentofu/releases/download/v${TOFU_VERSION}"
+          curl -fsSLO "${BASE_URL}/${TOFU_ZIP}"
+          curl -fsSLO "${BASE_URL}/tofu_${TOFU_VERSION}_SHA256SUMS"
+          grep "  ${TOFU_ZIP}" "tofu_${TOFU_VERSION}_SHA256SUMS" | sha256sum -c -
+          unzip -o "${TOFU_ZIP}" tofu -d ~/.tofu/bin
+          chmod +x ~/.tofu/bin/tofu
 
       - name: Add OpenTofu to PATH
         if: hashFiles('**/*.tf') != ''
@@ -108,15 +119,27 @@ jobs:
       - name: Install TFLint
         if: hashFiles('**/*.tf') != '' && steps.cache-tflint.outputs.cache-hit != 'true'
         run: |
-          mkdir -p ~/.tflint/bin
-          curl -fsSL https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
-        env:
-          TFLINT_INSTALL_PATH: ~/.tflint/bin
-          TFLINT_VERSION: v${{ env.TFLINT_VERSION }}
+          set -euo pipefail
+          mkdir -p ~/.tflint/bin && cd /tmp
+          TFLINT_VERSION="v${{ env.TFLINT_VERSION }}"
+          TFLINT_ZIP="tflint_linux_amd64.zip"
+          BASE_URL="https://github.com/terraform-linters/tflint/releases/download/${TFLINT_VERSION}"
+          curl -fsSLO "${BASE_URL}/${TFLINT_ZIP}"
+          curl -fsSLO "${BASE_URL}/checksums.txt"
+          grep "  ${TFLINT_ZIP}" checksums.txt | sha256sum -c -
+          unzip -o "${TFLINT_ZIP}" -d ~/.tflint/bin
+          chmod +x ~/.tflint/bin/tflint
 
       - name: Add TFLint to PATH
         if: hashFiles('**/*.tf') != ''
         run: echo "$HOME/.tflint/bin" >> "$GITHUB_PATH"
+
+      # ── Node.js — for commitlint, markdownlint-cli2 ──────────
+      - name: Setup Node.js
+        if: hashFiles('commitlint.config.*', '.markdownlint-cli2.*', 'configs/commitlint.config.*', 'configs/.markdownlint-cli2.*') != ''
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
 
       # ── Run pre-commit ────────────────────────────────────────
       - name: Run pre-commit
@@ -127,4 +150,4 @@ jobs:
       # ── Copy-paste detection (informational) ────────────────
       - name: Check for code duplication
         if: always()
-        run: npx jscpd --config .jscpd.json .github/ || true
+        run: npx jscpd@4 --config .jscpd.json .github/ || true
