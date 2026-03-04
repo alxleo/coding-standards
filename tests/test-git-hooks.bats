@@ -102,6 +102,19 @@ teardown() {
     refute_output --partial "trailing-whitespace"
 }
 
+@test "pre-commit: uses compact-run when available" {
+    cp "$REPO_ROOT/scripts/compact-run" scripts/compact-run
+    chmod +x scripts/compact-run
+    bash scripts/setup-hooks.sh >/dev/null 2>&1
+    printf "clean file\n" > clean.txt
+    git add clean.txt
+    run bash .git/hooks/pre-commit
+    assert_success
+    # compact-run output format, not fallback "pre-commit passed"
+    assert_output --regexp '✓ [0-9]+ lines'
+    refute_output --partial "pre-commit passed"
+}
+
 @test "pre-commit: loud on failure" {
     bash scripts/setup-hooks.sh >/dev/null 2>&1
     printf "trailing spaces   \n" > dirty.txt

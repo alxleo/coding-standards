@@ -136,7 +136,7 @@ jobs:
 
       # ── Node.js — for commitlint, markdownlint-cli2 ──────────
       - name: Setup Node.js
-        if: hashFiles('commitlint.config.*', '.markdownlint-cli2.*') != ''
+        if: hashFiles('commitlint.config.*', '.markdownlint-cli2.*', 'configs/commitlint.config.*', 'configs/.markdownlint-cli2.*') != ''
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'

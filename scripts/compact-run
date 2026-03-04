@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # compact-run — LLM-friendly command wrapper.
 # Runs any command, saves full output to /tmp/, prints a compact summary.
 #
