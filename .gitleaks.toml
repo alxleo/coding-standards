@@ -1,0 +1,9 @@
+# Repo-level gitleaks config — extends baseline.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Test fixtures with intentionally-bad secrets"
+paths = [
+    '''tests/fixtures/gitleaks\.bad\.txt''',
+]
