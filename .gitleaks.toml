@@ -1,4 +1,5 @@
-# Repo-level gitleaks config — extends baseline.
+# Repo-level gitleaks overrides (local to this repo, not synced).
+# Baseline rules come from configs/.gitleaks.toml via the sync workflow.
 [extend]
 useDefault = true
 

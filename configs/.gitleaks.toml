@@ -1,5 +1,5 @@
-# Gitleaks configuration — baseline for all repos.
-# Per-repo allowlists can be added after sync.
+# Gitleaks baseline — synced to all repos.
+# Each repo adds its own .gitleaks.toml at the root for allowlists.
 # https://github.com/gitleaks/gitleaks
 
 title = "coding-standards gitleaks baseline"

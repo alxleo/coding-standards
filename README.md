@@ -15,9 +15,6 @@ just setup
 
 # 3. Run all linters manually
 just lint
-
-# 4. Run the test suite
-just test
 ```
 
 After sync, customize per-repo:
@@ -43,7 +40,8 @@ coding-standards/
 │   ├── .jscpd.json               Copy-paste detection (informational)
 │   ├── .mega-linter.yml          MegaLinter baseline
 │   ├── .envrc.snippet            Direnv auto-install hooks
-│   └── commitlint.config.mjs     Conventional commit rules
+│   ├── commitlint.config.mjs     Conventional commit rules
+│   └── justfile                   Task runner (setup, doctor, lint, clean)
 │
 ├── templates/               ← Starting points, adapted per-repo by LLM
 │   ├── dependabot.yml            Dependabot multi-ecosystem config
@@ -78,9 +76,9 @@ coding-standards/
 
 | Synced to consumer repos | Local to this repo |
 |--------------------------|-------------------|
-| `configs/*` | `scripts/*` |
+| `configs/*` (incl. justfile) | `scripts/*` |
 | `templates/*` | `tests/*` |
-| `workflows/*` | `justfile` |
+| `workflows/*` | root `justfile` (imports configs/justfile + dev tasks) |
 | | `.github/workflows/*` |
 
 Sync is handled by a separate private repo ([github-standards](https://github.com/BetaHuhn/repo-file-sync-action)) that opens PRs in target repos. This repo has no knowledge of its consumers.
@@ -204,14 +202,21 @@ Run `just doctor` to check what's installed.
 
 ### Tasks
 
+Consumer tasks (in `configs/justfile`, synced to repos):
+
 ```bash
 just setup          # Install hooks
 just doctor         # Check prerequisites
+just lint           # Run pre-commit on all files
+just clean          # Remove cruft files
+```
+
+Dev tasks (in root `justfile`, local only):
+
+```bash
 just test           # Run all tests
 just test-hooks     # Run negative tests (each hook catches its fixture)
 just test-git-hooks # Run integration tests (hook wrappers in sandbox repos)
-just lint           # Run pre-commit on all files
-just clean          # Remove cruft files
 ```
 
 ### Adding a new config
