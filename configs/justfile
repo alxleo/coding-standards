@@ -1,10 +1,18 @@
 # Consumer justfile — synced to repos via github-standards.
 # Dev tasks (test, test-hooks, etc.) live in the root justfile.
 
+set unstable := true
+
 [doc('Install pre-commit + custom git hooks')]
 [group('setup')]
 setup:
-    bash scripts/setup-hooks.sh
+    #!/usr/bin/env bash
+    if [ -x "scripts/setup-hooks.sh" ]; then
+        bash scripts/setup-hooks.sh
+    else
+        echo "Installing pre-commit hooks..."
+        uvx pre-commit install
+    fi
 
 [doc('Check prerequisites for local development')]
 [group('setup')]

@@ -1,8 +1,6 @@
 # Dev justfile — extends consumer justfile with test tasks.
 # Consumer tasks (setup, doctor, lint, clean) live in configs/justfile.
 
-set unstable := true
-
 import 'configs/justfile'
 
 [doc('Run all tests (quiet on success)')]
