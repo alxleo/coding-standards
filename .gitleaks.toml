@@ -1,0 +1,10 @@
+# Repo-level gitleaks overrides (local to this repo, not synced).
+# Baseline rules come from configs/.gitleaks.toml via the sync workflow.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Test fixtures with intentionally-bad secrets"
+paths = [
+    '''tests/fixtures/gitleaks\.bad\.txt''',
+]
