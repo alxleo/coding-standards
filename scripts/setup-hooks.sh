@@ -9,6 +9,11 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 uvx pre-commit install >/dev/null
 uvx pre-commit install --hook-type commit-msg >/dev/null
 
+# Install compact-run (LLM-friendly output wrapper used by hook scripts)
+if [ -f "$REPO_ROOT/scripts/compact-run" ]; then
+    chmod +x "$REPO_ROOT/scripts/compact-run"
+fi
+
 # Install custom wrappers (quiet-on-success, cruft cleanup, push validation)
 for hook in pre-commit commit-msg post-commit pre-push; do
     src="$REPO_ROOT/scripts/git-${hook}.sh"

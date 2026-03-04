@@ -1,0 +1,42 @@
+#!/bin/bash
+# compact-run — LLM-friendly command wrapper.
+# Runs any command, saves full output to /tmp/, prints a compact summary.
+#
+# Success:  ✓ 12 lines (0.8s)
+# Failure:  ✗ exit 1 — 247 lines (2.3s)
+#           [first N lines of output]
+#           ... 232 more lines → /tmp/compact-run-a3f2.log
+#
+# Env vars:
+#   COMPACT_LINES=15      Error lines shown inline (default: 15)
+#   COMPACT_THRESHOLD=30  Below this, show full output on failure (default: 30)
+set -uo pipefail
+
+max_lines="${COMPACT_LINES:-15}"
+threshold="${COMPACT_THRESHOLD:-30}"
+
+# Generate stable-ish temp file name from command + timestamp
+hash=$(echo "$$-$*" | cksum | cut -d' ' -f1)
+logfile="/tmp/compact-run-${hash}.log"
+
+start=$(date +%s)
+"$@" > "$logfile" 2>&1
+rc=$?
+elapsed=$(( $(date +%s) - start ))
+
+lines=$(wc -l < "$logfile" | tr -d ' ')
+
+if [ $rc -eq 0 ]; then
+    echo "✓ ${lines} lines (${elapsed}s)"
+else
+    echo "✗ exit ${rc} — ${lines} lines (${elapsed}s)"
+    if [ "$lines" -le "$threshold" ]; then
+        cat "$logfile"
+    else
+        head -n "$max_lines" "$logfile"
+        remaining=$(( lines - max_lines ))
+        echo "... ${remaining} more lines → ${logfile}"
+    fi
+fi
+
+exit $rc
