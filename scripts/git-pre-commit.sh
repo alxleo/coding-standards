@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 # Pre-commit hook: compact output via compact-run.
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-COMPACT="$SCRIPT_DIR/../scripts/compact-run"
-[ -x "$COMPACT" ] || COMPACT="$(git rev-parse --show-toplevel)/scripts/compact-run"
+COMPACT="$(git rev-parse --show-toplevel)/scripts/compact-run"
 
 if [ -x "$COMPACT" ]; then
     "$COMPACT" uvx pre-commit run --hook-stage pre-commit

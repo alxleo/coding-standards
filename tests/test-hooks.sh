@@ -17,7 +17,7 @@ CONFIG="$WORKDIR/.pre-commit-config.yaml"
 # Strip the top-level exclude (so hooks can see test files) and any
 # hook-level exclude on tests/fixtures/ (so forbid-cruft-files catches them).
 grep -v '^exclude:' "$REPO_ROOT/configs/.pre-commit-config.yaml" \
-    | grep -v '^\s*exclude: \^tests/fixtures/' > "$CONFIG"
+    | grep -v '^[[:space:]]*exclude: \^tests/fixtures/' > "$CONFIG"
 
 PASSED=0
 FAILED=0
@@ -76,7 +76,12 @@ assert_hook_fixes() {
 
 assert_tool_catches() {
     local name="$1"; shift
+    local tool="${1%%[[:space:]]*}"  # extract binary name
     printf "  %-45s " "$name"
+    if ! command -v "$tool" >/dev/null 2>&1; then
+        echo "SKIP ($tool not installed)"
+        return
+    fi
     if "$@" >/dev/null 2>&1; then
         echo "FAIL (tool passed — should have caught violation)"
         FAILED=$((FAILED + 1))

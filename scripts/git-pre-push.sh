@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Pre-push: block direct push to main, run full validation with compact output.
 remote="$1"
-COMPACT="$(cd "$(dirname "$0")/.." && pwd)/scripts/compact-run"
-[ -x "$COMPACT" ] || COMPACT="$(git rev-parse --show-toplevel)/scripts/compact-run"
+COMPACT="$(git rev-parse --show-toplevel)/scripts/compact-run"
 
 while read -r _local_ref local_sha remote_ref _remote_sha; do
     # Skip delete pushes

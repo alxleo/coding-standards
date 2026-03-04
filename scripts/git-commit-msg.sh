@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # Commit-msg hook: compact output via compact-run.
-COMPACT="$(cd "$(dirname "$0")/.." && pwd)/scripts/compact-run"
-[ -x "$COMPACT" ] || COMPACT="$(git rev-parse --show-toplevel)/scripts/compact-run"
+COMPACT="$(git rev-parse --show-toplevel)/scripts/compact-run"
 
 if [ -x "$COMPACT" ]; then
     "$COMPACT" uvx pre-commit run --hook-stage commit-msg --commit-msg-filename "$1"

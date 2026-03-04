@@ -12,6 +12,11 @@
 #   COMPACT_THRESHOLD=30  Below this, show full output on failure (default: 30)
 set -uo pipefail
 
+if [ $# -eq 0 ]; then
+    echo "Usage: compact-run <command> [args...]" >&2
+    exit 1
+fi
+
 max_lines="${COMPACT_LINES:-15}"
 threshold="${COMPACT_THRESHOLD:-30}"
 
@@ -33,9 +38,11 @@ else
     if [ "$lines" -le "$threshold" ]; then
         cat "$logfile"
     else
+        # Clamp max_lines so remaining never goes negative
+        [ "$max_lines" -gt "$lines" ] && max_lines="$lines"
         head -n "$max_lines" "$logfile"
         remaining=$(( lines - max_lines ))
-        echo "... ${remaining} more lines → ${logfile}"
+        [ "$remaining" -gt 0 ] && echo "... ${remaining} more lines → ${logfile}"
     fi
 fi
 
