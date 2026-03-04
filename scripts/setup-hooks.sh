@@ -28,4 +28,14 @@ for hook in pre-commit commit-msg post-commit pre-push; do
     [ -f "$src" ] && cp "$src" "$HOOKS_DIR/$hook" && chmod +x "$HOOKS_DIR/$hook"
 done
 
-echo "hooks: pre-commit + commit-msg + post-commit + pre-push installed"
+cat <<'EOF'
+hooks: pre-commit + commit-msg + post-commit + pre-push installed
+
+  pre-commit   Lint staged files (quiet on success)
+  commit-msg   Validate conventional commit format
+  post-commit  Auto-clean cruft files (.bak, .tmp, etc.)
+  pre-push     Block direct push to main + full validation
+
+  Config: configs/.pre-commit-config.yaml
+  Logs:   /tmp/compact-run-*.log (on failure)
+EOF

@@ -78,6 +78,17 @@ teardown() {
     assert_success
 }
 
+@test "setup-hooks: prints orientation with hook descriptions" {
+    run bash scripts/setup-hooks.sh
+    assert_success
+    assert_output --partial "pre-commit"
+    assert_output --partial "commit-msg"
+    assert_output --partial "post-commit"
+    assert_output --partial "pre-push"
+    assert_output --partial "Lint staged files"
+    assert_output --partial "compact-run"
+}
+
 # ── git-pre-commit.sh ───────────────────────────────────────
 
 @test "pre-commit: quiet on success" {
