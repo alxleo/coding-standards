@@ -25,11 +25,11 @@ setup() {
 
 @test "check-manifest: fails when manifest entry has no file on disk" {
     cp "$REPO_ROOT/sync-manifest.yml" "$REPO_ROOT/sync-manifest.yml.bak"
-    # Add a fake entry under configs
-    sed -i '' 's/  justfile:.*/  justfile:                { sync: all }\n  ghost-file.txt:          { sync: all }/' "$REPO_ROOT/sync-manifest.yml"
+    # Append a fake entry under configs (portable — no sed -i differences)
+    printf '  ghost-file.txt:          { sync: all }\n' >> "$REPO_ROOT/sync-manifest.yml"
     run uv run --with pyyaml "$REPO_ROOT/scripts/check-manifest-coverage.py"
     mv "$REPO_ROOT/sync-manifest.yml.bak" "$REPO_ROOT/sync-manifest.yml"
     assert_failure
     assert_output --partial "NOT on disk"
-    assert_output --partial "configs/ghost-file.txt"
+    assert_output --partial "scripts/ghost-file.txt"
 }
