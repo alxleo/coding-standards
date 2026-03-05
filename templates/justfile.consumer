@@ -1,0 +1,75 @@
+# Consumer justfile — fetches coding-standards at runtime, no file sync needed.
+# Docs: https://github.com/alxleo/coding-standards
+
+set unstable := true
+
+# ── Config (override these to pin versions or use a fork) ──
+standards := ".coding-standards"
+standards_version := "main"
+standards_repo := "https://github.com/alxleo/coding-standards.git"
+
+# Show available commands
+default:
+    @just --list
+
+[doc('Fetch or update coding-standards')]
+[group('setup')]
+fetch:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -d "{{standards}}/.git" ]; then
+        git -C "{{standards}}" fetch --depth 1 origin "{{standards_version}}" --quiet
+        git -C "{{standards}}" checkout FETCH_HEAD --quiet
+    else
+        git clone --depth 1 --branch "{{standards_version}}" "{{standards_repo}}" "{{standards}}"
+    fi
+
+[doc('Install pre-commit + git hooks')]
+[group('setup')]
+setup: fetch
+    uvx pre-commit install --config {{standards}}/configs/.pre-commit-config.remote.yaml
+    echo "Hooks installed. They'll use configs from {{standards}}/."
+
+[doc('Check prerequisites for local development')]
+[group('setup')]
+doctor:
+    #!/usr/bin/env bash
+    ok=0; missing=0
+    check() {
+        local name="$1" cmd="$2"
+        if command -v "$cmd" >/dev/null 2>&1; then
+            ver=$("$cmd" --version 2>&1 | head -1 | grep -oE '[0-9]+\.[0-9]+[.0-9]*' | head -1)
+            printf "  ✓ %-14s %s\n" "$name" "${ver:-installed}"
+            ok=$((ok + 1))
+        else
+            printf "  ✗ %-14s missing\n" "$name"
+            missing=$((missing + 1))
+        fi
+    }
+    echo "Prerequisites:"
+    check git git
+    check uv uv
+    check just just
+    echo ""
+    echo "Pre-commit (via uvx):"
+    if uvx pre-commit --version >/dev/null 2>&1; then
+        ver=$(uvx pre-commit --version 2>&1 | grep -oE '[0-9]+\.[0-9]+[.0-9]*' | head -1)
+        printf "  ✓ %-14s %s\n" "pre-commit" "$ver"
+        ok=$((ok + 1))
+    else
+        printf "  ✗ %-14s uvx pre-commit not working\n" "pre-commit"
+        missing=$((missing + 1))
+    fi
+    echo ""
+    echo "$ok available, $missing missing"
+    [ "$missing" -eq 0 ] || exit 1
+
+[doc('Run all linters')]
+[group('lint')]
+lint: fetch
+    uvx pre-commit run --all-files --config {{standards}}/configs/.pre-commit-config.remote.yaml
+
+[doc('Remove cruft files')]
+[group('maintenance')]
+clean:
+    find . -not -path "./.git/*" -not -path "./.coding-standards/*" \( -name "*.del" -o -name "*.bak" -o -name "*.old" -o -name "*.tmp" -o -name "*.orig" \) -delete -print

@@ -16,6 +16,7 @@ configs:
   .jscpd.json:             { sync: all }
   .markdownlint-cli2.yaml: { sync: all }
   .mega-linter.yml:        { sync: all }
+  .pre-commit-config.remote.yaml: { sync: none }
   .pre-commit-config.yaml: { sync: all }
   .prettierrc:             { sync: all }
   .shellcheckrc:           { sync: all }
@@ -27,6 +28,7 @@ templates:
   dependabot.yml:              { sync: all, dest: .github/dependabot.yml }
   eslint.config.baseline.mjs:  { sync: opt-in }
   pull_request_template.md:    { sync: all, dest: .github/pull_request_template.md }
+  justfile.consumer:           { sync: none }
   pyproject.toml.baseline:     { sync: opt-in }
 
 workflows:
