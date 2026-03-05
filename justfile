@@ -8,6 +8,16 @@ import 'configs/justfile'
 check-manifest:
     uv run --with pyyaml scripts/check-manifest-coverage.py
 
+[doc('Verify remote pre-commit config is up to date')]
+[group('lint')]
+check-remote-config:
+    uv run scripts/generate-remote-config.py --check
+
+[doc('Regenerate remote pre-commit config from baseline')]
+[group('lint')]
+generate-remote-config:
+    uv run scripts/generate-remote-config.py
+
 [doc('Run all tests (quiet on success)')]
 [group('test')]
 test: test-hooks test-git-hooks

@@ -3,10 +3,11 @@
 
 set unstable := true
 
-# ── Config (override these to pin versions or use a fork) ──
+# ── Config ──
+# Pin to a release tag for stability. Run `just fetch` to update.
 
 standards := ".coding-standards"
-standards_version := "main"
+standards_version := "v1"
 standards_repo := "https://github.com/alxleo/coding-standards.git"
 
 # Show available commands
@@ -65,9 +66,18 @@ doctor:
     echo "$ok available, $missing missing"
     [ "$missing" -eq 0 ] || exit 1
 
+# Require .coding-standards to exist (run `just fetch` first)
+[private]
+require-standards:
+    #!/usr/bin/env bash
+    if [ ! -d "{{ standards }}/configs" ]; then
+        echo "ERROR: {{ standards }}/ not found. Run 'just fetch' first." >&2
+        exit 1
+    fi
+
 [doc('Run all linters')]
 [group('lint')]
-lint: fetch
+lint: require-standards
     uvx pre-commit run --all-files --config {{ standards }}/configs/.pre-commit-config.remote.yaml
 
 [doc('Remove cruft files')]

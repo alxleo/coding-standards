@@ -1,8 +1,10 @@
-# Remote pre-commit config — for consumer repos that fetch coding-standards.
+# AUTO-GENERATED from .pre-commit-config.yaml — do not edit manually.
+# Regenerate: uv run scripts/generate-remote-config.py
+#
+# For consumer repos that fetch coding-standards at runtime.
 # Identical to .pre-commit-config.yaml except tools that need config files
 # get explicit --config args pointing to .coding-standards/configs/.
-#
-# Usage: uvx pre-commit run --all-files --config .coding-standards/configs/.pre-commit-config.remote.yaml
+
 
 repos:
   # ── Standard hygiene ─────────────────────────────────────────
@@ -58,9 +60,9 @@ repos:
     rev: v9.24.0
     hooks:
       - id: commitlint
+        args: [--config, .coding-standards/configs/commitlint.config.mjs]
         stages: [commit-msg]
         additional_dependencies: ['@commitlint/config-conventional']
-        args: [--config, .coding-standards/configs/commitlint.config.mjs]
 
   # ── Python linting + formatting ────────────────────────────
   - repo: https://github.com/astral-sh/ruff-pre-commit
@@ -78,6 +80,7 @@ repos:
         entry: "Found cruft file — delete or rename before committing"
         language: fail
         files: \.(bak|del|tmp|old|orig|swp|swo)$
+        exclude: ^tests/fixtures/
 
       - id: block-secret-files
         name: Block secret files

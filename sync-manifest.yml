@@ -37,6 +37,7 @@ workflows:
 
 scripts:
   check-manifest-coverage.py: { sync: none }
+  generate-remote-config.py: { sync: none }
   compact-run:                { sync: all }
   git-commit-msg.sh:          { sync: all }
   git-post-commit.sh:         { sync: all }
