@@ -120,13 +120,3 @@ repos:
         language: system
         files: (^|/)justfile$
         pass_filenames: false
-
-  # ── Sync manifest coverage ────────────────────────────────
-  - repo: local
-    hooks:
-      - id: check-manifest-coverage
-        name: Verify sync-manifest coverage
-        entry: uv run --with pyyaml scripts/check-manifest-coverage.py
-        language: system
-        files: ^(configs/|templates/|workflows/|scripts/|sync-manifest\.yml)
-        pass_filenames: false

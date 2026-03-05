@@ -29,7 +29,7 @@ test-hooks:
 [group('test')]
 test-git-hooks:
     #!/usr/bin/env bash
-    output=$(bats tests/test-doctor.bats tests/test-compact-run.bats tests/test-git-hooks.bats --print-output-on-failure 2>&1)
+    output=$(bats tests/test-doctor.bats tests/test-compact-run.bats tests/test-git-hooks.bats tests/test-manifest.bats --print-output-on-failure 2>&1)
     status=$?
     if [ $status -ne 0 ]; then
         echo "$output"

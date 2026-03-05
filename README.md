@@ -219,6 +219,7 @@ Dev tasks (in root `justfile`, local only):
 just test           # Run all tests
 just test-hooks     # Run negative tests (each hook catches its fixture)
 just test-git-hooks # Run integration tests (hook wrappers in sandbox repos)
+just check-manifest # Verify sync-manifest.yml covers all managed files
 ```
 
 ### Adding a new config
