@@ -8,7 +8,9 @@ ok=0; missing=0
 check() {
     local name="$1" cmd="$2"
     if command -v "$cmd" >/dev/null 2>&1; then
-        ver=$("$cmd" --version 2>&1 | head -1 | grep -oE '[0-9]+\.[0-9]+[.0-9]*' | head -1)
+        local raw ver
+        raw=$("$cmd" --version 2>&1) || true
+        ver=$(echo "$raw" | head -1 | grep -oE '[0-9]+\.[0-9]+[.0-9]*' | head -1) || true
         printf "  ✓ %-14s %s\n" "$name" "${ver:-installed}"
         ok=$((ok + 1))
     else
