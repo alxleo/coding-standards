@@ -13,11 +13,10 @@ Two consumption modes:
 
 ## Key files
 
-- `configs/.pre-commit-config.yaml` — **source of truth** for all pre-commit hooks
-- `configs/.pre-commit-config.remote.yaml` — **generated** (don't edit). Consumer version with `--config` args. Regenerate: `just generate-remote-config`
-- `templates/justfile.consumer` — consumer onboarding template
+- `configs/.pre-commit-config.yaml` — **source of truth** for all pre-commit hooks (single config, used by both this repo and consumers)
+- `templates/justfile.consumer` — consumer onboarding template (fetch + symlinks + lint)
+- `scripts/compact-run` — LLM-friendly command wrapper, exported to consumers
 - `sync-manifest.yml` — declares every managed file with sync metadata
-- `scripts/generate-remote-config.py` — generates remote config from baseline
 - `scripts/check-manifest-coverage.py` — bidirectional manifest coverage check
 
 ## Configs vs Templates
@@ -35,17 +34,29 @@ Root symlinks (`.pre-commit-config.yaml` → `configs/.pre-commit-config.yaml`) 
 
 `sync-manifest.yml` declares every managed file and its sync behavior (`all`, `opt-in`, `none`). The `check-manifest-coverage` script (run via `just check-manifest` and CI) enforces bidirectional coverage — every file on disk must have a manifest entry and vice versa.
 
-## Generated files — do not edit directly
+## How consumer config discovery works
 
-| Generated file | Source | Regenerate |
-|---------------|--------|------------|
-| `configs/.pre-commit-config.remote.yaml` | `configs/.pre-commit-config.yaml` | `just generate-remote-config` |
+Consumer repos use the same `.pre-commit-config.yaml` as this repo. Tools that auto-discover config from the repo root (gitleaks, markdownlint-cli2, commitlint) find their configs via symlinks. Symlinks are declared in `sync-manifest.yml` with `symlink: true` and created by `scripts/apply-symlinks.sh` (called by `just fetch`):
 
-CI runs drift checks for both the manifest and the remote config. If you edit the baseline pre-commit config, regenerate the remote version.
+```
+.gitleaks.toml -> .coding-standards/configs/.gitleaks.toml
+.markdownlint-cli2.yaml -> .coding-standards/configs/.markdownlint-cli2.yaml
+commitlint.config.mjs -> .coding-standards/configs/commitlint.config.mjs
+scripts/hooks -> .coding-standards/scripts/hooks
+```
 
 ## Adding a new config
 
 1. Add the file to `configs/` or `templates/`
 2. Add an entry to `sync-manifest.yml` with the appropriate sync level
-3. If the new config is used by a pre-commit hook, add a `--config` entry to `CONFIG_OVERRIDES` in `scripts/generate-remote-config.py` and regenerate
-4. Run `just check-manifest` and `just check-remote-config` to verify
+3. If the new config needs root-level discovery, add `symlink: true` to its manifest entry
+4. Run `just check-manifest` to verify
+
+## Adding a custom local hook
+
+1. Create `scripts/hooks/{name}` — executable, with comments explaining the rule
+2. Add the hook entry to `configs/.pre-commit-config.yaml` with `entry: scripts/hooks/{name}`, `language: system`
+3. Add the script to `sync-manifest.yml` under `scripts:`
+4. Add a test fixture + assertion to `tests/test-hooks.sh`
+
+The `hooks/` directory symlink (created by `apply-symlinks.sh`) makes `scripts/hooks/{name}` resolve in both this repo and consumer repos.

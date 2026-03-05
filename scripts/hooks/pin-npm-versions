@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Require pinned versions for npx commands.
+# Unpinned npx silently picks latest — breaks reproducibility.
+# Allowed: npx --yes, npx --no, npx -*, @version, comments, YAML name: lines.
+set -uo pipefail
+
+FOUND=0
+for f in "$@"; do
+    if grep -nE "npx [a-z]" "$f" | grep -vE "npx (--yes|--no|-)|@[0-9]|^[^:]*:#|^[^:]*:.*name:"; then
+        FOUND=1
+    fi
+done
+exit "$FOUND"
