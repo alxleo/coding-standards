@@ -17,25 +17,17 @@ mkdir -p "$HOOKS_DIR"
 uvx pre-commit install >/dev/null
 uvx pre-commit install --hook-type commit-msg >/dev/null
 
-# Install compact-run (LLM-friendly output wrapper used by hook scripts)
-if [ -f "$REPO_ROOT/scripts/compact-run" ]; then
-    chmod +x "$REPO_ROOT/scripts/compact-run"
-fi
-
-# Install custom wrappers (quiet-on-success, cruft cleanup, push validation)
-for hook in pre-commit commit-msg post-commit pre-push; do
+# Install custom wrappers (only for hooks pre-commit doesn't handle)
+for hook in post-commit pre-push; do
     src="$REPO_ROOT/scripts/git-${hook}.sh"
     [ -f "$src" ] && cp "$src" "$HOOKS_DIR/$hook" && chmod +x "$HOOKS_DIR/$hook"
 done
 
 cat <<'EOF'
-hooks: pre-commit + commit-msg + post-commit + pre-push installed
+hooks installed:
 
-  pre-commit   Lint staged files (quiet on success)
-  commit-msg   Validate conventional commit format
+  pre-commit   Lint staged files (via pre-commit)
+  commit-msg   Validate conventional commit format (via pre-commit)
   post-commit  Auto-clean cruft files (.bak, .tmp, etc.)
   pre-push     Block direct push to main + full validation
-
-  Config: configs/.pre-commit-config.yaml
-  Logs:   /tmp/compact-run-*.log (on failure)
 EOF

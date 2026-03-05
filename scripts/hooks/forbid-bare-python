@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Forbid bare python/python3 invocations — use uv run instead.
+# Unmanaged interpreters ignore project constraints.
+# No set -e: grep exit codes are used as signals.
+set -uo pipefail
+
+FOUND=0
+for f in "$@"; do
+    if grep -nE "(^|[[:space:]])python3?[[:space:]]" "$f" | grep -v "uv run"; then
+        FOUND=1
+    fi
+done
+exit "$FOUND"

@@ -95,19 +95,19 @@ repos:
     hooks:
       - id: pin-npm-versions
         name: Require pinned npm/npx versions
-        entry: "bash -c 'FOUND=0; for f in \"$@\"; do if grep -nE \"npx [a-z]\" \"$f\" | grep -vE \"npx (--yes|--no|-)|@[0-9]|^[^:]*:#|^[^:]*:.*name:\"; then FOUND=1; fi; done; exit $FOUND' --"
+        entry: scripts/hooks/pin-npm-versions
         language: system
         types_or: [shell, yaml]
 
       - id: temp-file-needs-trap
         name: Shell temp files need trap cleanup
-        entry: "bash -c 'for f in \"$@\"; do if grep -q \"mktemp\" \"$f\" && ! grep -q \"trap\" \"$f\"; then echo \"ERROR: $f uses mktemp without trap EXIT cleanup\"; exit 1; fi; done' --"
+        entry: scripts/hooks/temp-file-needs-trap
         language: system
         types: [shell]
 
       - id: forbid-bare-python
         name: Use uv run, not bare python/python3
-        entry: "bash -c 'FOUND=0; for f in \"$@\"; do if grep -nE \"(^|[[:space:]])python3?[[:space:]]\" \"$f\" | grep -v \"uv run\"; then FOUND=1; fi; done; exit $FOUND' --"
+        entry: scripts/hooks/forbid-bare-python
         language: system
         types: [shell]
 
