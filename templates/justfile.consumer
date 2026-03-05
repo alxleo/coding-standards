@@ -4,6 +4,7 @@
 set unstable := true
 
 # ── Config (override these to pin versions or use a fork) ──
+
 standards := ".coding-standards"
 standards_version := "main"
 standards_repo := "https://github.com/alxleo/coding-standards.git"
@@ -17,18 +18,18 @@ default:
 fetch:
     #!/usr/bin/env bash
     set -euo pipefail
-    if [ -d "{{standards}}/.git" ]; then
-        git -C "{{standards}}" fetch --depth 1 origin "{{standards_version}}" --quiet
-        git -C "{{standards}}" checkout FETCH_HEAD --quiet
+    if [ -d "{{ standards }}/.git" ]; then
+        git -C "{{ standards }}" fetch --depth 1 origin "{{ standards_version }}" --quiet
+        git -C "{{ standards }}" checkout FETCH_HEAD --quiet
     else
-        git clone --depth 1 --branch "{{standards_version}}" "{{standards_repo}}" "{{standards}}"
+        git clone --depth 1 --branch "{{ standards_version }}" "{{ standards_repo }}" "{{ standards }}"
     fi
 
 [doc('Install pre-commit + git hooks')]
 [group('setup')]
 setup: fetch
-    uvx pre-commit install --config {{standards}}/configs/.pre-commit-config.remote.yaml
-    echo "Hooks installed. They'll use configs from {{standards}}/."
+    uvx pre-commit install --config {{ standards }}/configs/.pre-commit-config.remote.yaml
+    echo "Hooks installed. They'll use configs from {{ standards }}/."
 
 [doc('Check prerequisites for local development')]
 [group('setup')]
@@ -67,7 +68,7 @@ doctor:
 [doc('Run all linters')]
 [group('lint')]
 lint: fetch
-    uvx pre-commit run --all-files --config {{standards}}/configs/.pre-commit-config.remote.yaml
+    uvx pre-commit run --all-files --config {{ standards }}/configs/.pre-commit-config.remote.yaml
 
 [doc('Remove cruft files')]
 [group('maintenance')]
