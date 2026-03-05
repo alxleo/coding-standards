@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Shell scripts that create temp files must clean up with trap EXIT.
 # mktemp without trap → leaked temp files on error paths.
+# No set -e: grep exit codes are used as signals.
 set -uo pipefail
 
 for f in "$@"; do

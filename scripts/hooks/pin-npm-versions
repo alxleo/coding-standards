@@ -2,6 +2,7 @@
 # Require pinned versions for npx commands.
 # Unpinned npx silently picks latest — breaks reproducibility.
 # Allowed: npx --yes, npx --no, npx -*, @version, comments, YAML name: lines.
+# No set -e: grep exit codes are used as signals.
 set -uo pipefail
 
 FOUND=0

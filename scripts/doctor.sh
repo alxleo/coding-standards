@@ -21,6 +21,7 @@ echo "Prerequisites:"
 check git git
 check uv uv
 check just just
+check yq yq
 
 # Check any extra tools passed as arguments (e.g., doctor.sh bats docker)
 for cmd in "$@"; do
