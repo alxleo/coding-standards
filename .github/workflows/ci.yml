@@ -50,6 +50,7 @@ jobs:
           node-version: '22'
 
       - run: just lint
+      - run: just check-manifest
 
   test:
     name: Test

@@ -67,6 +67,8 @@ coding-standards/
 │   ├── test-compact-run.bats     Unit tests for compact-run
 │   └── fixtures/                 Intentionally-bad files for negative tests
 │
+├── sync-manifest.yml        ← Declares every file and its sync behavior
+│
 └── .github/workflows/       ← CI for THIS repo (not synced)
     ├── lint.yml                  Reusable lint workflow (called by consumers)
     └── ci.yml                    Self-test CI
@@ -217,20 +219,23 @@ Dev tasks (in root `justfile`, local only):
 just test           # Run all tests
 just test-hooks     # Run negative tests (each hook catches its fixture)
 just test-git-hooks # Run integration tests (hook wrappers in sandbox repos)
+just check-manifest # Verify sync-manifest.yml covers all managed files
 ```
 
 ### Adding a new config
 
 1. Add the file to `configs/`
-2. Update the sync config in github-standards (`.github/sync.yml`)
-3. Add a row to the Configs Reference table in this README
-4. If the config needs a negative test fixture, add one to `tests/fixtures/` and a test case to `tests/test-hooks.sh`
+2. Add an entry to `sync-manifest.yml` (`sync: all` or `sync: opt-in`)
+3. Update the sync config in github-standards (`.github/sync.yml`)
+4. Add a row to the Configs Reference table in this README
+5. If the config needs a negative test fixture, add one to `tests/fixtures/` and a test case to `tests/test-hooks.sh`
 
 ### Adding a new template
 
 1. Add the file to `templates/` with a `.baseline` suffix if it will be renamed per-repo
-2. Add a row to the Templates Reference table
-3. Document what an LLM agent should adapt
+2. Add an entry to `sync-manifest.yml`
+3. Add a row to the Templates Reference table
+4. Document what an LLM agent should adapt
 
 ### Test strategy
 
