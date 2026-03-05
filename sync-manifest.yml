@@ -15,7 +15,7 @@ configs:
   .hadolint.yaml:          { sync: all }
   .jscpd.json:             { sync: all }
   .markdownlint-cli2.yaml: { sync: all }
-  .mega-linter.yml:        { sync: opt-in }
+  .mega-linter.yml:        { sync: all }
   .pre-commit-config.yaml: { sync: all }
   .prettierrc:             { sync: all }
   .shellcheckrc:           { sync: all }
@@ -35,9 +35,9 @@ workflows:
 
 scripts:
   check-manifest-coverage.py: { sync: none }
-  compact-run:                { sync: none }
-  git-commit-msg.sh:          { sync: none }
-  git-post-commit.sh:         { sync: none }
-  git-pre-commit.sh:          { sync: none }
-  git-pre-push.sh:            { sync: none }
-  setup-hooks.sh:             { sync: none }
+  compact-run:                { sync: all }
+  git-commit-msg.sh:          { sync: all }
+  git-post-commit.sh:         { sync: all }
+  git-pre-commit.sh:          { sync: all }
+  git-pre-push.sh:            { sync: all }
+  setup-hooks.sh:             { sync: all }
