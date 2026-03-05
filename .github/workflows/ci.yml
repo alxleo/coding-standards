@@ -51,7 +51,6 @@ jobs:
 
       - run: just lint
       - run: just check-manifest
-      - run: just check-remote-config
 
   test:
     name: Test

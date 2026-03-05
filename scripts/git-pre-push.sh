@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Pre-push: block direct push to main, run full validation with compact output.
+# Pre-push: block direct push to main, run full validation.
 remote="$1"
-COMPACT="$(git rev-parse --show-toplevel)/scripts/compact-run"
 
 while read -r _local_ref local_sha remote_ref _remote_sha; do
     # Skip delete pushes
@@ -16,11 +15,7 @@ while read -r _local_ref local_sha remote_ref _remote_sha; do
 done
 
 echo "Running pre-push validation..."
-if [ -x "$COMPACT" ]; then
-    "$COMPACT" uvx pre-commit run --all-files
-else
-    uvx pre-commit run --all-files
-fi || {
+uvx pre-commit run --all-files || {
     echo "ERROR: Pre-commit checks failed. Fix issues before pushing."
     exit 1
 }

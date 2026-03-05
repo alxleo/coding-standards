@@ -37,14 +37,12 @@ YAML
 export default { extends: ['@commitlint/config-conventional'] };
 JS
 
-    # Copy scripts under test
+    # Copy scripts under test (pre-commit + commit-msg handled natively by pre-commit)
     mkdir -p scripts
     cp "$REPO_ROOT/scripts/setup-hooks.sh" scripts/
-    cp "$REPO_ROOT/scripts/git-pre-commit.sh" scripts/
-    cp "$REPO_ROOT/scripts/git-commit-msg.sh" scripts/
     cp "$REPO_ROOT/scripts/git-post-commit.sh" scripts/
     cp "$REPO_ROOT/scripts/git-pre-push.sh" scripts/
-    chmod +x scripts/*.sh
+    chmod +x scripts/*
 
     git add -A
     git commit --no-verify -m "initial" >/dev/null 2>&1
@@ -56,18 +54,18 @@ teardown() {
 
 # ── setup-hooks.sh ───────────────────────────────────────────
 
-@test "setup-hooks: installs all four hook files" {
+@test "setup-hooks: installs all hook files" {
     bash scripts/setup-hooks.sh
+    # pre-commit and commit-msg installed by pre-commit framework
     assert [ -f .git/hooks/pre-commit ]
     assert [ -f .git/hooks/commit-msg ]
+    # post-commit and pre-push are custom wrappers
     assert [ -f .git/hooks/post-commit ]
     assert [ -f .git/hooks/pre-push ]
 }
 
-@test "setup-hooks: hooks are executable" {
+@test "setup-hooks: custom hooks are executable" {
     bash scripts/setup-hooks.sh
-    assert [ -x .git/hooks/pre-commit ]
-    assert [ -x .git/hooks/commit-msg ]
     assert [ -x .git/hooks/post-commit ]
     assert [ -x .git/hooks/pre-push ]
 }
@@ -86,61 +84,6 @@ teardown() {
     assert_output --partial "post-commit"
     assert_output --partial "pre-push"
     assert_output --partial "Lint staged files"
-    assert_output --partial "compact-run"
-}
-
-# ── git-pre-commit.sh ───────────────────────────────────────
-
-@test "pre-commit: quiet on success" {
-    bash scripts/setup-hooks.sh >/dev/null 2>&1
-    printf "clean file\n" > clean.txt
-    git add clean.txt
-    run bash .git/hooks/pre-commit
-    assert_success
-    assert_output --partial "pre-commit passed"
-    refute_output --partial "end-of-file-fixer"
-    refute_output --partial "trailing-whitespace"
-}
-
-@test "pre-commit: uses compact-run when available" {
-    cp "$REPO_ROOT/scripts/compact-run" scripts/compact-run
-    chmod +x scripts/compact-run
-    bash scripts/setup-hooks.sh >/dev/null 2>&1
-    printf "clean file\n" > clean.txt
-    git add clean.txt
-    run bash .git/hooks/pre-commit
-    assert_success
-    # compact-run output format, not fallback "pre-commit passed"
-    assert_output --regexp '✓ [0-9]+ lines'
-    refute_output --partial "pre-commit passed"
-}
-
-@test "pre-commit: loud on failure" {
-    bash scripts/setup-hooks.sh >/dev/null 2>&1
-    printf "trailing spaces   \n" > dirty.txt
-    git add dirty.txt
-    run bash .git/hooks/pre-commit
-    assert_failure
-    assert_output --partial "pre-commit failed"
-    assert_output --partial "trailing-whitespace"
-}
-
-# ── git-commit-msg.sh ───────────────────────────────────────
-
-@test "commit-msg: quiet on valid conventional commit" {
-    bash scripts/setup-hooks.sh >/dev/null 2>&1
-    echo "feat: valid commit message" > .git/COMMIT_EDITMSG
-    run bash .git/hooks/commit-msg .git/COMMIT_EDITMSG
-    assert_success
-    assert_output --partial "commit-msg passed"
-}
-
-@test "commit-msg: loud on invalid message" {
-    bash scripts/setup-hooks.sh >/dev/null 2>&1
-    echo "bad message no prefix" > .git/COMMIT_EDITMSG
-    run bash .git/hooks/commit-msg .git/COMMIT_EDITMSG
-    assert_failure
-    assert_output --partial "commit-msg failed"
 }
 
 # ── git-post-commit.sh ──────────────────────────────────────

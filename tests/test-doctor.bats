@@ -30,3 +30,16 @@ setup() {
     assert_output --partial "bats"
     assert_output --partial "pre-commit"
 }
+
+@test "doctor: extra args check additional tools" {
+    run bash "$REPO_ROOT/scripts/doctor.sh" git
+    assert_success
+    # git appears twice: once as base prereq, once as extra arg
+    assert_output --partial "✓ git"
+}
+
+@test "doctor: reports missing for unknown tool" {
+    run bash "$REPO_ROOT/scripts/doctor.sh" nonexistent-tool-xyz
+    assert_failure
+    assert_output --partial "✗ nonexistent-tool-xyz"
+}
