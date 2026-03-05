@@ -1,0 +1,43 @@
+# Sync manifest — declares every managed file and its sync behavior.
+# Coverage check ensures every file has an entry and vice versa.
+#
+# sync values:
+#   all     — synced to every consumer repo
+#   opt-in  — synced only when repo explicitly requests it
+#   none    — local to this repo, never synced
+#
+# dest (optional): override destination path in consumer repo
+
+configs:
+  .editorconfig:           { sync: all }
+  .envrc.snippet:          { sync: opt-in }
+  .gitleaks.toml:          { sync: all }
+  .hadolint.yaml:          { sync: all }
+  .jscpd.json:             { sync: all }
+  .markdownlint-cli2.yaml: { sync: all }
+  .mega-linter.yml:        { sync: opt-in }
+  .pre-commit-config.yaml: { sync: all }
+  .prettierrc:             { sync: all }
+  .shellcheckrc:           { sync: all }
+  .yamllint:               { sync: all }
+  commitlint.config.mjs:   { sync: all }
+  justfile:                { sync: all }
+
+templates:
+  dependabot.yml:              { sync: all, dest: .github/dependabot.yml }
+  eslint.config.baseline.mjs:  { sync: opt-in }
+  pull_request_template.md:    { sync: all, dest: .github/pull_request_template.md }
+  pyproject.toml.baseline:     { sync: opt-in }
+
+workflows:
+  lint-baseline.yml: { sync: all, dest: .github/workflows/lint.yml }
+  security-scan.yml: { sync: all, dest: .github/workflows/security-scan.yml }
+
+scripts:
+  check-manifest-coverage.py: { sync: none }
+  compact-run:                { sync: none }
+  git-commit-msg.sh:          { sync: none }
+  git-post-commit.sh:         { sync: none }
+  git-pre-commit.sh:          { sync: none }
+  git-pre-push.sh:            { sync: none }
+  setup-hooks.sh:             { sync: none }

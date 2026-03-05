@@ -15,8 +15,13 @@ This repo contains **no repo lists, no secrets, no private information**. It is 
 - **Configs** (`configs/`): Synced as-is. Repos may extend them (e.g., add repo-specific gitleaks allowlists) but the baseline should work everywhere.
 - **Templates** (`templates/`): Starting points. An LLM agent adapts them per-repo (removes inapplicable sections, adds repo-specific entries).
 
+## Sync manifest
+
+`sync-manifest.yml` declares every managed file and its sync behavior (`all`, `opt-in`, `none`). The pre-commit hook `check-manifest-coverage` enforces bidirectional coverage — every file on disk must have a manifest entry and vice versa.
+
 ## Adding a new config
 
 1. Add the file to `configs/` or `templates/`
-2. Update the sync config in github-standards (`.github/sync.yml`) to include the new file
-3. Trigger the sync workflow — PRs will be opened in all target repos
+2. Add an entry to `sync-manifest.yml` with the appropriate sync level
+3. Update the sync config in github-standards (`.github/sync.yml`) to include the new file
+4. Trigger the sync workflow — PRs will be opened in all target repos

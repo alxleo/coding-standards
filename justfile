@@ -3,6 +3,11 @@
 
 import 'configs/justfile'
 
+[doc('Verify sync-manifest.yml covers all managed files')]
+[group('lint')]
+check-manifest:
+    uv run --with pyyaml scripts/check-manifest-coverage.py
+
 [doc('Run all tests (quiet on success)')]
 [group('test')]
 test: test-hooks test-git-hooks
