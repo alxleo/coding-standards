@@ -457,8 +457,7 @@ jobs:
               failure)
                 printf "║  %-28s  %s  ║\n" "$name" "FAIL"
                 FAILED=1
-                SUMMARY_ROWS="${SUMMARY_ROWS}| :x: FAIL | **${name}** |
-"
+                SUMMARY_ROWS="${SUMMARY_ROWS}$(printf '| :x: FAIL | **%s** |\n' "$name")"
                 ;;
               skipped)
                 printf "║  %-28s  %s  ║\n" "$name" "skip"
