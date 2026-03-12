@@ -8,10 +8,10 @@
 #   hygiene, cruft, gitleaks, typos, yaml, actions, markdown,
 #   commitlint, python, shell, justfile, jscpd, trivy, semgrep
 
-skip-hooks:
-  # - commitlint    # Skip if repo uses a different commit convention
-  # - python        # Skip if repo doesn't use Python
-  # - justfile      # Skip if repo has no justfiles
-  # - actions       # Skip if repo has no GitHub Actions workflows
-  # - trivy         # Skip vulnerability scanning
-  # - semgrep       # Skip SAST scanning
+# skip-hooks:
+#   - commitlint    # Skip if repo uses a different commit convention
+#   - python        # Skip if repo doesn't use Python
+#   - justfile      # Skip if repo has no justfiles
+#   - actions       # Skip if repo has no GitHub Actions workflows
+#   - trivy         # Skip vulnerability scanning
+#   - semgrep       # Skip SAST scanning
