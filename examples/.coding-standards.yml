@@ -1,15 +1,17 @@
-# Override file for coding-standards action.
+# Override file for coding-standards workflow.
 # Place this at .coding-standards.yml in your repo root.
 #
 # skip-hooks: list of linter groups to skip for this repo.
 # Either everything passes or it's explicit here that it's ignored.
 #
 # Available groups:
-#   hygiene, cruft, gitleaks, typos, actions,
-#   markdown, commitlint, python, shell, justfile
+#   hygiene, cruft, gitleaks, typos, actions, markdown,
+#   commitlint, python, shell, justfile, jscpd, trivy, semgrep
 
 skip-hooks:
   # - commitlint    # Skip if repo uses a different commit convention
   # - python        # Skip if repo doesn't use Python
   # - justfile      # Skip if repo has no justfiles
   # - actions       # Skip if repo has no GitHub Actions workflows
+  # - trivy         # Skip vulnerability scanning
+  # - semgrep       # Skip SAST scanning
