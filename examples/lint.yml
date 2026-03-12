@@ -7,6 +7,10 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+  statuses: write    # allows per-linter status checks on PRs
+
 jobs:
   lint:
     if: github.event.pull_request.draft == false

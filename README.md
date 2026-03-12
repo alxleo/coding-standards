@@ -17,6 +17,10 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+  statuses: write    # per-linter status checks on PRs
+
 jobs:
   lint:
     if: github.event.pull_request.draft == false
@@ -35,9 +39,12 @@ The reusable workflow:
 4. Self-selects tool installs (just, OpenTofu, TFLint) based on file presence
 5. Runs each linter group as a **separate visible step**
 6. Runs security scanning (Trivy + Semgrep)
-7. Prints a summary table showing pass/fail/skip per group
+7. Posts **per-group commit statuses** — each linter shows as its own check on the PR
+8. Prints a summary table showing pass/fail/skip per group
 
-Each linter group gets its own collapsible step in the GitHub Actions UI. If markdown linting fails, you click "Lint: markdown" and see exactly what's wrong.
+Each linter group gets its own commit status (e.g. `coding-standards: python`, `coding-standards: markdown`). Failed groups show as red X marks on the PR — you see exactly what broke without expanding logs. This works on both GitHub and Gitea via the Commit Status API.
+
+An LLM agent can query results programmatically: `GET /repos/{owner}/{repo}/commits/{sha}/statuses` and filter by `coding-standards:` prefix.
 
 Configs are centralized in this repo. When we update a rule, every consumer gets the update on their next CI run — no PRs, no syncing, no merge conflicts.
 
@@ -102,7 +109,7 @@ Each group runs as a separate CI step with isolated output:
 | `justfile` | just-fmt-check | Justfile formatting |
 | `jscpd` | jscpd | Copy-paste detection (informational) |
 | `trivy` | trivy-action | IaC + dependency vulnerability scanning |
-| `semgrep` | semgrep-action | Static application security testing (SAST) |
+| `semgrep` | semgrep | Static application security testing (SAST) |
 
 ### Baked-in Configs
 

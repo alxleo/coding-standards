@@ -32,6 +32,7 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 env:
   JUST_VERSION: '1.46.0'
@@ -353,6 +354,71 @@ jobs:
         if: "!contains(env.SKIP_HOOKS, 'semgrep')"
         continue-on-error: true
         run: uvx semgrep scan --config auto --error --quiet .
+
+      # ══════════════════════════════════════════════════════════
+      # Report per-group commit statuses (GitHub + Gitea compatible)
+      # ══════════════════════════════════════════════════════════
+      - name: Report lint statuses
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          API_URL: ${{ github.api_url }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          HYGIENE: ${{ steps.hygiene.outcome }}
+          CRUFT: ${{ steps.cruft.outcome }}
+          GITLEAKS: ${{ steps.gitleaks.outcome }}
+          TYPOS: ${{ steps.typos.outcome }}
+          ACTIONS: ${{ steps.actions.outcome }}
+          MARKDOWN: ${{ steps.markdown.outcome }}
+          COMMITLINT: ${{ steps.commitlint.outcome }}
+          PYTHON: ${{ steps.python.outcome }}
+          SHELL_LINT: ${{ steps.shell.outcome }}
+          JUSTFILE: ${{ steps.justfile.outcome }}
+          JSCPD: ${{ steps.jscpd.outcome }}
+          TRIVY: ${{ steps.trivy.outcome }}
+          SEMGREP: ${{ steps.semgrep.outcome }}
+        run: |
+          set -euo pipefail
+
+          post_status() {
+            local context="$1" outcome="$2"
+            local state description
+
+            case "$outcome" in
+              success)  state="success"; description="Passed" ;;
+              failure)  state="failure"; description="Failed - see workflow log" ;;
+              skipped)  return 0 ;;  # don't post for skipped groups
+              *)        return 0 ;;  # don't post for groups that didn't run
+            esac
+
+            curl -fsS -X POST \
+              -H "Authorization: token ${GH_TOKEN}" \
+              -H "Content-Type: application/json" \
+              "${API_URL}/repos/${REPO}/statuses/${SHA}" \
+              -d "{
+                \"state\": \"${state}\",
+                \"context\": \"coding-standards: ${context}\",
+                \"description\": \"${description}\",
+                \"target_url\": \"${RUN_URL}\"
+              }" > /dev/null
+            echo "  Posted status: ${context} → ${state}"
+          }
+
+          post_status "file hygiene"         "$HYGIENE"
+          post_status "cruft & secrets"      "$CRUFT"
+          post_status "secret scanning"      "$GITLEAKS"
+          post_status "typo detection"       "$TYPOS"
+          post_status "github actions"       "$ACTIONS"
+          post_status "markdown"             "$MARKDOWN"
+          post_status "commit messages"      "$COMMITLINT"
+          post_status "python"               "$PYTHON"
+          post_status "shell hygiene"        "$SHELL_LINT"
+          post_status "justfile formatting"  "$JUSTFILE"
+          post_status "copy-paste detection" "$JSCPD"
+          post_status "trivy"                "$TRIVY"
+          post_status "semgrep"              "$SEMGREP"
 
       # ══════════════════════════════════════════════════════════
       # Summary
