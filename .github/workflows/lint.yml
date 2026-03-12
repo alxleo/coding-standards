@@ -299,11 +299,9 @@ jobs:
           if [ $rc -ne 0 ]; then
             echo ""
             echo "── Failures ─────────────────────────────"
-            # Show hook pass/fail status lines + first meaningful errors
-            awk '
-              /\.{3,}(Passed|Failed)/ { print }
-              /(Failed|ERROR|Error:|error:|warning:)/ && !/^\[INFO\]/ && !/\.{3,}/ { if (n++ < 20) print }
-            ' "$logfile"
+            # Filter out setup noise, show everything else (hook results + errors)
+            grep -v -E '^\[INFO\]|^- Installing|^- Using|^Initializing|^- repo:|^\s*$' "$logfile" \
+              | tail -40
           fi
           exit $rc
           HELPER
