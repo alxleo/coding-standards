@@ -50,12 +50,20 @@ runs:
           fi
         fi
         SKIP=""
-        [ -n "$INPUT_SKIP" ] && SKIP="$INPUT_SKIP"
-        [ -n "$SKIP_FROM_OVERRIDE" ] && {
-          [ -n "$SKIP" ] && SKIP="$SKIP,$SKIP_FROM_OVERRIDE" || SKIP="$SKIP_FROM_OVERRIDE"
-        }
+        if [ -n "$INPUT_SKIP" ]; then
+          SKIP="$INPUT_SKIP"
+        fi
+        if [ -n "$SKIP_FROM_OVERRIDE" ]; then
+          if [ -n "$SKIP" ]; then
+            SKIP="$SKIP,$SKIP_FROM_OVERRIDE"
+          else
+            SKIP="$SKIP_FROM_OVERRIDE"
+          fi
+        fi
         echo "skip-hooks=$SKIP" >> "$GITHUB_OUTPUT"
-        [ -n "$SKIP" ] && echo "Will skip: $SKIP" || true
+        if [ -n "$SKIP" ]; then
+          echo "Will skip: $SKIP"
+        fi
 
     - name: Apply coding-standards configs
       shell: bash

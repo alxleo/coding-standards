@@ -106,12 +106,20 @@ jobs:
           fi
 
           SKIP=""
-          [ -n "$INPUT_SKIP" ] && SKIP="$INPUT_SKIP"
-          [ -n "$SKIP_FROM_OVERRIDE" ] && {
-            [ -n "$SKIP" ] && SKIP="$SKIP,$SKIP_FROM_OVERRIDE" || SKIP="$SKIP_FROM_OVERRIDE"
-          }
+          if [ -n "$INPUT_SKIP" ]; then
+            SKIP="$INPUT_SKIP"
+          fi
+          if [ -n "$SKIP_FROM_OVERRIDE" ]; then
+            if [ -n "$SKIP" ]; then
+              SKIP="$SKIP,$SKIP_FROM_OVERRIDE"
+            else
+              SKIP="$SKIP_FROM_OVERRIDE"
+            fi
+          fi
           echo "skip-hooks=$SKIP" >> "$GITHUB_OUTPUT"
-          [ -n "$SKIP" ] && echo "Will skip: $SKIP" || true
+          if [ -n "$SKIP" ]; then
+            echo "Will skip: $SKIP"
+          fi
 
           # ── Copy configs (skip if consumer has their own) ──
           CS=".coding-standards/lint-configs-626465"
@@ -383,7 +391,8 @@ jobs:
               failure)
                 printf "║  %-28s  %s  ║\n" "$name" "FAIL"
                 FAILED=1
-                SUMMARY_ROWS="${SUMMARY_ROWS}| :x: **FAIL** | **${name}** |\n"
+                SUMMARY_ROWS="${SUMMARY_ROWS}| :x: FAIL | **${name}** |
+"
                 ;;
               skipped)
                 printf "║  %-28s  %s  ║\n" "$name" "skip"
@@ -418,7 +427,7 @@ jobs:
               echo ""
               echo "| Status | Check |"
               echo "|--------|-------|"
-              printf "$SUMMARY_ROWS"
+              printf '%s' "$SUMMARY_ROWS"
               echo ""
               echo "> Click the failed step names in the workflow log for details."
             else
