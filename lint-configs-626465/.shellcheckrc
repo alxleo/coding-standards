@@ -8,5 +8,9 @@ enable=check-extra-masked-returns
 # Flag `which` — use `command -v` instead (POSIX, reliable).
 enable=deprecate-which
 
+# SC2016: "$var inside single quotes won't expand" — intentional in
+# bash -c '…$var…' patterns where the inner shell expands them.
+disable=SC2016
+
 # Follow source directives so sourced files get checked too.
 external-sources=true
