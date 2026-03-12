@@ -1,59 +1,30 @@
-# coding-standards — composite GitHub Action
+# coding-standards — setup action (used internally by the reusable workflow).
 #
-# Runs linters with baked-in configs from this repo.
-# Each linter group gets its own step — failures are isolated and visible.
+# Copies baked-in linter configs into the workspace.
+# Consumer repos should NOT call this directly — use the reusable workflow instead.
 #
-# Override behavior by placing a .coding-standards.yml in your repo root.
-# See README.md for override options.
-name: coding-standards
-description: Run linting with centralized coding standards
+# See .github/workflows/lint.yml for the main entry point.
+name: coding-standards-setup
+description: Copy centralized linter configs into the workspace
 
 inputs:
-  skip-hooks:
-    description: 'Comma-separated linter groups to skip (e.g. "python,commitlint")'
-    required: false
-    default: ''
   config-file:
     description: 'Path to override config file in consumer repo'
     required: false
     default: '.coding-standards.yml'
-  python-version:
-    description: 'Python version'
+  skip-hooks:
+    description: 'Comma-separated linter groups to skip'
     required: false
-    default: '3.13'
-  node-version:
-    description: 'Node.js version (for commitlint, markdownlint)'
-    required: false
-    default: '22'
+    default: ''
+
+outputs:
+  skip-hooks:
+    description: 'Merged skip list (input + override file)'
+    value: ${{ steps.setup.outputs.skip-hooks }}
 
 runs:
   using: composite
   steps:
-    # ── Setup toolchain ──────────────────────────────────────
-    - name: Setup uv + Python
-      uses: astral-sh/setup-uv@0ca8f610542aa7f4acaf39e65cf4eb3c35091883 # v7
-      with:
-        enable-cache: true
-
-    - name: Install Python
-      shell: bash
-      env:
-        PYTHON_VERSION: ${{ inputs.python-version }}
-      run: uv python install "$PYTHON_VERSION"
-
-    - name: Cache pre-commit environments
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-      with:
-        path: ~/.cache/pre-commit
-        key: pre-commit-${{ runner.os }}-${{ hashFiles('**/.pre-commit-config.yaml') }}
-        restore-keys: pre-commit-${{ runner.os }}-
-
-    - name: Setup Node.js
-      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-      with:
-        node-version: ${{ inputs.node-version }}
-
-    # ── Parse overrides and compute skip list ─────────────────
     - name: Parse overrides
       id: setup
       shell: bash
@@ -86,13 +57,6 @@ runs:
         echo "skip-hooks=$SKIP" >> "$GITHUB_OUTPUT"
         [ -n "$SKIP" ] && echo "Will skip: $SKIP" || true
 
-    - name: Export skip list
-      shell: bash
-      env:
-        SKIP_VALUE: ${{ steps.setup.outputs.skip-hooks }}
-      run: echo "SKIP_HOOKS=$SKIP_VALUE" >> "$GITHUB_ENV" # zizmor: ignore[github-env]
-
-    # ── Apply configs from this action into the workspace ────
     - name: Apply coding-standards configs
       shell: bash
       env:
@@ -131,198 +95,3 @@ runs:
         cp "$ACTION_PATH/scripts/hooks/"* scripts/hooks/ 2>/dev/null || true
         chmod +x scripts/hooks/* 2>/dev/null || true
         echo "  Applied: scripts/hooks/*"
-
-    # ── Self-selecting tool installs ─────────────────────────
-    - name: Cache just binary
-      if: hashFiles('**/justfile', '**/Justfile') != ''
-      id: cache-just
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-      with:
-        path: ~/.just/bin
-        key: just-${{ runner.os }}-1.46.0
-
-    - name: Install just
-      if: hashFiles('**/justfile', '**/Justfile') != '' && steps.cache-just.outputs.cache-hit != 'true'
-      shell: bash
-      run: |
-        set -euo pipefail
-        mkdir -p ~/.just/bin && cd /tmp
-        JUST_VERSION="1.46.0"
-        JUST_TARBALL="just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz"
-        BASE_URL="https://github.com/casey/just/releases/download/${JUST_VERSION}"
-        curl -fsSLO "${BASE_URL}/${JUST_TARBALL}"
-        curl -fsSLO "${BASE_URL}/SHA256SUMS"
-        grep "  ${JUST_TARBALL}" SHA256SUMS | sha256sum -c -
-        tar -xzf "${JUST_TARBALL}" -C ~/.just/bin just
-
-    - name: Add just to PATH
-      if: hashFiles('**/justfile', '**/Justfile') != ''
-      shell: bash
-      run: echo "$HOME/.just/bin" >> "$GITHUB_PATH"  # zizmor: ignore[github-env]
-
-    # ── Install pre-commit hooks (shared cache, one-time) ────
-    - name: Install pre-commit hooks
-      shell: bash
-      run: uvx pre-commit install-hooks
-
-    # ══════════════════════════════════════════════════════════
-    # Individual linter steps — each runs independently.
-    # continue-on-error: true so all linters run even if one fails.
-    # The summary step at the end collects results.
-    # ══════════════════════════════════════════════════════════
-
-    # ── 1. File hygiene ──────────────────────────────────────
-    - name: "Lint: file hygiene"
-      id: hygiene
-      if: "!contains(env.SKIP_HOOKS, 'hygiene')"
-      continue-on-error: true
-      shell: bash
-      run: |
-        uvx pre-commit run check-yaml --all-files
-        uvx pre-commit run check-json --all-files
-        uvx pre-commit run check-toml --all-files
-        uvx pre-commit run check-merge-conflict --all-files
-        uvx pre-commit run check-added-large-files --all-files
-        uvx pre-commit run detect-private-key --all-files
-        uvx pre-commit run end-of-file-fixer --all-files
-        uvx pre-commit run trailing-whitespace --all-files
-        uvx pre-commit run check-case-conflict --all-files
-        uvx pre-commit run check-executables-have-shebangs --all-files
-        uvx pre-commit run check-shebang-scripts-are-executable --all-files
-
-    # ── 2. Cruft & secrets blocking ──────────────────────────
-    - name: "Lint: cruft & secret file blocking"
-      id: cruft
-      if: "!contains(env.SKIP_HOOKS, 'cruft')"
-      continue-on-error: true
-      shell: bash
-      run: |
-        uvx pre-commit run forbid-cruft-files --all-files
-        uvx pre-commit run block-secret-files --all-files
-        uvx pre-commit run verify-sops-encryption --all-files
-
-    # ── 3. Secret scanning ───────────────────────────────────
-    - name: "Lint: secret scanning (gitleaks)"
-      id: gitleaks
-      if: "!contains(env.SKIP_HOOKS, 'gitleaks')"
-      continue-on-error: true
-      shell: bash
-      run: uvx pre-commit run gitleaks --all-files
-
-    # ── 4. Typo detection ────────────────────────────────────
-    - name: "Lint: typo detection"
-      id: typos
-      if: "!contains(env.SKIP_HOOKS, 'typos')"
-      continue-on-error: true
-      shell: bash
-      run: uvx pre-commit run typos --all-files
-
-    # ── 5. GitHub Actions linting ────────────────────────────
-    - name: "Lint: GitHub Actions (actionlint + zizmor)"
-      id: actions
-      if: "!contains(env.SKIP_HOOKS, 'actions')"
-      continue-on-error: true
-      shell: bash
-      run: |
-        uvx pre-commit run actionlint --all-files
-        uvx pre-commit run zizmor --all-files
-
-    # ── 6. Markdown ──────────────────────────────────────────
-    - name: "Lint: markdown"
-      id: markdown
-      if: "!contains(env.SKIP_HOOKS, 'markdown')"
-      continue-on-error: true
-      shell: bash
-      run: uvx pre-commit run markdownlint-cli2 --all-files
-
-    # ── 7. Commit messages ───────────────────────────────────
-    - name: "Lint: commit messages (commitlint)"
-      id: commitlint
-      if: "!contains(env.SKIP_HOOKS, 'commitlint')"
-      continue-on-error: true
-      shell: bash
-      run: uvx pre-commit run commitlint --all-files
-
-    # ── 8. Python ────────────────────────────────────────────
-    - name: "Lint: Python (ruff)"
-      id: python
-      if: "!contains(env.SKIP_HOOKS, 'python')"
-      continue-on-error: true
-      shell: bash
-      run: |
-        uvx pre-commit run ruff --all-files
-        uvx pre-commit run ruff-format --all-files
-
-    # ── 9. Shell hygiene ─────────────────────────────────────
-    - name: "Lint: shell hygiene"
-      id: shell
-      if: "!contains(env.SKIP_HOOKS, 'shell')"
-      continue-on-error: true
-      shell: bash
-      run: |
-        uvx pre-commit run pin-npm-versions --all-files
-        uvx pre-commit run temp-file-needs-trap --all-files
-        uvx pre-commit run forbid-bare-python --all-files
-
-    # ── 10. Justfile formatting ──────────────────────────────
-    - name: "Lint: justfile formatting"
-      id: justfile
-      if: "!contains(env.SKIP_HOOKS, 'justfile')"
-      continue-on-error: true
-      shell: bash
-      run: uvx pre-commit run just-fmt-check --all-files
-
-    # ══════════════════════════════════════════════════════════
-    # Summary — collect results and fail if any linter failed
-    # ══════════════════════════════════════════════════════════
-    - name: Summary
-      if: always()
-      shell: bash
-      env:
-        HYGIENE: ${{ steps.hygiene.outcome }}
-        CRUFT: ${{ steps.cruft.outcome }}
-        GITLEAKS: ${{ steps.gitleaks.outcome }}
-        TYPOS: ${{ steps.typos.outcome }}
-        ACTIONS: ${{ steps.actions.outcome }}
-        MARKDOWN: ${{ steps.markdown.outcome }}
-        COMMITLINT: ${{ steps.commitlint.outcome }}
-        PYTHON: ${{ steps.python.outcome }}
-        SHELL: ${{ steps.shell.outcome }}
-        JUSTFILE: ${{ steps.justfile.outcome }}
-      run: |
-        echo ""
-        echo "╔══════════════════════════════════════╗"
-        echo "║       coding-standards summary       ║"
-        echo "╠══════════════════════════════════════╣"
-
-        FAILED=0
-        report() {
-          local name="$1" result="$2"
-          case "$result" in
-            success)  printf "║  %-28s  %s  ║\n" "$name" "pass" ;;
-            failure)  printf "║  %-28s  %s  ║\n" "$name" "FAIL"; FAILED=1 ;;
-            skipped)  printf "║  %-28s  %s  ║\n" "$name" "skip" ;;
-            *)        printf "║  %-28s  %s  ║\n" "$name" "----" ;;
-          esac
-        }
-
-        report "File hygiene"          "$HYGIENE"
-        report "Cruft & secret files"  "$CRUFT"
-        report "Secret scanning"       "$GITLEAKS"
-        report "Typo detection"        "$TYPOS"
-        report "GitHub Actions"        "$ACTIONS"
-        report "Markdown"              "$MARKDOWN"
-        report "Commit messages"       "$COMMITLINT"
-        report "Python"                "$PYTHON"
-        report "Shell hygiene"         "$SHELL"
-        report "Justfile formatting"   "$JUSTFILE"
-
-        echo "╚══════════════════════════════════════╝"
-        echo ""
-
-        if [ "$FAILED" -eq 1 ]; then
-          echo "One or more linter groups failed. See individual steps above for details."
-          exit 1
-        fi
-
-        echo "All checks passed."

@@ -1,6 +1,6 @@
 # coding-standards
 
-Centralized linting and coding standards as a GitHub Action. Consumer repos add a ~6-line workflow — all linting runs in CI, not on developer machines.
+Centralized linting and coding standards as a reusable GitHub Actions workflow. Consumer repos add a ~5-line workflow — all linting runs in CI, not on developer machines. Each linter group shows as its own step in the GitHub Actions UI.
 
 Works with both **GitHub Actions** and **Gitea Actions** (same `uses:` reference).
 
@@ -20,27 +20,24 @@ on:
 jobs:
   lint:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-      - uses: alxleo/coding-standards@v1
+    uses: alxleo/coding-standards/.github/workflows/lint.yml@v1
 ```
 
-That's it. All linting configs are baked into the action.
+That's it. All linting configs, security scanning, and tool installs are handled by the workflow.
 
 ## How It Works
 
-The action:
+The reusable workflow:
 
-1. Checks out your code (you do this)
-2. Installs Python, Node.js, and pre-commit (cached)
+1. Checks out your code + the coding-standards configs
+2. Installs Python, Node.js, and pre-commit (all cached)
 3. Copies baseline linter configs into the workspace (won't overwrite your own)
-4. Runs each linter group as a **separate step** — failures are isolated
-5. Prints a summary table showing pass/fail/skip per group
+4. Self-selects tool installs (just, OpenTofu, TFLint) based on file presence
+5. Runs each linter group as a **separate visible step**
+6. Runs security scanning (Trivy + Semgrep)
+7. Prints a summary table showing pass/fail/skip per group
 
-Each linter group gets its own collapsible step in the GitHub Actions UI. If markdown linting fails, you click "Lint: markdown" and see exactly what's wrong — no digging through a wall of mixed output.
+Each linter group gets its own collapsible step in the GitHub Actions UI. If markdown linting fails, you click "Lint: markdown" and see exactly what's wrong.
 
 Configs are centralized in this repo. When we update a rule, every consumer gets the update on their next CI run — no PRs, no syncing, no merge conflicts.
 
@@ -51,12 +48,14 @@ Configs are centralized in this repo. When we update a rule, every consumer gets
 Pass `skip-hooks` input with group names:
 
 ```yaml
-- uses: alxleo/coding-standards@v1
-  with:
-    skip-hooks: "commitlint,python"
+jobs:
+  lint:
+    uses: alxleo/coding-standards/.github/workflows/lint.yml@v1
+    with:
+      skip-hooks: "commitlint,python"
 ```
 
-Available groups: `hygiene`, `cruft`, `gitleaks`, `typos`, `actions`, `markdown`, `commitlint`, `python`, `shell`, `justfile`
+Available groups: `hygiene`, `cruft`, `gitleaks`, `typos`, `actions`, `markdown`, `commitlint`, `python`, `shell`, `justfile`, `jscpd`, `trivy`, `semgrep`
 
 ### Override via config file
 
@@ -101,6 +100,9 @@ Each group runs as a separate CI step with isolated output:
 | `python` | ruff, ruff-format | Python linting and formatting |
 | `shell` | pin-npm-versions, temp-file-needs-trap, forbid-bare-python | Shell script hygiene |
 | `justfile` | just-fmt-check | Justfile formatting |
+| `jscpd` | jscpd | Copy-paste detection (informational) |
+| `trivy` | trivy-action | IaC + dependency vulnerability scanning |
+| `semgrep` | semgrep-action | Static application security testing (SAST) |
 
 ### Baked-in Configs
 
@@ -130,7 +132,7 @@ Each group runs as a separate CI step with isolated output:
 Pin to a major version tag:
 
 ```yaml
-- uses: alxleo/coding-standards@v1
+uses: alxleo/coding-standards/.github/workflows/lint.yml@v1
 ```
 
 The `v1` tag moves forward with non-breaking updates. Pin to a specific release (`@v1.0.3`) if you need exact reproducibility.

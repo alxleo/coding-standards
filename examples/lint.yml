@@ -10,9 +10,6 @@ on:
 jobs:
   lint:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-      - uses: alxleo/coding-standards@v1
+    uses: alxleo/coding-standards/.github/workflows/lint.yml@v1
+    # with:
+    #   skip-hooks: "commitlint,python"   # optional: skip groups
