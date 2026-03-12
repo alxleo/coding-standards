@@ -1,0 +1,18 @@
+# Example consumer workflow — drop this into .github/workflows/lint.yml
+name: Lint
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+
+jobs:
+  lint:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: alxleo/coding-standards@v1

@@ -1,8 +1,0 @@
-name: Insecure Workflow
-on: pull_request_target
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: echo "${{ github.event.pull_request.body }}"

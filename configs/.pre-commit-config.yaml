@@ -1,8 +1,5 @@
-# Baseline pre-commit hooks — universal across all repos.
-# Language-specific hooks (shellcheck, hadolint, eslint, etc.)
-# are added per-repo by an LLM agent after sync.
-
-exclude: ^tests/fixtures/
+# Baseline pre-commit hooks — baked into the coding-standards action.
+# Runs in CI via the composite action. Consumer repos don't edit this file.
 
 repos:
   # ── Standard hygiene ─────────────────────────────────────────
@@ -75,7 +72,6 @@ repos:
         entry: "Found cruft file — delete or rename before committing"
         language: fail
         files: \.(bak|del|tmp|old|orig|swp|swo)$
-        exclude: ^tests/fixtures/
 
       - id: block-secret-files
         name: Block secret files

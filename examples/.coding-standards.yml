@@ -1,0 +1,12 @@
+# Override file for coding-standards action.
+# Place this at .coding-standards.yml in your repo root.
+#
+# skip-hooks: list of pre-commit hook IDs to skip for this repo.
+# Either everything passes or it's explicit here that it's ignored.
+
+skip-hooks:
+  # - commitlint        # Skip if repo uses a different commit convention
+  # - ruff              # Skip if repo doesn't use Python
+  # - ruff-format       # Skip if repo doesn't use Python
+  # - hadolint          # Skip if repo has no Dockerfiles
+  # - just-fmt-check    # Skip if repo has no justfiles

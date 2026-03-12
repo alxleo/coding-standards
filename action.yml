@@ -1,0 +1,172 @@
+# coding-standards — composite GitHub Action
+#
+# Runs pre-commit linting with baked-in configs from this repo.
+# Consumer repos only need a ~6-line workflow stub.
+#
+# Override behavior by placing a .coding-standards.yml in your repo root.
+# See README.md for override options.
+name: coding-standards
+description: Run pre-commit linting with centralized coding standards
+
+inputs:
+  skip-hooks:
+    description: 'Comma-separated pre-commit hooks to skip (e.g. "commitlint,ruff")'
+    required: false
+    default: ''
+  config-file:
+    description: 'Path to override config file in consumer repo'
+    required: false
+    default: '.coding-standards.yml'
+  version:
+    description: 'Python version for pre-commit'
+    required: false
+    default: '3.13'
+  node-version:
+    description: 'Node.js version (for commitlint, markdownlint)'
+    required: false
+    default: '22'
+
+runs:
+  using: composite
+  steps:
+    # ── Setup toolchain ──────────────────────────────────────
+    - name: Setup uv + Python
+      uses: astral-sh/setup-uv@0ca8f610542aa7f4acaf39e65cf4eb3c35091883 # v7
+      with:
+        enable-cache: true
+
+    - name: Install Python
+      shell: bash
+      run: uv python install ${{ inputs.version }}
+
+    - name: Cache pre-commit environments
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      with:
+        path: ~/.cache/pre-commit
+        key: pre-commit-${{ runner.os }}-${{ hashFiles('**/.pre-commit-config.yaml') }}
+        restore-keys: pre-commit-${{ runner.os }}-
+
+    - name: Setup Node.js
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    # ── Apply configs from this action into the workspace ────
+    - name: Apply coding-standards configs
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        CONFIG_FILE: ${{ inputs.config-file }}
+      run: |
+        set -euo pipefail
+
+        # ── Parse overrides if present ──────────────────────
+        SKIP_FROM_OVERRIDE=""
+        EXTRA_ARGS=""
+
+        if [ -f "$CONFIG_FILE" ]; then
+          echo "Found override file: $CONFIG_FILE"
+
+          # Extract skip-hooks list from override file
+          if command -v yq &>/dev/null; then
+            SKIP_FROM_OVERRIDE=$(yq -r '.skip-hooks // [] | join(",")' "$CONFIG_FILE" 2>/dev/null || echo "")
+          elif command -v python3 &>/dev/null; then
+            SKIP_FROM_OVERRIDE=$(python3 -c "
+        import yaml, sys
+        try:
+            with open('$CONFIG_FILE') as f:
+                cfg = yaml.safe_load(f) or {}
+            hooks = cfg.get('skip-hooks', [])
+            print(','.join(hooks) if isinstance(hooks, list) else str(hooks))
+        except Exception:
+            print('')
+        " 2>/dev/null || echo "")
+          fi
+        fi
+
+        # Merge skip-hooks from input and override file
+        echo "OVERRIDE_SKIP=$SKIP_FROM_OVERRIDE" >> "$GITHUB_ENV"
+
+        # ── Lay down config files ───────────────────────────
+        # Only copy configs that don't already exist in the consumer repo.
+        # This lets consumers keep their own .yamllint, .shellcheckrc, etc.
+        configs=(
+          .gitleaks.toml
+          .markdownlint-cli2.yaml
+          .shellcheckrc
+          .yamllint
+          .hadolint.yaml
+          .jscpd.json
+          .prettierrc
+          .editorconfig
+          .mega-linter.yml
+          commitlint.config.mjs
+        )
+
+        for cfg in "${configs[@]}"; do
+          if [ ! -f "$cfg" ]; then
+            cp "$ACTION_PATH/configs/$cfg" "$cfg"
+            echo "  Applied: $cfg"
+          else
+            echo "  Skipped (consumer override exists): $cfg"
+          fi
+        done
+
+        # ── Lay down pre-commit config ──────────────────────
+        # Always use the action's pre-commit config — this IS the standard.
+        cp "$ACTION_PATH/configs/.pre-commit-config.yaml" .pre-commit-config.yaml
+        echo "  Applied: .pre-commit-config.yaml"
+
+        # ── Lay down custom hook scripts ────────────────────
+        mkdir -p scripts/hooks
+        cp "$ACTION_PATH/scripts/hooks/"* scripts/hooks/ 2>/dev/null || true
+        chmod +x scripts/hooks/* 2>/dev/null || true
+        echo "  Applied: scripts/hooks/*"
+
+    # ── Self-selecting tool installs ─────────────────────────
+    - name: Cache just binary
+      if: hashFiles('**/justfile', '**/Justfile') != ''
+      id: cache-just
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      with:
+        path: ~/.just/bin
+        key: just-${{ runner.os }}-1.46.0
+
+    - name: Install just
+      if: hashFiles('**/justfile', '**/Justfile') != '' && steps.cache-just.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p ~/.just/bin && cd /tmp
+        JUST_VERSION="1.46.0"
+        JUST_TARBALL="just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+        BASE_URL="https://github.com/casey/just/releases/download/${JUST_VERSION}"
+        curl -fsSLO "${BASE_URL}/${JUST_TARBALL}"
+        curl -fsSLO "${BASE_URL}/SHA256SUMS"
+        grep "  ${JUST_TARBALL}" SHA256SUMS | sha256sum -c -
+        tar -xzf "${JUST_TARBALL}" -C ~/.just/bin just
+
+    - name: Add just to PATH
+      if: hashFiles('**/justfile', '**/Justfile') != ''
+      shell: bash
+      run: echo "$HOME/.just/bin" >> "$GITHUB_PATH"
+
+    # ── Run pre-commit ───────────────────────────────────────
+    - name: Run pre-commit
+      shell: bash
+      env:
+        INPUT_SKIP: ${{ inputs.skip-hooks }}
+      run: |
+        set -euo pipefail
+
+        # Combine skip sources: input + override file
+        SKIP_COMBINED=""
+        [ -n "$INPUT_SKIP" ] && SKIP_COMBINED="$INPUT_SKIP"
+        [ -n "${OVERRIDE_SKIP:-}" ] && {
+          [ -n "$SKIP_COMBINED" ] && SKIP_COMBINED="$SKIP_COMBINED,$OVERRIDE_SKIP" || SKIP_COMBINED="$OVERRIDE_SKIP"
+        }
+
+        echo "Running pre-commit on all files..."
+        [ -n "$SKIP_COMBINED" ] && echo "Skipping hooks: $SKIP_COMBINED"
+
+        SKIP="$SKIP_COMBINED" uvx pre-commit run --all-files
