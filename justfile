@@ -56,21 +56,7 @@ lint-group hook: _setup-pre-commit
 [doc('Validate all workflow YAML')]
 [group('lint')]
 lint-yaml:
-    uv run python3 -c "import yaml, glob; [yaml.safe_load(open(f)) or print(f'  valid: {f}') for f in glob.glob('.github/workflows/*.yml')]"
-
-# ── E2E ──────────────────────────────────────────────────────
-
-[doc('Run the full CI workflow locally via act (requires Docker)')]
-[group('test')]
-lint-e2e:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if ! command -v act &>/dev/null; then
-        echo "act is not installed. Install from https://github.com/nektos/act"
-        exit 1
-    fi
-    echo "Running CI workflow locally via act..."
-    act push -W .github/workflows/ci.yml --container-architecture linux/amd64
+    uv run --no-project python3 -c "import yaml, glob; [yaml.safe_load(open(f)) or print(f'  valid: {f}') for f in glob.glob('.github/workflows/*.yml')]"
 
 # ── CI script tests ──────────────────────────────────────────
 

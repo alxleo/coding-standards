@@ -12,7 +12,7 @@ CS=".coding-standards/lint-configs-626465"
 SKIP_FROM_OVERRIDE=""
 if [ -f "$CONFIG_FILE" ]; then
   echo "Found override file: $CONFIG_FILE"
-  SKIP_FROM_OVERRIDE=$(uv run python3 -c "
+  SKIP_FROM_OVERRIDE=$(uv run --no-project python3 -c "
 import yaml, sys
 try:
     with open('$CONFIG_FILE') as f:
@@ -75,8 +75,20 @@ done
 cp "$CS/.pre-commit-config.yaml" .pre-commit-config.yaml
 echo "  Applied: .pre-commit-config.yaml"
 
-# Apply custom hook scripts
+# Apply custom hook scripts (required by pre-commit local hooks)
 mkdir -p scripts/hooks
-cp .coding-standards/scripts/hooks/* scripts/hooks/ 2>/dev/null || true
-chmod +x scripts/hooks/* 2>/dev/null || true
-echo "  Applied: scripts/hooks/*"
+if ls .coding-standards/scripts/hooks/* &>/dev/null; then
+  cp .coding-standards/scripts/hooks/* scripts/hooks/
+  chmod +x scripts/hooks/*
+  echo "  Applied: scripts/hooks/*"
+else
+  echo "  Warning: no hook scripts found in .coding-standards/scripts/hooks/"
+fi
+
+# Verify all referenced hooks exist
+for hook in scripts/hooks/*; do
+  if [ ! -x "$hook" ]; then
+    echo "  ERROR: hook $hook is not executable"
+    exit 1
+  fi
+done

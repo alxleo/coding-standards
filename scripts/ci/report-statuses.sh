@@ -17,7 +17,7 @@ JOB_JSON=$(curl -fsS \
 if [ -n "$JOB_JSON" ]; then
   while IFS=$'\t' read -r step_num step_name; do
     STEP_URLS["$step_name"]="$step_num"
-  done < <(printf '%s' "$JOB_JSON" | uv run python3 -c "
+  done < <(printf '%s' "$JOB_JSON" | uv run --no-project python3 -c "
 import json, sys
 data = json.load(sys.stdin)
 for job in data.get('jobs', []):

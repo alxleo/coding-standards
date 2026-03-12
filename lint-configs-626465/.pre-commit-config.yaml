@@ -64,7 +64,6 @@ repos:
       - id: commitlint
         stages: [commit-msg]
         args: [--config, .coding-standards/lint-configs-626465/commitlint.config.mjs]
-        additional_dependencies: ['@commitlint/config-conventional']
 
   # ── Python linting + formatting ────────────────────────────
   - repo: https://github.com/astral-sh/ruff-pre-commit
