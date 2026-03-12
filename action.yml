@@ -105,7 +105,7 @@ runs:
         )
         for cfg in "${configs[@]}"; do
           if [ ! -f "$cfg" ]; then
-            cp "$ACTION_PATH/configs/$cfg" "$cfg"
+            cp "$ACTION_PATH/lint-configs-626465/$cfg" "$cfg"
             echo "  Applied: $cfg"
           else
             echo "  Kept (consumer override): $cfg"
@@ -113,7 +113,7 @@ runs:
         done
 
         # Always apply pre-commit config — this IS the standard
-        cp "$ACTION_PATH/configs/.pre-commit-config.yaml" .pre-commit-config.yaml
+        cp "$ACTION_PATH/lint-configs-626465/.pre-commit-config.yaml" .pre-commit-config.yaml
         echo "  Applied: .pre-commit-config.yaml"
 
         # Apply custom hook scripts

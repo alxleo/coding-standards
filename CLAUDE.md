@@ -16,8 +16,8 @@ Consumer repos add a ~6-line workflow stub. The action:
 ## Key files
 
 - `action.yml` — composite action entry point
-- `configs/` — all linter configs (baked into the action, copied to workspace at runtime)
-- `configs/.pre-commit-config.yaml` — source of truth for all pre-commit hooks
+- `lint-configs-626465/` — all linter configs (baked into the action, copied to workspace at runtime)
+- `lint-configs-626465/.pre-commit-config.yaml` — source of truth for all pre-commit hooks
 - `scripts/hooks/` — custom hook scripts referenced by pre-commit config
 - `examples/` — example consumer workflow + override file
 
@@ -32,14 +32,14 @@ The `.pre-commit-config.yaml` always comes from this action (it defines which ho
 
 ## Adding a new config
 
-1. Add the file to `configs/`
+1. Add the file to `lint-configs-626465/`
 2. Add it to the `configs` array in `action.yml` (the "Apply coding-standards configs" step)
 3. Update the README tables
 
 ## Adding a custom hook
 
 1. Create `scripts/hooks/{name}` — executable, with comments explaining the rule
-2. Add the hook entry to `configs/.pre-commit-config.yaml` with `entry: scripts/hooks/{name}`, `language: system`
+2. Add the hook entry to `lint-configs-626465/.pre-commit-config.yaml` with `entry: scripts/hooks/{name}`, `language: system`
 
 ## CI self-test
 
