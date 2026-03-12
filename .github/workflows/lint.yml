@@ -61,6 +61,7 @@ jobs:
           path: .coding-standards
           sparse-checkout: |
             lint-configs-626465
+            scripts/ci
             scripts/hooks
           persist-credentials: false
 
@@ -93,73 +94,7 @@ jobs:
         env:
           CONFIG_FILE: ${{ inputs.config-file }}
           INPUT_SKIP: ${{ inputs.skip-hooks }}
-        run: |
-          set -euo pipefail
-
-          # ── Parse skip overrides ────────────────────────────
-          SKIP_FROM_OVERRIDE=""
-          if [ -f "$CONFIG_FILE" ]; then
-            echo "Found override file: $CONFIG_FILE"
-            SKIP_FROM_OVERRIDE=$(python3 -c "
-          import yaml, sys
-          try:
-              with open('$CONFIG_FILE') as f:
-                  cfg = yaml.safe_load(f) or {}
-              hooks = cfg.get('skip-hooks', [])
-              print(','.join(hooks) if isinstance(hooks, list) else str(hooks))
-          except Exception:
-              print('')
-          " 2>/dev/null || echo "")
-          fi
-
-          SKIP=""
-          if [ -n "$INPUT_SKIP" ]; then
-            SKIP="$INPUT_SKIP"
-          fi
-          if [ -n "$SKIP_FROM_OVERRIDE" ]; then
-            if [ -n "$SKIP" ]; then
-              SKIP="$SKIP,$SKIP_FROM_OVERRIDE"
-            else
-              SKIP="$SKIP_FROM_OVERRIDE"
-            fi
-          fi
-          echo "skip-hooks=$SKIP" >> "$GITHUB_OUTPUT"
-          if [ -n "$SKIP" ]; then
-            echo "Will skip: $SKIP"
-          fi
-
-          # ── Copy configs (skip if consumer has their own) ──
-          CS=".coding-standards/lint-configs-626465"
-          configs=(
-            .gitleaks.toml
-            .markdownlint-cli2.yaml
-            .shellcheckrc
-            .yamllint
-            .hadolint.yaml
-            .jscpd.json
-            .prettierrc
-            .editorconfig
-            .mega-linter.yml
-            commitlint.config.mjs
-          )
-          for cfg in "${configs[@]}"; do
-            if [ ! -f "$cfg" ]; then
-              cp "$CS/$cfg" "$cfg"
-              echo "  Applied: $cfg"
-            else
-              echo "  Kept (consumer override): $cfg"
-            fi
-          done
-
-          # Always apply pre-commit config — this IS the standard
-          cp "$CS/.pre-commit-config.yaml" .pre-commit-config.yaml
-          echo "  Applied: .pre-commit-config.yaml"
-
-          # Apply custom hook scripts
-          mkdir -p scripts/hooks
-          cp .coding-standards/scripts/hooks/* scripts/hooks/ 2>/dev/null || true
-          chmod +x scripts/hooks/* 2>/dev/null || true
-          echo "  Applied: scripts/hooks/*"
+        run: .coding-standards/scripts/ci/apply-configs.sh
 
       - name: Export skip list
         env:
@@ -286,29 +221,7 @@ jobs:
       - name: Create lint helpers
         run: |
           mkdir -p /tmp/lint-results
-          cat > /tmp/lint-run.sh << 'HELPER'
-          #!/usr/bin/env bash
-          # Usage: /tmp/lint-run.sh <logkey> <command...>
-          # Wraps output in a collapsed ::group::, captures to log file,
-          # and on failure shows only the meaningful error lines.
-          set -uo pipefail
-          logkey="$1"; shift
-          logfile="/tmp/lint-results/${logkey}.log"
-
-          echo "::group::Full output"
-          "$@" 2>&1 | tee "$logfile"
-          rc=${PIPESTATUS[0]}
-          echo "::endgroup::"
-
-          if [ $rc -ne 0 ]; then
-            echo ""
-            echo "── Failures ─────────────────────────────"
-            # Filter out setup noise, show everything else (hook results + errors)
-            grep -v -E '^\[INFO\]|^- Installing|^- Using|^Initializing|^- repo:|^\s*$' "$logfile" \
-              | tail -40
-          fi
-          exit $rc
-          HELPER
+          cp .coding-standards/scripts/ci/lint-run.sh /tmp/lint-run.sh
           chmod +x /tmp/lint-run.sh
 
       - name: "Lint: file hygiene"
@@ -471,103 +384,7 @@ jobs:
           TRIVY: ${{ steps.trivy.outcome }}
           SEMGREP: ${{ steps.semgrep.outcome }}
           EXTRA: ${{ steps.extra.outcome }}
-        run: |
-          set -euo pipefail
-
-          # ── Resolve job URL + step numbers for deep links ─────
-          declare -A STEP_URLS
-          JOB_JSON=$(curl -fsS \
-            -H "Authorization: token ${GH_TOKEN}" \
-            "${API_URL}/repos/${REPO}/actions/runs/${RUN_ID}/jobs" 2>/dev/null) || true
-
-          if [ -n "$JOB_JSON" ]; then
-            while IFS=$'\t' read -r step_num step_name; do
-              STEP_URLS["$step_name"]="$step_num"
-            done < <(printf '%s' "$JOB_JSON" | python3 -c "
-          import json, sys
-          data = json.load(sys.stdin)
-          for job in data.get('jobs', []):
-              if 'Lint' in job.get('name', ''):
-                  job_url = job.get('html_url', '')
-                  for step in job.get('steps', []):
-                      num = step.get('number', '')
-                      name = step.get('name', '')
-                      if job_url and num:
-                          print(f'{job_url}#step:{num}:1\t{name}')
-                  break
-          " 2>/dev/null) || true
-          fi
-
-          get_target_url() {
-            local step_name="$1"
-            if [ -n "${STEP_URLS[$step_name]:-}" ]; then
-              echo "${STEP_URLS[$step_name]}"
-            else
-              echo "$RUN_URL"
-            fi
-          }
-
-          # ── Extract first meaningful error line from lint log ──
-          extract_hint() {
-            local logfile="/tmp/lint-results/$1.log"
-            if [ ! -f "$logfile" ]; then
-              echo ""
-              return
-            fi
-            grep -m1 -E '(Failed|ERROR|Error:|error:)' "$logfile" \
-              | sed 's/^[[:space:]]*//' \
-              | head -c 140 || echo ""
-          }
-
-          post_status() {
-            local context="$1" outcome="$2" logkey="$3" step_name="$4"
-            local state description target_url
-
-            case "$outcome" in
-              success)  state="success"; description="Passed" ;;
-              failure)
-                state="failure"
-                description=$(extract_hint "$logkey")
-                if [ -z "$description" ]; then
-                  description="Failed"
-                fi
-                ;;
-              skipped)  return 0 ;;
-              *)        return 0 ;;
-            esac
-
-            target_url=$(get_target_url "$step_name")
-            # Escape quotes in description for JSON
-            description=$(printf '%s' "$description" | sed 's/"/\\"/g')
-
-            curl -fsS -X POST \
-              -H "Authorization: token ${GH_TOKEN}" \
-              -H "Content-Type: application/json" \
-              "${API_URL}/repos/${REPO}/statuses/${SHA}" \
-              -d "{
-                \"state\": \"${state}\",
-                \"context\": \"coding-standards: ${context}\",
-                \"description\": \"${description}\",
-                \"target_url\": \"${target_url}\"
-              }" > /dev/null
-            echo "  Posted status: ${context} → ${state} (${description})"
-          }
-
-          post_status "file hygiene"         "$HYGIENE"     hygiene    "Lint: file hygiene"
-          post_status "cruft & secrets"      "$CRUFT"       cruft      "Lint: cruft & secret file blocking"
-          post_status "secret scanning"      "$GITLEAKS"    gitleaks   "Lint: secret scanning (gitleaks)"
-          post_status "typo detection"       "$TYPOS"       typos      "Lint: typo detection"
-          post_status "yaml"                 "$YAML"        yaml       "Lint: YAML (yamllint)"
-          post_status "github actions"       "$ACTIONS"     actions    "Lint: GitHub Actions (actionlint + zizmor)"
-          post_status "markdown"             "$MARKDOWN"    markdown   "Lint: markdown"
-          post_status "commit messages"      "$COMMITLINT"  commitlint "Lint: commit messages (commitlint)"
-          post_status "python"               "$PYTHON"      python     "Lint: Python (ruff)"
-          post_status "shell hygiene"        "$SHELL_LINT"  shell      "Lint: shell hygiene"
-          post_status "justfile formatting"  "$JUSTFILE"    justfile   "Lint: justfile formatting"
-          post_status "copy-paste detection" "$JSCPD"       jscpd      "Lint: copy-paste detection (jscpd)"
-          post_status "trivy"                "$TRIVY"       trivy      "Security: Trivy (IaC + deps)"
-          post_status "semgrep"              "$SEMGREP"     semgrep    "Security: Semgrep (SAST)"
-          post_status "extra checks"         "$EXTRA"       extra      "Repo: extra checks"
+        run: .coding-standards/scripts/ci/report-statuses.sh
 
       # ══════════════════════════════════════════════════════════
       # Summary
@@ -590,72 +407,4 @@ jobs:
           TRIVY: ${{ steps.trivy.outcome }}
           SEMGREP: ${{ steps.semgrep.outcome }}
           EXTRA: ${{ steps.extra.outcome }}
-        run: |
-          echo ""
-          echo "╔══════════════════════════════════════╗"
-          echo "║       coding-standards summary       ║"
-          echo "╠══════════════════════════════════════╣"
-
-          FAILED=0
-          SUMMARY_ROWS=""
-
-          report() {
-            local name="$1" result="$2"
-            case "$result" in
-              success)
-                printf "║  %-28s  %s  ║\n" "$name" "pass"
-                ;;
-              failure)
-                printf "║  %-28s  %s  ║\n" "$name" "FAIL"
-                FAILED=1
-                SUMMARY_ROWS="${SUMMARY_ROWS}$(printf '| :x: FAIL | **%s** |\n' "$name")"
-                ;;
-              skipped)
-                printf "║  %-28s  %s  ║\n" "$name" "skip"
-                ;;
-              *)
-                printf "║  %-28s  %s  ║\n" "$name" "----"
-                ;;
-            esac
-          }
-
-          report "File hygiene"          "$HYGIENE"
-          report "Cruft & secret files"  "$CRUFT"
-          report "Secret scanning"       "$GITLEAKS"
-          report "Typo detection"        "$TYPOS"
-          report "YAML"                  "$YAML"
-          report "GitHub Actions"        "$ACTIONS"
-          report "Markdown"              "$MARKDOWN"
-          report "Commit messages"       "$COMMITLINT"
-          report "Python"                "$PYTHON"
-          report "Shell hygiene"         "$SHELL"
-          report "Justfile formatting"   "$JUSTFILE"
-          report "Copy-paste detection"  "$JSCPD"
-          report "Trivy (IaC + deps)"    "$TRIVY"
-          report "Semgrep (SAST)"        "$SEMGREP"
-          report "Extra checks"          "$EXTRA"
-
-          echo "╚══════════════════════════════════════╝"
-          echo ""
-
-          # Write GitHub Step Summary — only failures shown to avoid noise
-          {
-            if [ "$FAILED" -eq 1 ]; then
-              echo "### :x: coding-standards — failures detected"
-              echo ""
-              echo "| Status | Check |"
-              echo "|--------|-------|"
-              printf '%s' "$SUMMARY_ROWS"
-              echo ""
-              echo "> Click the failed step names in the workflow log for details."
-            else
-              echo "### :white_check_mark: coding-standards — all checks passed"
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
-
-          if [ "$FAILED" -eq 1 ]; then
-            echo "One or more linter groups failed. See individual steps above for details."
-            exit 1
-          fi
-
-          echo "All checks passed."
+        run: .coding-standards/scripts/ci/summary.sh

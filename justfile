@@ -58,6 +58,69 @@ lint-group hook: _setup-pre-commit
 lint-yaml:
     python3 -c "import yaml, glob; [yaml.safe_load(open(f)) or print(f'  valid: {f}') for f in glob.glob('.github/workflows/*.yml')]"
 
+# ── E2E ──────────────────────────────────────────────────────
+
+[doc('Run the full CI workflow locally via act (requires Docker)')]
+[group('test')]
+lint-e2e:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if ! command -v act &>/dev/null; then
+        echo "act is not installed. Install from https://github.com/nektos/act"
+        exit 1
+    fi
+    echo "Running CI workflow locally via act..."
+    act push -W .github/workflows/ci.yml --container-architecture linux/amd64
+
+# ── CI script tests ──────────────────────────────────────────
+
+[doc('Test extracted CI scripts (lint-run, summary)')]
+[group('test')]
+test-ci-scripts:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    rc=0
+
+    printf "%-30s" "lint-run.sh (pass case)"
+    if scripts/ci/lint-run.sh test-pass true > /dev/null 2>&1; then
+        echo "pass"
+    else
+        echo "FAIL"; rc=1
+    fi
+
+    printf "%-30s" "lint-run.sh (fail case)"
+    if ! scripts/ci/lint-run.sh test-fail false > /dev/null 2>&1; then
+        echo "pass"
+    else
+        echo "FAIL (should have failed)"; rc=1
+    fi
+
+    printf "%-30s" "summary.sh (all pass)"
+    if HYGIENE=success CRUFT=success GITLEAKS=success TYPOS=success \
+       YAML=success ACTIONS=success MARKDOWN=success COMMITLINT=success \
+       PYTHON=success SHELL=success JUSTFILE=success JSCPD=success \
+       TRIVY=success SEMGREP=success EXTRA=skipped \
+       scripts/ci/summary.sh > /dev/null 2>&1; then
+        echo "pass"
+    else
+        echo "FAIL"; rc=1
+    fi
+
+    printf "%-30s" "summary.sh (with failure)"
+    if ! HYGIENE=failure CRUFT=success GITLEAKS=success TYPOS=success \
+         YAML=success ACTIONS=success MARKDOWN=success COMMITLINT=success \
+         PYTHON=success SHELL=success JUSTFILE=success JSCPD=success \
+         TRIVY=success SEMGREP=success EXTRA=skipped \
+         scripts/ci/summary.sh > /dev/null 2>&1; then
+        echo "pass"
+    else
+        echo "FAIL (should have failed)"; rc=1
+    fi
+
+    if [ $rc -ne 0 ]; then exit 1; fi
+    echo ""
+    echo "All CI script tests passed."
+
 # ── Setup ───────────────────────────────────────────────────
 
 # Configs that get temporarily copied to root for local linting
