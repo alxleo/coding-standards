@@ -280,6 +280,10 @@ jobs:
         id: actions
         if: "!contains(env.SKIP_HOOKS, 'actions')"
         continue-on-error: true
+        env:
+          # actionlint reads SHELLCHECK_OPTS (not .shellcheckrc)
+          # SC2016: $var in single quotes is intentional in bash -c patterns
+          SHELLCHECK_OPTS: --exclude=SC2016
         run: |
           /tmp/lint-run.sh actions bash -c '
             rc=0

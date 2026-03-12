@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Usage: lint-run.sh <logkey> <command...>
 # Wraps output in a collapsed ::group::, captures to log file,
-# and on failure shows only the meaningful error lines.
+# emits ::error annotations for PR inline display, and on failure
+# shows only the meaningful error lines.
 set -uo pipefail
 
 logkey="$1"; shift
@@ -20,5 +21,25 @@ if [ $rc -ne 0 ]; then
   # Filter out setup noise, show everything else (hook results + errors)
   grep -v -E '^\[INFO\]|^- Installing|^- Using|^Initializing|^- repo:|^\s*$' "$logfile" \
     | tail -40
+
+  # Emit ::error annotations for inline PR display (max 10 per step)
+  # Matches common linter output: file:line:col: message
+  grep -E '^[^:]+:[0-9]+:[0-9]*:' "$logfile" \
+    | grep -v -E '^\[INFO\]|^- |^::' \
+    | head -10 \
+    | while IFS= read -r line; do
+        # Parse file:line:col:message pattern
+        file=$(echo "$line" | cut -d: -f1)
+        lineno=$(echo "$line" | cut -d: -f2)
+        col=$(echo "$line" | cut -d: -f3)
+        msg=$(echo "$line" | cut -d: -f4- | sed 's/^[[:space:]]*//')
+        if [ -n "$file" ] && [ -n "$lineno" ] && [ -n "$msg" ]; then
+          if [ -n "$col" ] && [[ "$col" =~ ^[0-9]+$ ]]; then
+            echo "::error file=${file},line=${lineno},col=${col},title=${logkey}::${msg}"
+          else
+            echo "::error file=${file},line=${lineno},title=${logkey}::${msg}"
+          fi
+        fi
+      done
 fi
 exit $rc
