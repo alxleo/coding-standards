@@ -130,6 +130,40 @@ The workflow only copies config files that don't already exist in your repo. To 
 
 The workflow's `.pre-commit-config.yaml` always takes precedence (it defines which hooks run).
 
+### Add repo-specific checks
+
+Use `extra-lint-script` to run additional linters that aren't part of the standard set. Point it at a script in your repo:
+
+```yaml
+jobs:
+  lint:
+    uses: alxleo/coding-standards/.github/workflows/lint.yml@v1
+    with:
+      extra-lint-script: .github/lint-extra.sh
+```
+
+The script runs after all standard groups and gets the same treatment: output is collapsed in a `::group::`, errors are surfaced on failure, and a `coding-standards: extra checks` commit status is posted.
+
+Example `.github/lint-extra.sh` for a Node.js repo:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+rc=0
+npx eslint --max-warnings 0 . || rc=1
+npx stylelint "src/**/*.css" || rc=1
+exit $rc
+```
+
+The script has access to Python (`uv`), Node.js (`npx`/`node`), and any tools installed by the workflow (just, OpenTofu, TFLint, Trivy). Install additional tools inline if needed:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+npm ci  # install project deps for eslint plugins
+npx eslint --max-warnings 0 .
+```
+
 ## Linter Groups
 
 Each group runs as a separate CI step and posts its own commit status:
@@ -148,7 +182,7 @@ Each group runs as a separate CI step and posts its own commit status:
 | `shell` | pin-npm-versions, temp-file-needs-trap, forbid-bare-python | Shell script hygiene |
 | `justfile` | just-fmt-check | Justfile formatting |
 | `jscpd` | jscpd | Copy-paste detection (informational) |
-| `trivy` | trivy-action | IaC + dependency vulnerability scanning |
+| `trivy` | trivy | IaC + dependency vulnerability scanning |
 | `semgrep` | semgrep | Static application security testing (SAST) |
 
 ### Baked-in Configs
@@ -173,6 +207,7 @@ Each group runs as a separate CI step and posts its own commit status:
 | `config-file` | `.coding-standards.yml` | Path to override config in consumer repo |
 | `python-version` | `3.13` | Python version |
 | `node-version` | `22` | Node.js version |
+| `extra-lint-script` | `''` | Path to a repo-local script for additional checks |
 
 ## Version Pinning
 
@@ -190,7 +225,7 @@ The workflow is fully compatible with Gitea Actions. The only differences:
 
 - **Commit statuses**: Work identically. Each linter group posts its own status via the Commit Status API, which Gitea supports natively.
 - **Step summary**: `$GITHUB_STEP_SUMMARY` is not rendered in Gitea's UI (the file is written but not displayed). Results are still visible via commit statuses and the log output.
-- **Trivy action**: Uses a GitHub-hosted action (`aquasecurity/trivy-action`). Gitea runners must be able to resolve this reference.
+- **Trivy**: Installed as a cached binary (same as just, OpenTofu, TFLint). No external action dependency — works identically on Gitea.
 
 ## Philosophy
 

@@ -29,6 +29,10 @@ on:
         type: string
         default: '22'
         description: 'Node.js version'
+      extra-lint-script:
+        type: string
+        default: ''
+        description: 'Path to a repo-local script that runs additional linter checks'
 
 permissions:
   contents: read
@@ -432,6 +436,14 @@ jobs:
         continue-on-error: true
         run: /tmp/lint-run.sh semgrep uvx semgrep scan --config auto --error --quiet .
 
+      - name: "Repo: extra checks"
+        id: extra
+        if: inputs.extra-lint-script != ''
+        continue-on-error: true
+        env:
+          EXTRA_SCRIPT: ${{ inputs.extra-lint-script }}
+        run: /tmp/lint-run.sh extra bash "$EXTRA_SCRIPT"
+
       # ══════════════════════════════════════════════════════════
       # Report per-group commit statuses (GitHub + Gitea compatible)
       # ══════════════════════════════════════════════════════════
@@ -458,6 +470,7 @@ jobs:
           JSCPD: ${{ steps.jscpd.outcome }}
           TRIVY: ${{ steps.trivy.outcome }}
           SEMGREP: ${{ steps.semgrep.outcome }}
+          EXTRA: ${{ steps.extra.outcome }}
         run: |
           set -euo pipefail
 
@@ -554,6 +567,7 @@ jobs:
           post_status "copy-paste detection" "$JSCPD"       jscpd      "Lint: copy-paste detection (jscpd)"
           post_status "trivy"                "$TRIVY"       trivy      "Security: Trivy (IaC + deps)"
           post_status "semgrep"              "$SEMGREP"     semgrep    "Security: Semgrep (SAST)"
+          post_status "extra checks"         "$EXTRA"       extra      "Repo: extra checks"
 
       # ══════════════════════════════════════════════════════════
       # Summary
@@ -575,6 +589,7 @@ jobs:
           JSCPD: ${{ steps.jscpd.outcome }}
           TRIVY: ${{ steps.trivy.outcome }}
           SEMGREP: ${{ steps.semgrep.outcome }}
+          EXTRA: ${{ steps.extra.outcome }}
         run: |
           echo ""
           echo "╔══════════════════════════════════════╗"
@@ -618,6 +633,7 @@ jobs:
           report "Copy-paste detection"  "$JSCPD"
           report "Trivy (IaC + deps)"    "$TRIVY"
           report "Semgrep (SAST)"        "$SEMGREP"
+          report "Extra checks"          "$EXTRA"
 
           echo "╚══════════════════════════════════════╝"
           echo ""
