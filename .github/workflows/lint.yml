@@ -44,13 +44,13 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
       # ── Fetch coding-standards configs ──────────────────────
       - name: Checkout coding-standards
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: alxleo/coding-standards
           path: .coding-standards
@@ -60,9 +60,10 @@ jobs:
           persist-credentials: false
 
       # ── Setup toolchain ──────────────────────────────────────
-      - uses: astral-sh/setup-uv@0ca8f610542aa7f4acaf39e65cf4eb3c35091883 # v7
+      - uses: astral-sh/setup-uv@6ee6290f1cbc4156c0bdd66691b2c144ef8df19a # v7.4.0
         with:
           enable-cache: true
+          cache-dependency-glob: ""
 
       - name: Install Python
         env:
@@ -70,14 +71,14 @@ jobs:
         run: uv python install "$PYTHON_VERSION"
 
       - name: Cache pre-commit environments
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         with:
           path: ~/.cache/pre-commit
           key: pre-commit-${{ runner.os }}-${{ hashFiles('**/.pre-commit-config.yaml') }}
           restore-keys: pre-commit-${{ runner.os }}-
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: ${{ inputs.node-version }}
 
@@ -166,7 +167,7 @@ jobs:
       - name: Cache just binary
         if: hashFiles('**/justfile', '**/Justfile') != ''
         id: cache-just
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         with:
           path: ~/.just/bin
           key: just-${{ runner.os }}-${{ env.JUST_VERSION }}
@@ -192,7 +193,7 @@ jobs:
       - name: Cache OpenTofu binary
         if: hashFiles('**/*.tf') != ''
         id: cache-tofu
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         with:
           path: ~/.tofu/bin
           key: tofu-${{ runner.os }}-${{ env.TOFU_VERSION }}
@@ -219,7 +220,7 @@ jobs:
       - name: Cache TFLint binary
         if: hashFiles('**/*.tf') != ''
         id: cache-tflint
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         with:
           path: ~/.tflint/bin
           key: tflint-${{ runner.os }}-${{ env.TFLINT_VERSION }}
@@ -361,12 +362,14 @@ jobs:
         id: trivy
         if: "!contains(env.SKIP_HOOKS, 'trivy')"
         continue-on-error: true
-        uses: aquasecurity/trivy-action@e368e328979b113139d6f9068e03accaed98a518 # v0.34.1
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
         with:
           scan-type: fs
           scan-ref: .
           format: table
-          severity: CRITICAL,HIGH,MEDIUM
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+          output: /tmp/lint-results/trivy.log
 
       - name: "Security: Semgrep (SAST)"
         id: semgrep
@@ -385,6 +388,7 @@ jobs:
           API_URL: ${{ github.api_url }}
           REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RUN_ID: ${{ github.run_id }}
           HYGIENE: ${{ steps.hygiene.outcome }}
           CRUFT: ${{ steps.cruft.outcome }}
           GITLEAKS: ${{ steps.gitleaks.outcome }}
@@ -402,22 +406,54 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Extract first meaningful error line from a lint log (max 140 chars for API)
+          # ── Resolve job URL + step numbers for deep links ─────
+          declare -A STEP_URLS
+          JOB_JSON=$(curl -fsS \
+            -H "Authorization: token ${GH_TOKEN}" \
+            "${API_URL}/repos/${REPO}/actions/runs/${RUN_ID}/jobs" 2>/dev/null) || true
+
+          if [ -n "$JOB_JSON" ]; then
+            while IFS=$'\t' read -r step_num step_name; do
+              STEP_URLS["$step_name"]="$step_num"
+            done < <(printf '%s' "$JOB_JSON" | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          for job in data.get('jobs', []):
+              if 'Lint' in job.get('name', ''):
+                  job_url = job.get('html_url', '')
+                  for step in job.get('steps', []):
+                      num = step.get('number', '')
+                      name = step.get('name', '')
+                      if job_url and num:
+                          print(f'{job_url}#step:{num}:1\t{name}')
+                  break
+          " 2>/dev/null) || true
+          fi
+
+          get_target_url() {
+            local step_name="$1"
+            if [ -n "${STEP_URLS[$step_name]:-}" ]; then
+              echo "${STEP_URLS[$step_name]}"
+            else
+              echo "$RUN_URL"
+            fi
+          }
+
+          # ── Extract first meaningful error line from lint log ──
           extract_hint() {
             local logfile="/tmp/lint-results/$1.log"
             if [ ! -f "$logfile" ]; then
               echo ""
               return
             fi
-            # Look for Failed lines from pre-commit, or first line with a file path
             grep -m1 -E '(Failed|ERROR|Error:|error:)' "$logfile" \
               | sed 's/^[[:space:]]*//' \
               | head -c 140 || echo ""
           }
 
           post_status() {
-            local context="$1" outcome="$2" logkey="$3"
-            local state description
+            local context="$1" outcome="$2" logkey="$3" step_name="$4"
+            local state description target_url
 
             case "$outcome" in
               success)  state="success"; description="Passed" ;;
@@ -432,6 +468,7 @@ jobs:
               *)        return 0 ;;
             esac
 
+            target_url=$(get_target_url "$step_name")
             # Escape quotes in description for JSON
             description=$(printf '%s' "$description" | sed 's/"/\\"/g')
 
@@ -443,25 +480,25 @@ jobs:
                 \"state\": \"${state}\",
                 \"context\": \"coding-standards: ${context}\",
                 \"description\": \"${description}\",
-                \"target_url\": \"${RUN_URL}\"
+                \"target_url\": \"${target_url}\"
               }" > /dev/null
             echo "  Posted status: ${context} → ${state} (${description})"
           }
 
-          post_status "file hygiene"         "$HYGIENE"     hygiene
-          post_status "cruft & secrets"      "$CRUFT"       cruft
-          post_status "secret scanning"      "$GITLEAKS"    gitleaks
-          post_status "typo detection"       "$TYPOS"       typos
-          post_status "yaml"                 "$YAML"        yaml
-          post_status "github actions"       "$ACTIONS"     actions
-          post_status "markdown"             "$MARKDOWN"    markdown
-          post_status "commit messages"      "$COMMITLINT"  commitlint
-          post_status "python"               "$PYTHON"      python
-          post_status "shell hygiene"        "$SHELL_LINT"  shell
-          post_status "justfile formatting"  "$JUSTFILE"    justfile
-          post_status "copy-paste detection" "$JSCPD"       jscpd
-          post_status "trivy"                "$TRIVY"       trivy
-          post_status "semgrep"              "$SEMGREP"     semgrep
+          post_status "file hygiene"         "$HYGIENE"     hygiene    "Lint: file hygiene"
+          post_status "cruft & secrets"      "$CRUFT"       cruft      "Lint: cruft & secret file blocking"
+          post_status "secret scanning"      "$GITLEAKS"    gitleaks   "Lint: secret scanning (gitleaks)"
+          post_status "typo detection"       "$TYPOS"       typos      "Lint: typo detection"
+          post_status "yaml"                 "$YAML"        yaml       "Lint: YAML (yamllint)"
+          post_status "github actions"       "$ACTIONS"     actions    "Lint: GitHub Actions (actionlint + zizmor)"
+          post_status "markdown"             "$MARKDOWN"    markdown   "Lint: markdown"
+          post_status "commit messages"      "$COMMITLINT"  commitlint "Lint: commit messages (commitlint)"
+          post_status "python"               "$PYTHON"      python     "Lint: Python (ruff)"
+          post_status "shell hygiene"        "$SHELL_LINT"  shell      "Lint: shell hygiene"
+          post_status "justfile formatting"  "$JUSTFILE"    justfile   "Lint: justfile formatting"
+          post_status "copy-paste detection" "$JSCPD"       jscpd      "Lint: copy-paste detection (jscpd)"
+          post_status "trivy"                "$TRIVY"       trivy      "Security: Trivy (IaC + deps)"
+          post_status "semgrep"              "$SEMGREP"     semgrep    "Security: Semgrep (SAST)"
 
       # ══════════════════════════════════════════════════════════
       # Summary
