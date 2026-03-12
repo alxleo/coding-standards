@@ -37,7 +37,9 @@ runs:
 
     - name: Install Python
       shell: bash
-      run: uv python install ${{ inputs.python-version }}
+      env:
+        PYTHON_VERSION: ${{ inputs.python-version }}
+      run: uv python install "$PYTHON_VERSION"
 
     - name: Cache pre-commit environments
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
@@ -51,18 +53,15 @@ runs:
       with:
         node-version: ${{ inputs.node-version }}
 
-    # ── Apply configs + parse overrides ──────────────────────
-    - name: Apply coding-standards configs
+    # ── Parse overrides and compute skip list ─────────────────
+    - name: Parse overrides
       id: setup
       shell: bash
       env:
-        ACTION_PATH: ${{ github.action_path }}
         CONFIG_FILE: ${{ inputs.config-file }}
         INPUT_SKIP: ${{ inputs.skip-hooks }}
       run: |
         set -euo pipefail
-
-        # ── Parse overrides ─────────────────────────────────
         SKIP_FROM_OVERRIDE=""
         if [ -f "$CONFIG_FILE" ]; then
           echo "Found override file: $CONFIG_FILE"
@@ -79,17 +78,28 @@ runs:
         " 2>/dev/null || echo "")
           fi
         fi
-
-        # Merge skip sources into a single comma-separated list
         SKIP=""
         [ -n "$INPUT_SKIP" ] && SKIP="$INPUT_SKIP"
         [ -n "$SKIP_FROM_OVERRIDE" ] && {
           [ -n "$SKIP" ] && SKIP="$SKIP,$SKIP_FROM_OVERRIDE" || SKIP="$SKIP_FROM_OVERRIDE"
         }
-        echo "SKIP_HOOKS=$SKIP" >> "$GITHUB_ENV"
-        [ -n "$SKIP" ] && echo "Will skip: $SKIP"
+        echo "skip-hooks=$SKIP" >> "$GITHUB_OUTPUT"
+        [ -n "$SKIP" ] && echo "Will skip: $SKIP" || true
 
-        # ── Lay down config files ───────────────────────────
+    - name: Export skip list
+      shell: bash
+      env:
+        SKIP_VALUE: ${{ steps.setup.outputs.skip-hooks }}
+      run: echo "SKIP_HOOKS=$SKIP_VALUE" >> "$GITHUB_ENV" # zizmor: ignore[github-env]
+
+    # ── Apply configs from this action into the workspace ────
+    - name: Apply coding-standards configs
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        set -euo pipefail
+
         # Only copy configs that don't already exist (consumer can override)
         configs=(
           .gitleaks.toml
@@ -148,7 +158,7 @@ runs:
     - name: Add just to PATH
       if: hashFiles('**/justfile', '**/Justfile') != ''
       shell: bash
-      run: echo "$HOME/.just/bin" >> "$GITHUB_PATH"
+      run: echo "$HOME/.just/bin" >> "$GITHUB_PATH"  # zizmor: ignore[github-env]
 
     # ── Install pre-commit hooks (shared cache, one-time) ────
     - name: Install pre-commit hooks
