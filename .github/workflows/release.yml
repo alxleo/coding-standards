@@ -14,13 +14,13 @@ permissions:
 
 jobs:
   release:
-    # Only release if CI passed (ci.yml runs on push to main too)
-    needs: []
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
+          # persist-credentials needed for git tag + push in the last step
+          persist-credentials: true # zizmor: ignore[artipacked]
 
       - name: Determine next version
         id: version
