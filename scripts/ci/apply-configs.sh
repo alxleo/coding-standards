@@ -10,7 +10,7 @@ set -euo pipefail
 SKIP_FROM_OVERRIDE=""
 if [ -f "$CONFIG_FILE" ]; then
   echo "Found override file: $CONFIG_FILE"
-  SKIP_FROM_OVERRIDE=$(python3 -c "
+  SKIP_FROM_OVERRIDE=$(uv run python3 -c "
 import yaml, sys
 try:
     with open('$CONFIG_FILE') as f:

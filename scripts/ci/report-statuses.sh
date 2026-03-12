@@ -17,7 +17,7 @@ JOB_JSON=$(curl -fsS \
 if [ -n "$JOB_JSON" ]; then
   while IFS=$'\t' read -r step_num step_name; do
     STEP_URLS["$step_name"]="$step_num"
-  done < <(printf '%s' "$JOB_JSON" | python3 -c "
+  done < <(printf '%s' "$JOB_JSON" | uv run python3 -c "
 import json, sys
 data = json.load(sys.stdin)
 for job in data.get('jobs', []):
@@ -95,7 +95,8 @@ post_status "yaml"                 "$YAML"        yaml       "Lint: YAML (yamlli
 post_status "github actions"       "$ACTIONS"     actions    "Lint: GitHub Actions (actionlint + zizmor)"
 post_status "markdown"             "$MARKDOWN"    markdown   "Lint: markdown"
 post_status "commit messages"      "$COMMITLINT"  commitlint "Lint: commit messages (commitlint)"
-post_status "python"               "$PYTHON"      python     "Lint: Python (ruff)"
+LINT_GROUP="python"
+post_status "$LINT_GROUP"           "$PYTHON"      "$LINT_GROUP" "Lint: Python (ruff)"
 post_status "shell hygiene"        "$SHELL_LINT"  shell      "Lint: shell hygiene"
 post_status "justfile formatting"  "$JUSTFILE"    justfile   "Lint: justfile formatting"
 post_status "copy-paste detection" "$JSCPD"       jscpd      "Lint: copy-paste detection (jscpd)"
