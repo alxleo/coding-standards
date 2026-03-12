@@ -1,24 +1,24 @@
 # coding-standards — composite GitHub Action
 #
-# Runs pre-commit linting with baked-in configs from this repo.
-# Consumer repos only need a ~6-line workflow stub.
+# Runs linters with baked-in configs from this repo.
+# Each linter group gets its own step — failures are isolated and visible.
 #
 # Override behavior by placing a .coding-standards.yml in your repo root.
 # See README.md for override options.
 name: coding-standards
-description: Run pre-commit linting with centralized coding standards
+description: Run linting with centralized coding standards
 
 inputs:
   skip-hooks:
-    description: 'Comma-separated pre-commit hooks to skip (e.g. "commitlint,ruff")'
+    description: 'Comma-separated linter groups to skip (e.g. "python,commitlint")'
     required: false
     default: ''
   config-file:
     description: 'Path to override config file in consumer repo'
     required: false
     default: '.coding-standards.yml'
-  version:
-    description: 'Python version for pre-commit'
+  python-version:
+    description: 'Python version'
     required: false
     default: '3.13'
   node-version:
@@ -37,7 +37,7 @@ runs:
 
     - name: Install Python
       shell: bash
-      run: uv python install ${{ inputs.version }}
+      run: uv python install ${{ inputs.python-version }}
 
     - name: Cache pre-commit environments
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
@@ -51,26 +51,22 @@ runs:
       with:
         node-version: ${{ inputs.node-version }}
 
-    # ── Apply configs from this action into the workspace ────
+    # ── Apply configs + parse overrides ──────────────────────
     - name: Apply coding-standards configs
+      id: setup
       shell: bash
       env:
         ACTION_PATH: ${{ github.action_path }}
         CONFIG_FILE: ${{ inputs.config-file }}
+        INPUT_SKIP: ${{ inputs.skip-hooks }}
       run: |
         set -euo pipefail
 
-        # ── Parse overrides if present ──────────────────────
+        # ── Parse overrides ─────────────────────────────────
         SKIP_FROM_OVERRIDE=""
-        EXTRA_ARGS=""
-
         if [ -f "$CONFIG_FILE" ]; then
           echo "Found override file: $CONFIG_FILE"
-
-          # Extract skip-hooks list from override file
-          if command -v yq &>/dev/null; then
-            SKIP_FROM_OVERRIDE=$(yq -r '.skip-hooks // [] | join(",")' "$CONFIG_FILE" 2>/dev/null || echo "")
-          elif command -v python3 &>/dev/null; then
+          if command -v python3 &>/dev/null; then
             SKIP_FROM_OVERRIDE=$(python3 -c "
         import yaml, sys
         try:
@@ -84,12 +80,17 @@ runs:
           fi
         fi
 
-        # Merge skip-hooks from input and override file
-        echo "OVERRIDE_SKIP=$SKIP_FROM_OVERRIDE" >> "$GITHUB_ENV"
+        # Merge skip sources into a single comma-separated list
+        SKIP=""
+        [ -n "$INPUT_SKIP" ] && SKIP="$INPUT_SKIP"
+        [ -n "$SKIP_FROM_OVERRIDE" ] && {
+          [ -n "$SKIP" ] && SKIP="$SKIP,$SKIP_FROM_OVERRIDE" || SKIP="$SKIP_FROM_OVERRIDE"
+        }
+        echo "SKIP_HOOKS=$SKIP" >> "$GITHUB_ENV"
+        [ -n "$SKIP" ] && echo "Will skip: $SKIP"
 
         # ── Lay down config files ───────────────────────────
-        # Only copy configs that don't already exist in the consumer repo.
-        # This lets consumers keep their own .yamllint, .shellcheckrc, etc.
+        # Only copy configs that don't already exist (consumer can override)
         configs=(
           .gitleaks.toml
           .markdownlint-cli2.yaml
@@ -102,22 +103,20 @@ runs:
           .mega-linter.yml
           commitlint.config.mjs
         )
-
         for cfg in "${configs[@]}"; do
           if [ ! -f "$cfg" ]; then
             cp "$ACTION_PATH/configs/$cfg" "$cfg"
             echo "  Applied: $cfg"
           else
-            echo "  Skipped (consumer override exists): $cfg"
+            echo "  Kept (consumer override): $cfg"
           fi
         done
 
-        # ── Lay down pre-commit config ──────────────────────
-        # Always use the action's pre-commit config — this IS the standard.
+        # Always apply pre-commit config — this IS the standard
         cp "$ACTION_PATH/configs/.pre-commit-config.yaml" .pre-commit-config.yaml
         echo "  Applied: .pre-commit-config.yaml"
 
-        # ── Lay down custom hook scripts ────────────────────
+        # Apply custom hook scripts
         mkdir -p scripts/hooks
         cp "$ACTION_PATH/scripts/hooks/"* scripts/hooks/ 2>/dev/null || true
         chmod +x scripts/hooks/* 2>/dev/null || true
@@ -151,22 +150,169 @@ runs:
       shell: bash
       run: echo "$HOME/.just/bin" >> "$GITHUB_PATH"
 
-    # ── Run pre-commit ───────────────────────────────────────
-    - name: Run pre-commit
+    # ── Install pre-commit hooks (shared cache, one-time) ────
+    - name: Install pre-commit hooks
+      shell: bash
+      run: uvx pre-commit install-hooks
+
+    # ══════════════════════════════════════════════════════════
+    # Individual linter steps — each runs independently.
+    # continue-on-error: true so all linters run even if one fails.
+    # The summary step at the end collects results.
+    # ══════════════════════════════════════════════════════════
+
+    # ── 1. File hygiene ──────────────────────────────────────
+    - name: "Lint: file hygiene"
+      id: hygiene
+      if: "!contains(env.SKIP_HOOKS, 'hygiene')"
+      continue-on-error: true
+      shell: bash
+      run: |
+        uvx pre-commit run check-yaml --all-files
+        uvx pre-commit run check-json --all-files
+        uvx pre-commit run check-toml --all-files
+        uvx pre-commit run check-merge-conflict --all-files
+        uvx pre-commit run check-added-large-files --all-files
+        uvx pre-commit run detect-private-key --all-files
+        uvx pre-commit run end-of-file-fixer --all-files
+        uvx pre-commit run trailing-whitespace --all-files
+        uvx pre-commit run check-case-conflict --all-files
+        uvx pre-commit run check-executables-have-shebangs --all-files
+        uvx pre-commit run check-shebang-scripts-are-executable --all-files
+
+    # ── 2. Cruft & secrets blocking ──────────────────────────
+    - name: "Lint: cruft & secret file blocking"
+      id: cruft
+      if: "!contains(env.SKIP_HOOKS, 'cruft')"
+      continue-on-error: true
+      shell: bash
+      run: |
+        uvx pre-commit run forbid-cruft-files --all-files
+        uvx pre-commit run block-secret-files --all-files
+        uvx pre-commit run verify-sops-encryption --all-files
+
+    # ── 3. Secret scanning ───────────────────────────────────
+    - name: "Lint: secret scanning (gitleaks)"
+      id: gitleaks
+      if: "!contains(env.SKIP_HOOKS, 'gitleaks')"
+      continue-on-error: true
+      shell: bash
+      run: uvx pre-commit run gitleaks --all-files
+
+    # ── 4. Typo detection ────────────────────────────────────
+    - name: "Lint: typo detection"
+      id: typos
+      if: "!contains(env.SKIP_HOOKS, 'typos')"
+      continue-on-error: true
+      shell: bash
+      run: uvx pre-commit run typos --all-files
+
+    # ── 5. GitHub Actions linting ────────────────────────────
+    - name: "Lint: GitHub Actions (actionlint + zizmor)"
+      id: actions
+      if: "!contains(env.SKIP_HOOKS, 'actions')"
+      continue-on-error: true
+      shell: bash
+      run: |
+        uvx pre-commit run actionlint --all-files
+        uvx pre-commit run zizmor --all-files
+
+    # ── 6. Markdown ──────────────────────────────────────────
+    - name: "Lint: markdown"
+      id: markdown
+      if: "!contains(env.SKIP_HOOKS, 'markdown')"
+      continue-on-error: true
+      shell: bash
+      run: uvx pre-commit run markdownlint-cli2 --all-files
+
+    # ── 7. Commit messages ───────────────────────────────────
+    - name: "Lint: commit messages (commitlint)"
+      id: commitlint
+      if: "!contains(env.SKIP_HOOKS, 'commitlint')"
+      continue-on-error: true
+      shell: bash
+      run: uvx pre-commit run commitlint --all-files
+
+    # ── 8. Python ────────────────────────────────────────────
+    - name: "Lint: Python (ruff)"
+      id: python
+      if: "!contains(env.SKIP_HOOKS, 'python')"
+      continue-on-error: true
+      shell: bash
+      run: |
+        uvx pre-commit run ruff --all-files
+        uvx pre-commit run ruff-format --all-files
+
+    # ── 9. Shell hygiene ─────────────────────────────────────
+    - name: "Lint: shell hygiene"
+      id: shell
+      if: "!contains(env.SKIP_HOOKS, 'shell')"
+      continue-on-error: true
+      shell: bash
+      run: |
+        uvx pre-commit run pin-npm-versions --all-files
+        uvx pre-commit run temp-file-needs-trap --all-files
+        uvx pre-commit run forbid-bare-python --all-files
+
+    # ── 10. Justfile formatting ──────────────────────────────
+    - name: "Lint: justfile formatting"
+      id: justfile
+      if: "!contains(env.SKIP_HOOKS, 'justfile')"
+      continue-on-error: true
+      shell: bash
+      run: uvx pre-commit run just-fmt-check --all-files
+
+    # ══════════════════════════════════════════════════════════
+    # Summary — collect results and fail if any linter failed
+    # ══════════════════════════════════════════════════════════
+    - name: Summary
+      if: always()
       shell: bash
       env:
-        INPUT_SKIP: ${{ inputs.skip-hooks }}
+        HYGIENE: ${{ steps.hygiene.outcome }}
+        CRUFT: ${{ steps.cruft.outcome }}
+        GITLEAKS: ${{ steps.gitleaks.outcome }}
+        TYPOS: ${{ steps.typos.outcome }}
+        ACTIONS: ${{ steps.actions.outcome }}
+        MARKDOWN: ${{ steps.markdown.outcome }}
+        COMMITLINT: ${{ steps.commitlint.outcome }}
+        PYTHON: ${{ steps.python.outcome }}
+        SHELL: ${{ steps.shell.outcome }}
+        JUSTFILE: ${{ steps.justfile.outcome }}
       run: |
-        set -euo pipefail
+        echo ""
+        echo "╔══════════════════════════════════════╗"
+        echo "║       coding-standards summary       ║"
+        echo "╠══════════════════════════════════════╣"
 
-        # Combine skip sources: input + override file
-        SKIP_COMBINED=""
-        [ -n "$INPUT_SKIP" ] && SKIP_COMBINED="$INPUT_SKIP"
-        [ -n "${OVERRIDE_SKIP:-}" ] && {
-          [ -n "$SKIP_COMBINED" ] && SKIP_COMBINED="$SKIP_COMBINED,$OVERRIDE_SKIP" || SKIP_COMBINED="$OVERRIDE_SKIP"
+        FAILED=0
+        report() {
+          local name="$1" result="$2"
+          case "$result" in
+            success)  printf "║  %-28s  %s  ║\n" "$name" "pass" ;;
+            failure)  printf "║  %-28s  %s  ║\n" "$name" "FAIL"; FAILED=1 ;;
+            skipped)  printf "║  %-28s  %s  ║\n" "$name" "skip" ;;
+            *)        printf "║  %-28s  %s  ║\n" "$name" "----" ;;
+          esac
         }
 
-        echo "Running pre-commit on all files..."
-        [ -n "$SKIP_COMBINED" ] && echo "Skipping hooks: $SKIP_COMBINED"
+        report "File hygiene"          "$HYGIENE"
+        report "Cruft & secret files"  "$CRUFT"
+        report "Secret scanning"       "$GITLEAKS"
+        report "Typo detection"        "$TYPOS"
+        report "GitHub Actions"        "$ACTIONS"
+        report "Markdown"              "$MARKDOWN"
+        report "Commit messages"       "$COMMITLINT"
+        report "Python"                "$PYTHON"
+        report "Shell hygiene"         "$SHELL"
+        report "Justfile formatting"   "$JUSTFILE"
 
-        SKIP="$SKIP_COMBINED" uvx pre-commit run --all-files
+        echo "╚══════════════════════════════════════╝"
+        echo ""
+
+        if [ "$FAILED" -eq 1 ]; then
+          echo "One or more linter groups failed. See individual steps above for details."
+          exit 1
+        fi
+
+        echo "All checks passed."

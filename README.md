@@ -37,22 +37,26 @@ The action:
 1. Checks out your code (you do this)
 2. Installs Python, Node.js, and pre-commit (cached)
 3. Copies baseline linter configs into the workspace (won't overwrite your own)
-4. Runs pre-commit with all hooks on all files
-5. Reports pass/fail
+4. Runs each linter group as a **separate step** — failures are isolated
+5. Prints a summary table showing pass/fail/skip per group
+
+Each linter group gets its own collapsible step in the GitHub Actions UI. If markdown linting fails, you click "Lint: markdown" and see exactly what's wrong — no digging through a wall of mixed output.
 
 Configs are centralized in this repo. When we update a rule, every consumer gets the update on their next CI run — no PRs, no syncing, no merge conflicts.
 
 ## Overrides
 
-### Skip specific hooks
+### Skip linter groups
 
-Pass `skip-hooks` input:
+Pass `skip-hooks` input with group names:
 
 ```yaml
 - uses: alxleo/coding-standards@v1
   with:
-    skip-hooks: "commitlint,ruff"
+    skip-hooks: "commitlint,python"
 ```
+
+Available groups: `hygiene`, `cruft`, `gitleaks`, `typos`, `actions`, `markdown`, `commitlint`, `python`, `shell`, `justfile`
 
 ### Override via config file
 
@@ -62,8 +66,8 @@ Drop a `.coding-standards.yml` in your repo root:
 # .coding-standards.yml
 skip-hooks:
   - commitlint       # This repo uses a different commit convention
-  - ruff             # No Python in this repo
-  - ruff-format      # No Python in this repo
+  - python           # No Python in this repo
+  - justfile         # No justfiles in this repo
 ```
 
 Either everything passes or the skip is **explicit in the repo**. No hidden ignores.
@@ -81,34 +85,22 @@ The action only copies config files that don't already exist in your repo. To ov
 
 The action's `.pre-commit-config.yaml` always takes precedence (it defines which hooks run).
 
-## What's Included
+## Linter Groups
 
-### Pre-commit Hooks
+Each group runs as a separate CI step with isolated output:
 
-| Hook | Purpose |
-|------|---------|
-| check-yaml, check-json, check-toml | Syntax validation |
-| check-merge-conflict | Catch unresolved merge markers |
-| check-added-large-files | Block files >500KB |
-| detect-private-key | Catch committed private keys |
-| end-of-file-fixer | Ensure files end with newline |
-| trailing-whitespace | Remove trailing whitespace |
-| check-case-conflict | Catch case-insensitive filename collisions |
-| check-executables-have-shebangs | Ensure executable scripts have shebangs |
-| gitleaks | Secret scanning |
-| typos | Typo detection |
-| actionlint | GitHub Actions workflow linting |
-| zizmor | GitHub Actions security linting |
-| markdownlint-cli2 | Markdown style |
-| commitlint | Conventional commit messages |
-| ruff + ruff-format | Python linting and formatting |
-| forbid-cruft-files | Block .bak, .del, .tmp, .old, .orig files |
-| block-secret-files | Block .env, .key, .pem files |
-| verify-sops-encryption | Ensure SOPS files are encrypted |
-| pin-npm-versions | Require pinned npx versions |
-| temp-file-needs-trap | Shell scripts with mktemp need trap cleanup |
-| forbid-bare-python | Require `uv run` instead of bare `python` |
-| just-fmt-check | Check justfile formatting |
+| Group | Hooks | What it checks |
+|-------|-------|----------------|
+| `hygiene` | check-yaml, check-json, check-toml, check-merge-conflict, check-added-large-files, detect-private-key, end-of-file-fixer, trailing-whitespace, check-case-conflict, check-executables-have-shebangs | Basic file hygiene |
+| `cruft` | forbid-cruft-files, block-secret-files, verify-sops-encryption | Cruft and secret file blocking |
+| `gitleaks` | gitleaks | Secret scanning in file contents |
+| `typos` | typos | Typo detection |
+| `actions` | actionlint, zizmor | GitHub Actions workflow linting + security |
+| `markdown` | markdownlint-cli2 | Markdown style |
+| `commitlint` | commitlint | Conventional commit messages |
+| `python` | ruff, ruff-format | Python linting and formatting |
+| `shell` | pin-npm-versions, temp-file-needs-trap, forbid-bare-python | Shell script hygiene |
+| `justfile` | just-fmt-check | Justfile formatting |
 
 ### Baked-in Configs
 
@@ -128,9 +120,9 @@ The action's `.pre-commit-config.yaml` always takes precedence (it defines which
 
 | Input | Default | Description |
 |-------|---------|-------------|
-| `skip-hooks` | `''` | Comma-separated pre-commit hook IDs to skip |
+| `skip-hooks` | `''` | Comma-separated linter groups to skip |
 | `config-file` | `.coding-standards.yml` | Path to override config in consumer repo |
-| `version` | `3.13` | Python version |
+| `python-version` | `3.13` | Python version |
 | `node-version` | `22` | Node.js version |
 
 ## Version Pinning
