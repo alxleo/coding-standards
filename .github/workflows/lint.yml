@@ -289,6 +289,12 @@ jobs:
         continue-on-error: true
         run: uvx pre-commit run typos --all-files
 
+      - name: "Lint: YAML (yamllint)"
+        id: yaml
+        if: "!contains(env.SKIP_HOOKS, 'yaml')"
+        continue-on-error: true
+        run: uvx pre-commit run yamllint --all-files
+
       - name: "Lint: GitHub Actions (actionlint + zizmor)"
         id: actions
         if: "!contains(env.SKIP_HOOKS, 'actions')"
@@ -370,6 +376,7 @@ jobs:
           CRUFT: ${{ steps.cruft.outcome }}
           GITLEAKS: ${{ steps.gitleaks.outcome }}
           TYPOS: ${{ steps.typos.outcome }}
+          YAML: ${{ steps.yaml.outcome }}
           ACTIONS: ${{ steps.actions.outcome }}
           MARKDOWN: ${{ steps.markdown.outcome }}
           COMMITLINT: ${{ steps.commitlint.outcome }}
@@ -410,6 +417,7 @@ jobs:
           post_status "cruft & secrets"      "$CRUFT"
           post_status "secret scanning"      "$GITLEAKS"
           post_status "typo detection"       "$TYPOS"
+          post_status "yaml"                 "$YAML"
           post_status "github actions"       "$ACTIONS"
           post_status "markdown"             "$MARKDOWN"
           post_status "commit messages"      "$COMMITLINT"
@@ -430,6 +438,7 @@ jobs:
           CRUFT: ${{ steps.cruft.outcome }}
           GITLEAKS: ${{ steps.gitleaks.outcome }}
           TYPOS: ${{ steps.typos.outcome }}
+          YAML: ${{ steps.yaml.outcome }}
           ACTIONS: ${{ steps.actions.outcome }}
           MARKDOWN: ${{ steps.markdown.outcome }}
           COMMITLINT: ${{ steps.commitlint.outcome }}
@@ -472,6 +481,7 @@ jobs:
           report "Cruft & secret files"  "$CRUFT"
           report "Secret scanning"       "$GITLEAKS"
           report "Typo detection"        "$TYPOS"
+          report "YAML"                  "$YAML"
           report "GitHub Actions"        "$ACTIONS"
           report "Markdown"              "$MARKDOWN"
           report "Commit messages"       "$COMMITLINT"

@@ -5,7 +5,7 @@
 # Either everything passes or it's explicit here that it's ignored.
 #
 # Available groups:
-#   hygiene, cruft, gitleaks, typos, actions, markdown,
+#   hygiene, cruft, gitleaks, typos, yaml, actions, markdown,
 #   commitlint, python, shell, justfile, jscpd, trivy, semgrep
 
 skip-hooks:

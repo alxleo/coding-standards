@@ -101,7 +101,7 @@ jobs:
       skip-hooks: "commitlint,python"
 ```
 
-Available groups: `hygiene`, `cruft`, `gitleaks`, `typos`, `actions`, `markdown`, `commitlint`, `python`, `shell`, `justfile`, `jscpd`, `trivy`, `semgrep`
+Available groups: `hygiene`, `cruft`, `gitleaks`, `typos`, `yaml`, `actions`, `markdown`, `commitlint`, `python`, `shell`, `justfile`, `jscpd`, `trivy`, `semgrep`
 
 ### Override via config file
 
@@ -140,6 +140,7 @@ Each group runs as a separate CI step and posts its own commit status:
 | `cruft` | forbid-cruft-files, block-secret-files, verify-sops-encryption | Cruft and secret file blocking |
 | `gitleaks` | gitleaks | Secret scanning in file contents |
 | `typos` | typos | Typo detection |
+| `yaml` | yamllint | YAML style linting (indentation, key ordering, etc.) |
 | `actions` | actionlint, zizmor | GitHub Actions workflow linting + security |
 | `markdown` | markdownlint-cli2 | Markdown style |
 | `commitlint` | commitlint | Conventional commit messages |
