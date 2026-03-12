@@ -122,17 +122,21 @@ test-ci-scripts:
     echo "All CI script tests passed."
 
 # ── Setup ───────────────────────────────────────────────────
-# Configs that get temporarily copied to root for local linting
+# Only configs without --config flag support need copying to root
 
 [private]
-_copied-configs := ".gitleaks.toml .markdownlint-cli2.yaml .shellcheckrc .yamllint .hadolint.yaml .jscpd.json .prettierrc .editorconfig commitlint.config.mjs"
+_copied-configs := ".shellcheckrc .editorconfig"
 
 [doc('Install pre-commit hooks and apply configs')]
 _setup-pre-commit:
     #!/usr/bin/env bash
     set -euo pipefail
+    # Create symlink so .coding-standards/ paths in pre-commit args resolve
+    if [ ! -e .coding-standards ]; then
+        ln -s . .coding-standards
+    fi
     uvx pre-commit install-hooks -c {{ pre-commit-config }} > /dev/null 2>&1
-    # Apply lint configs that don't already exist (mirrors CI behavior)
+    # Copy configs that don't support --config (shellcheckrc, editorconfig)
     cs="lint-configs-626465"
     for cfg in {{ _copied-configs }}; do
         if [ ! -f "$cfg" ] && [ -f "$cs/$cfg" ]; then
@@ -140,10 +144,11 @@ _setup-pre-commit:
         fi
     done
 
-[doc('Remove temporarily copied lint configs')]
+[doc('Remove temporarily copied lint configs and symlink')]
 [group('lint')]
 clean:
     #!/usr/bin/env bash
     for cfg in {{ _copied-configs }}; do
         if [ -f "$cfg" ]; then rm "$cfg"; echo "  removed $cfg"; fi
     done
+    if [ -L .coding-standards ]; then rm .coding-standards; echo "  removed .coding-standards symlink"; fi

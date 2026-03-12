@@ -72,25 +72,23 @@ runs:
       run: |
         set -euo pipefail
 
-        # Only copy configs that don't already exist (consumer can override)
-        configs=(
-          .gitleaks.toml
-          .markdownlint-cli2.yaml
-          .shellcheckrc
-          .yamllint
-          .hadolint.yaml
-          .jscpd.json
-          .prettierrc
-          .editorconfig
-          .mega-linter.yml
-          commitlint.config.mjs
-        )
-        for cfg in "${configs[@]}"; do
+        # Configs without --config flag support — must live at repo root
+        copy_configs=(.shellcheckrc .editorconfig)
+        for cfg in "${copy_configs[@]}"; do
           if [ ! -f "$cfg" ]; then
             cp "$ACTION_PATH/lint-configs-626465/$cfg" "$cfg"
-            echo "  Applied: $cfg"
+            echo "  Copied to root: $cfg"
           else
             echo "  Kept (consumer override): $cfg"
+          fi
+        done
+
+        # Path-based configs: consumer overrides replace our defaults
+        path_configs=(.gitleaks.toml .markdownlint-cli2.yaml .yamllint .hadolint.yaml .jscpd.json .prettierrc commitlint.config.mjs)
+        for cfg in "${path_configs[@]}"; do
+          if [ -f "$cfg" ]; then
+            cp "$cfg" "$ACTION_PATH/lint-configs-626465/$cfg"
+            echo "  Consumer override applied: $cfg"
           fi
         done
 

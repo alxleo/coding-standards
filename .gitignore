@@ -1,0 +1,6 @@
+# Local dev symlink (justfile creates this so config paths resolve)
+/.coding-standards
+
+# Configs copied to root by setup (originals in lint-configs-626465/)
+/.shellcheckrc
+/.editorconfig

@@ -335,7 +335,7 @@ jobs:
         id: jscpd
         if: "!contains(env.SKIP_HOOKS, 'jscpd')"
         continue-on-error: true
-        run: /tmp/lint-run.sh jscpd bash -c 'npx jscpd@4 --config .jscpd.json . || true'
+        run: /tmp/lint-run.sh jscpd bash -c 'npx jscpd@4 --config .coding-standards/lint-configs-626465/.jscpd.json . || true'
 
       - name: "Security: Trivy (IaC + deps)"
         id: trivy

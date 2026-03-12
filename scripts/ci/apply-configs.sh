@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Parses skip overrides and copies coding-standards configs to repo root.
-# Called from the lint workflow's "Apply coding-standards configs" step.
+# Parses skip overrides, applies configs that can't use --config paths,
+# and lets consumer overrides replace our defaults for path-based configs.
 #
 # Required env vars: CONFIG_FILE, INPUT_SKIP
 # Outputs: skip-hooks (via $GITHUB_OUTPUT)
 set -euo pipefail
+
+CS=".coding-standards/lint-configs-626465"
 
 # ── Parse skip overrides ────────────────────────────
 SKIP_FROM_OVERRIDE=""
@@ -38,26 +40,34 @@ if [ -n "$SKIP" ]; then
   echo "Will skip: $SKIP"
 fi
 
-# ── Copy configs (skip if consumer has their own) ──
-CS=".coding-standards/lint-configs-626465"
-configs=(
+# ── Configs that don't support --config (must live at repo root) ──
+copy_configs=(.shellcheckrc .editorconfig)
+for cfg in "${copy_configs[@]}"; do
+  if [ ! -f "$cfg" ]; then
+    cp "$CS/$cfg" "$cfg"
+    echo "  Copied to root: $cfg"
+  else
+    echo "  Kept (consumer override): $cfg"
+  fi
+done
+
+# ── Path-based configs: consumer overrides replace our defaults ──
+# Most tools get --config via pre-commit args. If a consumer has their
+# own config at the conventional root location, overlay it into our
+# config dir so the --config path still resolves to the right file.
+path_configs=(
   .gitleaks.toml
   .markdownlint-cli2.yaml
-  .shellcheckrc
   .yamllint
   .hadolint.yaml
   .jscpd.json
   .prettierrc
-  .editorconfig
-  .mega-linter.yml
   commitlint.config.mjs
 )
-for cfg in "${configs[@]}"; do
-  if [ ! -f "$cfg" ]; then
-    cp "$CS/$cfg" "$cfg"
-    echo "  Applied: $cfg"
-  else
-    echo "  Kept (consumer override): $cfg"
+for cfg in "${path_configs[@]}"; do
+  if [ -f "$cfg" ]; then
+    cp "$cfg" "$CS/$cfg"
+    echo "  Consumer override applied: $cfg → $CS/$cfg"
   fi
 done
 
