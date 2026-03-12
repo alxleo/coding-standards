@@ -4,3 +4,6 @@
 # Configs copied to root by setup (originals in lint-configs-626465/)
 /.shellcheckrc
 /.editorconfig
+
+# npm (bats-core test runner)
+/node_modules/

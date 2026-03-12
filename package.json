@@ -1,0 +1,23 @@
+{
+  "name": "coding-standards",
+  "version": "1.0.0",
+  "description": "Centralized linting and coding standards as a reusable GitHub Actions workflow. Consumer repos add a short workflow file — all linting runs in CI, not on developer machines. Each linter group posts its own commit status on the PR, so you see exactly what passed or failed.",
+  "main": "index.js",
+  "directories": {
+    "example": "examples",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://local_proxy@127.0.0.1:46633/git/alxleo/coding-standards"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "bats": "^1.13.0"
+  }
+}

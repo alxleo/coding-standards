@@ -22,10 +22,19 @@ Consumer repos add a short workflow stub. The reusable workflow:
 
 - `.github/workflows/lint.yml` — reusable workflow (main entry point for consumers)
 - `.github/workflows/ci.yml` — self-test that calls lint.yml on this repo
-- `action.yml` — composite action (setup-only, used internally or for advanced consumers)
-- `lint-configs-626465/` — all linter configs (copied to workspace at runtime)
+- `action.yml` — composite action (calls `apply-configs.sh`, used internally)
+- `lint-configs-626465/` — all linter configs (referenced via `--config` paths at runtime)
 - `lint-configs-626465/.pre-commit-config.yaml` — source of truth for all pre-commit hooks
+- `scripts/ci/groups.conf` — single source of truth for linter group metadata
+- `scripts/ci/lint-run.sh` — lint step wrapper (logs, outcomes, error annotations)
+- `scripts/ci/summary.sh` — summary table + GitHub step summary
+- `scripts/ci/report-statuses.sh` — per-group commit status posting
+- `scripts/ci/install-tool.sh` — data-driven binary tool installer
+- `scripts/ci/apply-configs.sh` — config application + consumer override merging
+- `scripts/ci/lib/common.sh` — shared error extraction helpers
 - `scripts/hooks/` — custom hook scripts referenced by pre-commit config
+- `test/*.bats` — bats-core tests for CI scripts and hooks
+- `docs/architecture-decisions.md` — evaluated alternatives + future options
 - `examples/lint.yml` — example consumer workflow
 - `examples/.coding-standards.yml` — example override file
 
@@ -62,11 +71,19 @@ The `.pre-commit-config.yaml` always comes from this repo (it defines which hook
 
 ## Adding a new linter group
 
-1. Add a new step in `.github/workflows/lint.yml` with a unique `id`, `continue-on-error: true`, and the `!contains(env.SKIP_HOOKS, 'group-name')` guard
-2. Add the group's env var and `post_status` call to the "Report lint statuses" step
-3. Add the group's env var and `report` call to the "Summary" step
-4. Update the README linter groups table
-5. Update `examples/.coding-standards.yml` available groups comment
+1. Add a new step in `.github/workflows/lint.yml` with a unique `id`, `continue-on-error: true`, and the `!contains(env.SKIP_HOOKS, 'group-name')` guard, wrapping the command with `/tmp/lint-run.sh <logkey> <command>`
+2. Add a line in `scripts/ci/groups.conf` with `logkey|display_name|status_context|step_name`
+3. Update the README linter groups table
+4. Update `examples/.coding-standards.yml` available groups comment
+
+That's it — `report-statuses.sh` and `summary.sh` are data-driven from `groups.conf`.
+
+## Running tests
+
+```bash
+just test     # bats-core tests (52 tests across CI scripts + hooks)
+just lint     # full lint suite (mirrors CI)
+```
 
 ## CI self-test
 

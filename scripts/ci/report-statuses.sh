@@ -9,6 +9,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 LOGDIR="${LINT_LOG_DIR:-/tmp/lint-results}"
 
+# shellcheck source=lib/common.sh
+. "$SCRIPT_DIR/lib/common.sh"
+
 # ── Resolve job URL + step numbers for deep links ─────
 declare -A STEP_URLS
 JOB_JSON=$(curl -fsS \
@@ -33,24 +36,6 @@ for job in data.get('jobs', []):
 " 2>/dev/null) || true
 fi
 
-# ── Extract first meaningful error line from lint log ──
-extract_hint() {
-  local logfile="$LOGDIR/$1.log"
-  if [ ! -f "$logfile" ]; then echo ""; return; fi
-  local hint=""
-  hint=$(grep -m1 -E '(Failed|ERROR|Error:|error:|CRITICAL|FATAL|reported issue)' "$logfile" \
-    | sed 's/^[[:space:]]*//' | head -c 140) || true
-  if [ -z "$hint" ]; then
-    hint=$(grep -m1 -E '^\S+:[0-9]+:' "$logfile" \
-      | sed 's/^[[:space:]]*//' | head -c 140) || true
-  fi
-  if [ -z "$hint" ]; then
-    hint=$(grep -v -E '^\[INFO\]|^- Installing|^- Using|^Initializing|^- repo:|^\s*$|^::' "$logfile" \
-      | tail -1 | sed 's/^[[:space:]]*//' | head -c 140) || true
-  fi
-  echo "$hint"
-}
-
 post_status() {
   local context="$1" outcome="$2" logkey="$3" step_name="$4"
   local state description target_url
@@ -59,7 +44,7 @@ post_status() {
     success)  state="success"; description="Passed" ;;
     failure)
       state="failure"
-      description=$(extract_hint "$logkey")
+      description=$(extract_hint "$LOGDIR/${logkey}.log")
       if [ -z "$description" ]; then description="Failed"; fi
       ;;
     *)  return 0 ;;

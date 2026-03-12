@@ -7,6 +7,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 LOGDIR="${LINT_LOG_DIR:-/tmp/lint-results}"
 
+# shellcheck source=lib/common.sh
+. "$SCRIPT_DIR/lib/common.sh"
+
 echo ""
 echo "╔══════════════════════════════════════╗"
 echo "║       coding-standards summary       ║"
@@ -15,23 +18,14 @@ echo "╠═══════════════════════�
 FAILED=0
 SUMMARY_ROWS=""
 
-extract_errors() {
-  local logfile="$LOGDIR/$1.log"
-  if [ ! -f "$logfile" ]; then return; fi
-  grep -v -E '^\[INFO\]|^- Installing|^- Using|^Initializing|^- repo:|^\s*$|^::group|^::endgroup' "$logfile" \
-    | grep -E '(Failed|ERROR|Error:|error:|CRITICAL|warning:|^\S+:[0-9]+:|reported issue|hook id:)' \
-    | head -5
-}
-
 # ── Iterate groups from registry ──────────────────────
-while IFS='|' read -r logkey display_name status_context step_name; do
-  [[ "$logkey" =~ ^#.*$ || -z "$logkey" ]] && continue
+process_group() {
+  local logkey="$1" display_name="$2"
 
-  outcome_file="$LOGDIR/${logkey}.outcome"
+  local outcome_file="$LOGDIR/${logkey}.outcome"
+  local outcome="skipped"
   if [ -f "$outcome_file" ]; then
     outcome=$(cat "$outcome_file")
-  else
-    outcome="skipped"
   fi
 
   case "$outcome" in
@@ -41,7 +35,8 @@ while IFS='|' read -r logkey display_name status_context step_name; do
     failure)
       printf "║  %-28s  %s  ║\n" "$display_name" "FAIL"
       FAILED=1
-      errors=$(extract_errors "$logkey")
+      local errors
+      errors=$(extract_errors "$LOGDIR/${logkey}.log")
       if [ -n "$errors" ]; then
         SUMMARY_ROWS="${SUMMARY_ROWS}$(printf '| :x: FAIL | **%s** | `%s` |\n' "$display_name" "$(echo "$errors" | head -1 | head -c 120)")"
         echo "$errors" | while IFS= read -r line; do
@@ -58,6 +53,11 @@ while IFS='|' read -r logkey display_name status_context step_name; do
       printf "║  %-28s  %s  ║\n" "$display_name" "----"
       ;;
   esac
+}
+
+while IFS='|' read -r logkey display_name status_context step_name; do
+  [[ "$logkey" =~ ^#.*$ || -z "$logkey" ]] && continue
+  process_group "$logkey" "$display_name"
 done < "$SCRIPT_DIR/groups.conf"
 
 echo "╚══════════════════════════════════════╝"
@@ -75,7 +75,7 @@ echo ""
     for logfile in "$LOGDIR"/*.log; do
       [ -f "$logfile" ] || continue
       logkey=$(basename "$logfile" .log)
-      errors=$(extract_errors "$logkey")
+      errors=$(extract_errors "$logfile")
       if [ -n "$errors" ]; then
         echo "<details><summary><b>$logkey</b> errors</summary>"
         echo ""

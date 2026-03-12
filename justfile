@@ -58,61 +58,12 @@ lint-group hook: _setup-pre-commit
 lint-yaml:
     uv run --no-project python3 -c "import yaml, glob; [yaml.safe_load(open(f)) or print(f'  valid: {f}') for f in glob.glob('.github/workflows/*.yml')]"
 
-# ── CI script tests ──────────────────────────────────────────
+# ── Tests ─────────────────────────────────────────────────────
 
-[doc('Test extracted CI scripts (lint-run, summary)')]
+[doc('Run all tests (bats)')]
 [group('test')]
-test-ci-scripts:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    rc=0
-
-    printf "%-30s" "lint-run.sh (pass case)"
-    if scripts/ci/lint-run.sh test-pass true > /dev/null 2>&1; then
-        echo "pass"
-    else
-        echo "FAIL"; rc=1
-    fi
-
-    printf "%-30s" "lint-run.sh (fail case)"
-    if ! scripts/ci/lint-run.sh test-fail false > /dev/null 2>&1; then
-        echo "pass"
-    else
-        echo "FAIL (should have failed)"; rc=1
-    fi
-
-    # Setup: create outcome files for summary.sh tests
-    TESTDIR=$(mktemp -d)
-    setup_outcomes() {
-        rm -f "$TESTDIR"/*.outcome
-        for group in hygiene cruft gitleaks typos yaml actions markdown \
-                     commitlint python shell justfile jscpd trivy semgrep; do
-            echo "$1" > "$TESTDIR/${group}.outcome"
-        done
-    }
-
-    printf "%-30s" "summary.sh (all pass)"
-    setup_outcomes success
-    if LINT_LOG_DIR="$TESTDIR" scripts/ci/summary.sh > /dev/null 2>&1; then
-        echo "pass"
-    else
-        echo "FAIL"; rc=1
-    fi
-
-    printf "%-30s" "summary.sh (with failure)"
-    setup_outcomes success
-    echo "failure" > "$TESTDIR/hygiene.outcome"
-    if ! LINT_LOG_DIR="$TESTDIR" scripts/ci/summary.sh > /dev/null 2>&1; then
-        echo "pass"
-    else
-        echo "FAIL (should have failed)"; rc=1
-    fi
-
-    rm -rf "$TESTDIR"
-
-    if [ $rc -ne 0 ]; then exit 1; fi
-    echo ""
-    echo "All CI script tests passed."
+test:
+    npx bats test/*.bats
 
 # ── Setup ───────────────────────────────────────────────────
 # Only configs without --config flag support need copying to root

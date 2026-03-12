@@ -3,10 +3,12 @@
 # and lets consumer overrides replace our defaults for path-based configs.
 #
 # Required env vars: CONFIG_FILE, INPUT_SKIP
+# Optional env vars: CS_ROOT (default: .coding-standards)
 # Outputs: skip-hooks (via $GITHUB_OUTPUT)
 set -euo pipefail
 
-CS=".coding-standards/lint-configs-626465"
+CS_ROOT="${CS_ROOT:-.coding-standards}"
+CS="${CS_ROOT}/lint-configs-626465"
 
 # ── Parse skip overrides ────────────────────────────
 SKIP_FROM_OVERRIDE=""
@@ -77,12 +79,12 @@ echo "  Applied: .pre-commit-config.yaml"
 
 # Apply custom hook scripts (required by pre-commit local hooks)
 mkdir -p scripts/hooks
-if ls .coding-standards/scripts/hooks/* &>/dev/null; then
-  cp .coding-standards/scripts/hooks/* scripts/hooks/
+if ls "${CS_ROOT}/scripts/hooks/"* &>/dev/null; then
+  cp "${CS_ROOT}/scripts/hooks/"* scripts/hooks/
   chmod +x scripts/hooks/*
   echo "  Applied: scripts/hooks/*"
 else
-  echo "  Warning: no hook scripts found in .coding-standards/scripts/hooks/"
+  echo "  Warning: no hook scripts found in ${CS_ROOT}/scripts/hooks/"
 fi
 
 # Verify all referenced hooks exist
