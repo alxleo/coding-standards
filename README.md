@@ -209,7 +209,7 @@ Each group runs as a separate CI step and posts its own commit status:
 | `node-version` | `22` | Node.js version |
 | `extra-lint-script` | `''` | Path to a repo-local script for additional checks |
 
-## Version Pinning
+## Version Pinning and Releases
 
 Pin to a major version tag:
 
@@ -217,7 +217,28 @@ Pin to a major version tag:
 uses: alxleo/coding-standards/.github/workflows/lint.yml@v1
 ```
 
-The `v1` tag moves forward with non-breaking updates. Pin to a specific release (`@v1.0.3`) if you need exact reproducibility.
+The `v1` tag moves forward automatically. Every push to `main` creates a new release:
+
+- **`feat:` commits** → minor version bump (v1.2.0 → v1.3.0)
+- **Everything else** → patch version bump (v1.2.0 → v1.2.1)
+- The floating `v1` tag is updated to point to the latest release
+
+Consumer repos pinned to `@v1` get updates on their next CI run — no PRs, no syncing. Pin to a specific release (`@v1.2.3`) if you need exact reproducibility.
+
+## Contributing
+
+Two ways to add checks:
+
+1. **Universal checks** — PR to this repo. Add the linter group to `lint.yml`, update docs, and it becomes available to all consumers on the next release.
+2. **Repo-specific checks** — Use `extra-lint-script` in your consumer repo (no PR needed here).
+
+To add a new universal linter group:
+
+1. Add the step to `.github/workflows/lint.yml` with an `id`, `continue-on-error: true`, and wrap in `/tmp/lint-run.sh`
+2. Add the step outcome to the "Report lint statuses" env block
+3. Add a `post_status` call with the step name
+4. Add a `report` call in the Summary step
+5. Add the group to the README table and the `skip-hooks` list in `examples/.coding-standards.yml`
 
 ## Gitea Actions
 
