@@ -48,9 +48,22 @@ extract_hint() {
     echo ""
     return
   fi
-  grep -m1 -E '(Failed|ERROR|Error:|error:)' "$logfile" \
-    | sed 's/^[[:space:]]*//' \
-    | head -c 140 || echo ""
+  # Try progressively broader patterns to find something useful
+  local hint=""
+  # Pattern 1: explicit error markers from most tools
+  hint=$(grep -m1 -E '(Failed|ERROR|Error:|error:|CRITICAL|FATAL|reported issue)' "$logfile" \
+    | sed 's/^[[:space:]]*//' | head -c 140) || true
+  # Pattern 2: lines with file:line references (common linter output)
+  if [ -z "$hint" ]; then
+    hint=$(grep -m1 -E '^\S+:\d+:' "$logfile" \
+      | sed 's/^[[:space:]]*//' | head -c 140) || true
+  fi
+  # Pattern 3: last non-empty, non-setup line (fallback)
+  if [ -z "$hint" ]; then
+    hint=$(grep -v -E '^\[INFO\]|^- Installing|^- Using|^Initializing|^- repo:|^\s*$|^::' "$logfile" \
+      | tail -1 | sed 's/^[[:space:]]*//' | head -c 140) || true
+  fi
+  echo "$hint"
 }
 
 post_status() {
