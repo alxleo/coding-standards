@@ -344,9 +344,7 @@ jobs:
         id: semgrep
         if: "!contains(env.SKIP_HOOKS, 'semgrep')"
         continue-on-error: true
-        uses: semgrep/semgrep-action@713efdd6114b6f3e98aa601fa67dab7699d0a30b # v1
-        with:
-          config: auto
+        run: uvx semgrep scan --config auto --error --quiet .
 
       # ══════════════════════════════════════════════════════════
       # Summary
@@ -374,13 +372,25 @@ jobs:
           echo "╠══════════════════════════════════════╣"
 
           FAILED=0
+          SUMMARY_ROWS=""
+
           report() {
             local name="$1" result="$2"
             case "$result" in
-              success)  printf "║  %-28s  %s  ║\n" "$name" "pass" ;;
-              failure)  printf "║  %-28s  %s  ║\n" "$name" "FAIL"; FAILED=1 ;;
-              skipped)  printf "║  %-28s  %s  ║\n" "$name" "skip" ;;
-              *)        printf "║  %-28s  %s  ║\n" "$name" "----" ;;
+              success)
+                printf "║  %-28s  %s  ║\n" "$name" "pass"
+                ;;
+              failure)
+                printf "║  %-28s  %s  ║\n" "$name" "FAIL"
+                FAILED=1
+                SUMMARY_ROWS="${SUMMARY_ROWS}| :x: **FAIL** | **${name}** |\n"
+                ;;
+              skipped)
+                printf "║  %-28s  %s  ║\n" "$name" "skip"
+                ;;
+              *)
+                printf "║  %-28s  %s  ║\n" "$name" "----"
+                ;;
             esac
           }
 
@@ -400,6 +410,21 @@ jobs:
 
           echo "╚══════════════════════════════════════╝"
           echo ""
+
+          # Write GitHub Step Summary — only failures shown to avoid noise
+          {
+            if [ "$FAILED" -eq 1 ]; then
+              echo "### :x: coding-standards — failures detected"
+              echo ""
+              echo "| Status | Check |"
+              echo "|--------|-------|"
+              printf "$SUMMARY_ROWS"
+              echo ""
+              echo "> Click the failed step names in the workflow log for details."
+            else
+              echo "### :white_check_mark: coding-standards — all checks passed"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
           if [ "$FAILED" -eq 1 ]; then
             echo "One or more linter groups failed. See individual steps above for details."
