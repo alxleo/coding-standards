@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # Posts per-group commit statuses to GitHub/Gitea with deep links.
+# Data-driven: reads outcomes from /tmp/lint-results/*.outcome
+# and group metadata from groups.conf.
 #
-# Required env vars:
-#   GH_TOKEN, SHA, API_URL, REPO, RUN_URL, RUN_ID
-#   Plus outcome vars: HYGIENE, CRUFT, GITLEAKS, TYPOS, YAML, ACTIONS,
-#   MARKDOWN, COMMITLINT, PYTHON, SHELL_LINT, JUSTFILE, JSCPD, TRIVY,
-#   SEMGREP, EXTRA
+# Required env vars: GH_TOKEN, SHA, API_URL, REPO, RUN_URL, RUN_ID
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+LOGDIR="${LINT_LOG_DIR:-/tmp/lint-results}"
 
 # ── Resolve job URL + step numbers for deep links ─────
 declare -A STEP_URLS
@@ -15,8 +16,8 @@ JOB_JSON=$(curl -fsS \
   "${API_URL}/repos/${REPO}/actions/runs/${RUN_ID}/jobs" 2>/dev/null) || true
 
 if [ -n "$JOB_JSON" ]; then
-  while IFS=$'\t' read -r step_num step_name; do
-    STEP_URLS["$step_name"]="$step_num"
+  while IFS=$'\t' read -r step_url step_name; do
+    STEP_URLS["$step_name"]="$step_url"
   done < <(printf '%s' "$JOB_JSON" | uv run --no-project python3 -c "
 import json, sys
 data = json.load(sys.stdin)
@@ -32,33 +33,17 @@ for job in data.get('jobs', []):
 " 2>/dev/null) || true
 fi
 
-get_target_url() {
-  local step_name="$1"
-  if [ -n "${STEP_URLS[$step_name]:-}" ]; then
-    echo "${STEP_URLS[$step_name]}"
-  else
-    echo "$RUN_URL"
-  fi
-}
-
 # ── Extract first meaningful error line from lint log ──
 extract_hint() {
-  local logfile="/tmp/lint-results/$1.log"
-  if [ ! -f "$logfile" ]; then
-    echo ""
-    return
-  fi
-  # Try progressively broader patterns to find something useful
+  local logfile="$LOGDIR/$1.log"
+  if [ ! -f "$logfile" ]; then echo ""; return; fi
   local hint=""
-  # Pattern 1: explicit error markers from most tools
   hint=$(grep -m1 -E '(Failed|ERROR|Error:|error:|CRITICAL|FATAL|reported issue)' "$logfile" \
     | sed 's/^[[:space:]]*//' | head -c 140) || true
-  # Pattern 2: lines with file:line references (common linter output)
   if [ -z "$hint" ]; then
-    hint=$(grep -m1 -E '^\S+:\d+:' "$logfile" \
+    hint=$(grep -m1 -E '^\S+:[0-9]+:' "$logfile" \
       | sed 's/^[[:space:]]*//' | head -c 140) || true
   fi
-  # Pattern 3: last non-empty, non-setup line (fallback)
   if [ -z "$hint" ]; then
     hint=$(grep -v -E '^\[INFO\]|^- Installing|^- Using|^Initializing|^- repo:|^\s*$|^::' "$logfile" \
       | tail -1 | sed 's/^[[:space:]]*//' | head -c 140) || true
@@ -75,16 +60,12 @@ post_status() {
     failure)
       state="failure"
       description=$(extract_hint "$logkey")
-      if [ -z "$description" ]; then
-        description="Failed"
-      fi
+      if [ -z "$description" ]; then description="Failed"; fi
       ;;
-    skipped)  return 0 ;;
-    *)        return 0 ;;
+    *)  return 0 ;;
   esac
 
-  target_url=$(get_target_url "$step_name")
-  # Escape quotes in description for JSON
+  target_url="${STEP_URLS[$step_name]:-$RUN_URL}"
   description=$(printf '%s' "$description" | sed 's/"/\\"/g')
 
   curl -fsS -X POST \
@@ -100,19 +81,12 @@ post_status() {
   echo "  Posted status: ${context} → ${state} (${description})"
 }
 
-post_status "file hygiene"         "$HYGIENE"     hygiene    "Lint: file hygiene"
-post_status "cruft & secrets"      "$CRUFT"       cruft      "Lint: cruft & secret file blocking"
-post_status "secret scanning"      "$GITLEAKS"    gitleaks   "Lint: secret scanning (gitleaks)"
-post_status "typo detection"       "$TYPOS"       typos      "Lint: typo detection"
-post_status "yaml"                 "$YAML"        yaml       "Lint: YAML (yamllint)"
-post_status "github actions"       "$ACTIONS"     actions    "Lint: GitHub Actions (actionlint + zizmor)"
-post_status "markdown"             "$MARKDOWN"    markdown   "Lint: markdown"
-post_status "commit messages"      "$COMMITLINT"  commitlint "Lint: commit messages (commitlint)"
-LINT_GROUP="python"
-post_status "$LINT_GROUP"           "$PYTHON"      "$LINT_GROUP" "Lint: Python (ruff)"
-post_status "shell hygiene"        "$SHELL_LINT"  shell      "Lint: shell hygiene"
-post_status "justfile formatting"  "$JUSTFILE"    justfile   "Lint: justfile formatting"
-post_status "copy-paste detection" "$JSCPD"       jscpd      "Lint: copy-paste detection (jscpd)"
-post_status "trivy"                "$TRIVY"       trivy      "Security: Trivy (IaC + deps)"
-post_status "semgrep"              "$SEMGREP"     semgrep    "Security: Semgrep (SAST)"
-post_status "extra checks"         "$EXTRA"       extra      "Repo: extra checks"
+# ── Iterate groups from registry ──────────────────────
+while IFS='|' read -r logkey display_name status_context step_name; do
+  [[ "$logkey" =~ ^#.*$ || -z "$logkey" ]] && continue
+  outcome_file="$LOGDIR/${logkey}.outcome"
+  if [ -f "$outcome_file" ]; then
+    outcome=$(cat "$outcome_file")
+    post_status "$status_context" "$outcome" "$logkey" "$step_name"
+  fi
+done < "$SCRIPT_DIR/groups.conf"

@@ -81,27 +81,34 @@ test-ci-scripts:
         echo "FAIL (should have failed)"; rc=1
     fi
 
+    # Setup: create outcome files for summary.sh tests
+    TESTDIR=$(mktemp -d)
+    setup_outcomes() {
+        rm -f "$TESTDIR"/*.outcome
+        for group in hygiene cruft gitleaks typos yaml actions markdown \
+                     commitlint python shell justfile jscpd trivy semgrep; do
+            echo "$1" > "$TESTDIR/${group}.outcome"
+        done
+    }
+
     printf "%-30s" "summary.sh (all pass)"
-    if HYGIENE=success CRUFT=success GITLEAKS=success TYPOS=success \
-       YAML=success ACTIONS=success MARKDOWN=success COMMITLINT=success \
-       PYTHON=success SHELL=success JUSTFILE=success JSCPD=success \
-       TRIVY=success SEMGREP=success EXTRA=skipped \
-       scripts/ci/summary.sh > /dev/null 2>&1; then
+    setup_outcomes success
+    if LINT_LOG_DIR="$TESTDIR" scripts/ci/summary.sh > /dev/null 2>&1; then
         echo "pass"
     else
         echo "FAIL"; rc=1
     fi
 
     printf "%-30s" "summary.sh (with failure)"
-    if ! HYGIENE=failure CRUFT=success GITLEAKS=success TYPOS=success \
-         YAML=success ACTIONS=success MARKDOWN=success COMMITLINT=success \
-         PYTHON=success SHELL=success JUSTFILE=success JSCPD=success \
-         TRIVY=success SEMGREP=success EXTRA=skipped \
-         scripts/ci/summary.sh > /dev/null 2>&1; then
+    setup_outcomes success
+    echo "failure" > "$TESTDIR/hygiene.outcome"
+    if ! LINT_LOG_DIR="$TESTDIR" scripts/ci/summary.sh > /dev/null 2>&1; then
         echo "pass"
     else
         echo "FAIL (should have failed)"; rc=1
     fi
+
+    rm -rf "$TESTDIR"
 
     if [ $rc -ne 0 ]; then exit 1; fi
     echo ""

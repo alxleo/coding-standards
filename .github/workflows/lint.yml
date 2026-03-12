@@ -373,21 +373,6 @@ jobs:
           REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           RUN_ID: ${{ github.run_id }}
-          HYGIENE: ${{ steps.hygiene.outcome }}
-          CRUFT: ${{ steps.cruft.outcome }}
-          GITLEAKS: ${{ steps.gitleaks.outcome }}
-          TYPOS: ${{ steps.typos.outcome }}
-          YAML: ${{ steps.yaml.outcome }}
-          ACTIONS: ${{ steps.actions.outcome }}
-          MARKDOWN: ${{ steps.markdown.outcome }}
-          COMMITLINT: ${{ steps.commitlint.outcome }}
-          PYTHON: ${{ steps.python.outcome }}
-          SHELL_LINT: ${{ steps.shell.outcome }}
-          JUSTFILE: ${{ steps.justfile.outcome }}
-          JSCPD: ${{ steps.jscpd.outcome }}
-          TRIVY: ${{ steps.trivy.outcome }}
-          SEMGREP: ${{ steps.semgrep.outcome }}
-          EXTRA: ${{ steps.extra.outcome }}
         run: .coding-standards/scripts/ci/report-statuses.sh
 
       # ══════════════════════════════════════════════════════════
@@ -395,20 +380,4 @@ jobs:
       # ══════════════════════════════════════════════════════════
       - name: Summary
         if: always()
-        env:
-          HYGIENE: ${{ steps.hygiene.outcome }}
-          CRUFT: ${{ steps.cruft.outcome }}
-          GITLEAKS: ${{ steps.gitleaks.outcome }}
-          TYPOS: ${{ steps.typos.outcome }}
-          YAML: ${{ steps.yaml.outcome }}
-          ACTIONS: ${{ steps.actions.outcome }}
-          MARKDOWN: ${{ steps.markdown.outcome }}
-          COMMITLINT: ${{ steps.commitlint.outcome }}
-          PYTHON: ${{ steps.python.outcome }}
-          SHELL: ${{ steps.shell.outcome }}
-          JUSTFILE: ${{ steps.justfile.outcome }}
-          JSCPD: ${{ steps.jscpd.outcome }}
-          TRIVY: ${{ steps.trivy.outcome }}
-          SEMGREP: ${{ steps.semgrep.outcome }}
-          EXTRA: ${{ steps.extra.outcome }}
         run: .coding-standards/scripts/ci/summary.sh
