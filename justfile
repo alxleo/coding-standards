@@ -56,14 +56,14 @@ lint-group hook: _setup-pre-commit
 [doc('Validate all workflow YAML')]
 [group('lint')]
 lint-yaml:
-    uv run --no-project python3 -c "import yaml, glob; [yaml.safe_load(open(f)) or print(f'  valid: {f}') for f in glob.glob('.github/workflows/*.yml')]"
+    uv run --no-project --with pyyaml python3 -c "import yaml, glob; [yaml.safe_load(open(f)) or print(f'  valid: {f}') for f in glob.glob('.github/workflows/*.yml')]"
 
 # ── Tests ─────────────────────────────────────────────────────
 
 [doc('Run all tests (pytest + bats)')]
 [group('test')]
 test:
-    uv run --no-project pytest test/ -v
+    uv run --no-project --with pyyaml pytest test/ -v
     npx bats@1 test/*.bats
 
 # ── Setup ───────────────────────────────────────────────────

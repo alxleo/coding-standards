@@ -21,10 +21,10 @@ CS="${CS_ROOT}/lint-configs-626465"
 PARSED='{"skip":"","overrides":{}}'
 if [ -f "$CONFIG_FILE" ]; then
   echo "Found override file: $CONFIG_FILE"
-  PARSED=$(uv run --no-project python3 -c "
-import yaml, json
+  PARSED=$(uv run --no-project --with pyyaml python3 -c "
+import yaml, json, os
 try:
-    with open('$CONFIG_FILE') as f:
+    with open(os.environ['CONFIG_FILE']) as f:
         cfg = yaml.safe_load(f) or {}
     hooks = cfg.get('skip-hooks', [])
     skip = ','.join(hooks) if isinstance(hooks, list) else str(hooks)

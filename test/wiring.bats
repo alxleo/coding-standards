@@ -32,46 +32,44 @@ EXAMPLES="examples/.coding-standards.yml"
 @test "all language:system hook scripts exist" {
   [ -f "$PRE_COMMIT" ] || skip "pre-commit config not found"
 
-  # Find entry paths for language: system hooks.
-  # Look for entry: lines within system-language hook blocks.
+  # Collect entry + language per hook block, validate at block boundaries.
+  # Fields can appear in any order within a block.
   local rc=0
-  local in_system=0
-  while IFS= read -r line; do
-    # Track when we enter a language: system block
-    if echo "$line" | grep -qE '^\s+language:\s+system'; then
-      in_system=1
-      continue
-    fi
-    # New hook block resets the flag
-    if echo "$line" | grep -qE '^\s+- id:'; then
-      in_system=0
-      continue
-    fi
-    # New repo block resets the flag
-    if echo "$line" | grep -qE '^- repo:'; then
-      in_system=0
-      continue
-    fi
-    # Check entry lines in system blocks
-    if [ "$in_system" -eq 1 ] && echo "$line" | grep -qE '^\s+entry:'; then
-      local entry
-      entry=$(echo "$line" | sed 's/.*entry:\s*//' | sed 's/^\s*//' | sed "s/^['\"]//;s/['\"]$//" | awk '{print $1}')
-
-      # Skip inline commands (just, bash, etc.)
-      case "$entry" in
-        just|bash|sh|python*|node|ruby) continue ;;
+  local cur_entry="" cur_is_system=0
+  validate_block() {
+    if [ "$cur_is_system" -eq 1 ] && [ -n "$cur_entry" ]; then
+      # Skip inline commands (not file paths)
+      case "$cur_entry" in
+        just|bash|sh|python*|node|ruby|prettier|eslint|tflint|knip|madge|trivy|semgrep|license-checker) return ;;
       esac
-
-      # Strip .coding-standards/ prefix for repo-local check
-      local path="$entry"
+      local path="$cur_entry"
       path="${path#.coding-standards/}"
-
       if [ ! -f "$path" ]; then
-        echo "MISSING: hook entry '$entry' → file not found at '$path'"
+        echo "MISSING: hook entry '$cur_entry' → file not found at '$path'"
         rc=1
       fi
     fi
+    cur_entry=""
+    cur_is_system=0
+  }
+
+  while IFS= read -r line; do
+    # New hook or repo block — validate previous, reset
+    if echo "$line" | grep -qE '^\s+- id:|^- repo:'; then
+      validate_block
+      continue
+    fi
+    if echo "$line" | grep -qE '^\s+language:\s+system'; then
+      cur_is_system=1
+      continue
+    fi
+    if echo "$line" | grep -qE '^\s+entry:'; then
+      cur_entry=$(echo "$line" | sed "s/.*entry:[ ]*//" | sed "s/^[ '\"]*//;s/['\"]$//" | awk '{print $1}')
+      continue
+    fi
   done < "$PRE_COMMIT"
+  # Validate final block
+  validate_block
   [ "$rc" -eq 0 ]
 }
 
