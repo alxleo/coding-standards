@@ -64,7 +64,7 @@ lint-yaml:
 [doc('Run all tests (bats)')]
 [group('test')]
 test:
-    npx bats test/*.bats
+    npx bats@1 test/*.bats
 
 # ── Setup ───────────────────────────────────────────────────
 # Only configs without --config flag support need copying to root

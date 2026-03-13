@@ -354,19 +354,19 @@ jobs:
         id: knip
         if: "!contains(env.SKIP_HOOKS, 'knip') && hashFiles('**/package.json') != ''"
         continue-on-error: true
-        run: /tmp/lint-run.sh knip npx knip
+        run: /tmp/lint-run.sh knip npx knip@5
 
       - name: "Lint: circular dependency detection (madge)"
         id: madge
         if: "!contains(env.SKIP_HOOKS, 'madge') && hashFiles('**/package.json') != ''"
         continue-on-error: true
-        run: /tmp/lint-run.sh madge npx madge --circular --extensions ts,js .
+        run: /tmp/lint-run.sh madge npx madge@8 --circular --extensions ts,js .
 
       - name: "Lint: ESLint"
         id: eslint
         if: "!contains(env.SKIP_HOOKS, 'eslint') && (hashFiles('**/.eslintrc*') != '' || hashFiles('**/eslint.config.*') != '')"
         continue-on-error: true
-        run: /tmp/lint-run.sh eslint bash -c 'npx eslint .'
+        run: /tmp/lint-run.sh eslint bash -c 'npx --no-install eslint .'
 
       - name: "Lint: Prettier"
         id: prettier
@@ -378,7 +378,7 @@ jobs:
         id: typescript
         if: "!contains(env.SKIP_HOOKS, 'typescript') && hashFiles('**/tsconfig.json') != ''"
         continue-on-error: true
-        run: /tmp/lint-run.sh typescript bash -c 'npx tsc --noEmit'
+        run: /tmp/lint-run.sh typescript bash -c 'npx --no-install tsc --noEmit'
 
       - name: "Lint: npm audit"
         id: npm-audit
@@ -390,7 +390,7 @@ jobs:
         id: license-check
         if: "!contains(env.SKIP_HOOKS, 'license-check') && hashFiles('**/package-lock.json') != ''"
         continue-on-error: true
-        run: /tmp/lint-run.sh license-check bash -c 'npx license-checker --production --failOn "GPL-2.0;GPL-3.0;AGPL-1.0;AGPL-3.0"'
+        run: /tmp/lint-run.sh license-check bash -c 'npx license-checker@25 --production --failOn "GPL-2.0;GPL-3.0;AGPL-1.0;AGPL-3.0"'
 
       - name: "Security: Trivy (IaC + deps)"
         id: trivy
