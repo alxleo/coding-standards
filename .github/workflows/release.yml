@@ -20,12 +20,12 @@ jobs:
     if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
+      # nosemgrep: yaml.github-actions.security.workflow-run-target-code-checkout.workflow-run-target-code-checkout
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           # Pin to the exact SHA that CI validated — prevents releasing an
           # untested commit if another push lands before this job starts.
           # Safe: branches filter restricts to main, not PRs. No untrusted code.
-          # nosemgrep: yaml.github-actions.security.workflow-run-target-code-checkout.workflow-run-target-code-checkout
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
           # persist-credentials needed for git tag + push in the last step
