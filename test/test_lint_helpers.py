@@ -163,7 +163,12 @@ class TestWorkflowCacheAudit:
     def _load_workflow(self):
         import yaml
 
-        wf = Path(__file__).resolve().parent.parent / ".github" / "workflows" / "lint.yml"
+        wf = (
+            Path(__file__).resolve().parent.parent
+            / ".github"
+            / "workflows"
+            / "lint.yml"
+        )
         return yaml.safe_load(wf.read_text())
 
     def test_every_install_step_has_cache(self):
@@ -176,7 +181,11 @@ class TestWorkflowCacheAudit:
         #   - "Install Python" — cached by setup-uv (enable-cache: true)
         #   - "Install pre-commit hooks" — cached by cache-precommit
         #   - "Install npm dependencies" — consumer deps, not our tools
-        excluded = {"Install Python", "Install pre-commit hooks", "Install npm dependencies"}
+        excluded = {
+            "Install Python",
+            "Install pre-commit hooks",
+            "Install npm dependencies",
+        }
         install_steps = [
             s
             for s in steps
