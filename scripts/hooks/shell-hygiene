@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Shell hygiene checks — combined hook for the "shell" linter group.
+#
+# Checks:
+#   1. Forbid bare python/python3 — use uv run instead
+#   2. mktemp without trap EXIT cleanup — leaked temp files on error paths
+#   3. Unpinned npx versions — breaks reproducibility
+#
+# No set -e: grep exit codes are used as signals.
+set -uo pipefail
+
+is_shell() {
+    case "$1" in
+        *.sh|*.bash) return 0 ;;
+    esac
+    head -1 "$1" 2>/dev/null | grep -qE '^#!.*\b(ba)?sh\b'
+}
+
+rc=0
+for f in "$@"; do
+    # Checks 1 & 2 only apply to shell scripts (not YAML)
+    if is_shell "$f"; then
+        # 1. Forbid bare python/python3 (uv run is required)
+        if grep -nE "(^|[[:space:]])python3?[[:space:]]" "$f" | grep -v "uv run"; then
+            rc=1
+        fi
+
+        # 2. mktemp without trap cleanup
+        if grep -q "mktemp" "$f" && ! grep -q "trap" "$f"; then
+            echo "ERROR: $f uses mktemp without trap EXIT cleanup"
+            rc=1
+        fi
+    fi
+
+    # 3. Unpinned npx versions (applies to shell + yaml)
+    if grep -nE "npx [a-z]" "$f" | grep -vE "npx (--yes|--no|-)|@[0-9]|#.*npx|^[^:]*:.*name:"; then
+        rc=1
+    fi
+done
+exit "$rc"

@@ -1,62 +1,119 @@
 # coding-standards
 
-**Project class: Shared Infrastructure Package** — a repo consumed by other repos. The product is configuration, tooling, and conventions distributed to a fleet of consumers. See memory for the full pattern catalog.
+**Project class: Reusable Workflow** — a reusable GitHub Actions workflow consumed by other repos via `uses: alxleo/coding-standards/.github/workflows/lint.yml@v1`. The product is centralized linting + security scanning that runs in CI, not on developer machines.
 
-This repo contains **no repo lists, no secrets, no private information**. It is a pure standards library.
+This repo contains **no repo lists, no secrets, no private information**. It is a public linting workflow.
 
 ## How it works
 
-Two consumption modes:
+Consumer repos add a short workflow stub. The reusable workflow:
 
-1. **Fetch-and-run (preferred):** Consumer repos fetch this repo at runtime via a justfile. No files synced except the justfile itself. See `templates/justfile.consumer`.
-2. **File sync (legacy):** A sync workflow in github-standards pushes individual config files to repos via PRs using [BetaHuhn/repo-file-sync-action](https://github.com/BetaHuhn/repo-file-sync-action).
+1. Checks out the consumer repo + this repo's configs (sparse checkout)
+2. Installs Python, Node.js, pre-commit (all cached)
+3. Self-selects tool installs (just, OpenTofu, TFLint) based on file presence
+4. Copies linter configs into the workspace (skips files that already exist)
+5. Runs each linter group as a separate visible step
+6. Runs security scanning (Trivy + Semgrep)
+7. Posts per-group commit statuses via the Commit Status API (GitHub + Gitea)
+8. Writes a step summary (GitHub only — Gitea does not render `$GITHUB_STEP_SUMMARY`)
+9. Prints a summary table and fails the job if any group failed
 
 ## Key files
 
-- `configs/.pre-commit-config.yaml` — **source of truth** for all pre-commit hooks (single config, used by both this repo and consumers)
-- `templates/justfile.consumer` — consumer onboarding template (fetch + symlinks + lint)
-- `scripts/compact-run` — LLM-friendly command wrapper, exported to consumers
-- `sync-manifest.yml` — declares every managed file with sync metadata
-- `scripts/check-manifest-coverage.py` — bidirectional manifest coverage check
+- `.github/workflows/lint.yml` — reusable workflow (main entry point for consumers)
+- `.github/workflows/ci.yml` — self-test that calls lint.yml on this repo
+- `action.yml` — composite action (calls `apply-configs.sh`, used internally)
+- `lint-configs-626465/` — all linter configs (referenced via `--config` paths at runtime)
+- `lint-configs-626465/.pre-commit-config.yaml` — source of truth for all pre-commit hooks
+- `scripts/ci/groups.conf` — single source of truth for linter group metadata
+- `scripts/ci/lint-run.sh` — lint step wrapper (logs, outcomes, error annotations)
+- `scripts/ci/summary.py` — summary table + GitHub step summary (Python)
+- `scripts/ci/report_statuses.py` — per-group commit status posting (Python)
+- `scripts/ci/lint_helpers.py` — shared parsing + error extraction (Python)
+- `scripts/ci/run-{hygiene,cruft,actions,python}.sh` — extracted multi-hook group runners
+- `scripts/ci/install-tool.sh` — data-driven binary tool installer
+- `scripts/ci/apply-configs.sh` — config application + consumer override merging
+- `scripts/hooks/` — custom hook scripts referenced by pre-commit config
+- `test/*.bats` — bats-core tests for CI scripts and hooks
+- `test/test_*.py` — pytest tests for Python CI scripts
+- `docs/architecture-decisions.md` — evaluated alternatives + future options
+- `examples/lint.yml` — example consumer workflow
+- `examples/.coding-standards.yml` — example override file
 
-## Configs vs Templates
+## Commit status reporting
 
-- **Configs** (`configs/`): Baseline configs. Repos may extend them (e.g., add repo-specific gitleaks allowlists) but the baseline should work everywhere.
-- **Templates** (`templates/`): Starting points. An LLM agent adapts them per-repo (removes inapplicable sections, adds repo-specific entries).
+Each linter group posts its own commit status (e.g. `coding-standards: python`) via `POST /repos/{owner}/{repo}/statuses/{sha}`. This API is supported by both GitHub and Gitea.
 
-## Sync boundary
+- Statuses are posted for all groups that ran (success or failure)
+- Skipped groups do not post a status
+- Each status includes a `target_url` linking to the workflow run
+- Requires `statuses: write` permission in the caller workflow
 
-**Everything in `configs/` is synced to consumer repos.** Never add repo-specific hooks, paths, or scripts to files in `configs/` — they will break consumer repos that don't have the same directory structure. Repo-specific checks (like `check-manifest-coverage`) go in CI or the root `justfile` only.
+LLM agents can query `GET /repos/{owner}/{repo}/commits/{sha}/statuses` and filter by `coding-standards:` prefix to programmatically check results.
 
-Root symlinks (`.pre-commit-config.yaml` → `configs/.pre-commit-config.yaml`) mean editing the synced file also changes local behavior, and vice versa.
+## Override mechanism
 
-## Sync manifest
+Consumer repos can:
 
-`sync-manifest.yml` declares every managed file and its sync behavior (`all`, `opt-in`, `none`). The `check-manifest-coverage` script (run via `just check-manifest` and CI) enforces bidirectional coverage — every file on disk must have a manifest entry and vice versa.
+1. **Skip groups** — via `skip-hooks` workflow input or `.coding-standards.yml` in repo root
+2. **Extend linter configs** — for tools with native extends support (yamllint, gitleaks, markdownlint, commitlint), specify an override file in `.coding-standards.yml` that extends the baseline. The consumer's file chains to our `.baseline` config via the tool's native inheritance.
+3. **Replace linter configs** — for tools without extends (hadolint, jscpd, prettier, shellcheck, editorconfig), drop the config at repo root for full replacement.
 
-## How consumer config discovery works
-
-Consumer repos use the same `.pre-commit-config.yaml` as this repo. Tools that auto-discover config from the repo root (gitleaks, markdownlint-cli2, commitlint) find their configs via symlinks. Symlinks are declared in `sync-manifest.yml` with `symlink: true` and created by `scripts/apply-symlinks.sh` (called by `just fetch`):
-
-```
-.gitleaks.toml -> .coding-standards/configs/.gitleaks.toml
-.markdownlint-cli2.yaml -> .coding-standards/configs/.markdownlint-cli2.yaml
-commitlint.config.mjs -> .coding-standards/configs/commitlint.config.mjs
-scripts/hooks -> .coding-standards/scripts/hooks
-```
+The `.pre-commit-config.yaml` always comes from this repo (it defines which hooks run).
 
 ## Adding a new config
 
-1. Add the file to `configs/` or `templates/`
-2. Add an entry to `sync-manifest.yml` with the appropriate sync level
-3. If the new config needs root-level discovery, add `symlink: true` to its manifest entry
-4. Run `just check-manifest` to verify
+1. Add the file to `lint-configs-626465/`
+2. Add it to the `configs` array in `.github/workflows/lint.yml` (the "Apply coding-standards configs" step)
+3. Update the README tables
 
-## Adding a custom local hook
+## Adding a custom hook
 
 1. Create `scripts/hooks/{name}` — executable, with comments explaining the rule
-2. Add the hook entry to `configs/.pre-commit-config.yaml` with `entry: scripts/hooks/{name}`, `language: system`
-3. Add the script to `sync-manifest.yml` under `scripts:`
-4. Add a test fixture + assertion to `tests/test-hooks.sh`
+2. Add the hook entry to `lint-configs-626465/.pre-commit-config.yaml` with `entry: scripts/hooks/{name}`, `language: system`
 
-The `hooks/` directory symlink (created by `apply-symlinks.sh`) makes `scripts/hooks/{name}` resolve in both this repo and consumer repos.
+## Adding a new linter group
+
+1. Add a new step in `.github/workflows/lint.yml` with a unique `id`, `continue-on-error: true`, and the `!contains(env.SKIP_HOOKS, 'group-name')` guard, wrapping the command with `/tmp/lint-run.sh <logkey> <command>`
+2. Add a line in `scripts/ci/groups.conf` with `logkey|display_name|status_context|step_name`
+3. Update the README linter groups table
+4. Update `examples/.coding-standards.yml` available groups comment
+
+That's it — `report_statuses.py` and `summary.py` are data-driven from `groups.conf`.
+
+## Running tests
+
+```bash
+just test     # pytest + bats-core tests
+just lint     # full lint suite (mirrors CI)
+```
+
+## CI self-test
+
+`.github/workflows/ci.yml` calls `./.github/workflows/lint.yml` (local ref) to test the workflow against this repo.
+
+Self-test mode is auto-detected: if `lint-configs-626465/` exists in the workspace, lint.yml creates a symlink (`.coding-standards` → `.`) instead of checking out from `alxleo/coding-standards`. This means:
+
+- Branch changes to scripts/configs are tested before merge
+- Works on Gitea (no GitHub repo reference to resolve)
+- Consumer repos are unaffected (they don't have `lint-configs-626465/`)
+
+## Local development hooks
+
+CI-only enforcement — no local lint gate. All formatting and linting runs on Gitea CI. Local hooks only catch things that can't be fixed after the fact:
+
+- **pre-commit**: secret detection only (`detect-private-key` + `gitleaks`) — secrets must never reach any remote
+- **commit-msg**: commitlint (conventional commits) — bad messages can't be fixed without rewriting history
+- **post-commit**: cruft cleanup + async push to Gitea (triggers CI)
+- **pre-push**: gates `git push origin` on Gitea CI passing (not local lint)
+
+To reinstall hooks: `gitea-ci wire ~/personal/coding-standards`
+
+## Gitea compatibility
+
+The workflow targets both GitHub Actions and Gitea Actions. Key differences:
+
+- **Commit Status API**: Works identically on both platforms
+- **Self-test detection**: lint.yml auto-detects this repo and uses local files (no GitHub checkout needed)
+- **`$GITHUB_STEP_SUMMARY`**: Not rendered in Gitea (harmless no-op — file is written, just not displayed)
+- **Third-party actions** (trivy-action, cache, setup-node): Gitea runners must be able to resolve GitHub-hosted action references

@@ -1,0 +1,35 @@
+# coding-standards — setup action (used internally by the reusable workflow).
+#
+# Copies baked-in linter configs into the workspace.
+# Consumer repos should NOT call this directly — use the reusable workflow instead.
+#
+# See .github/workflows/lint.yml for the main entry point.
+name: coding-standards-setup
+description: Copy centralized linter configs into the workspace
+
+inputs:
+  config-file:
+    description: "Path to override config file in consumer repo"
+    required: false
+    default: ".coding-standards.yml"
+  skip-hooks:
+    description: "Comma-separated linter groups to skip"
+    required: false
+    default: ""
+
+outputs:
+  skip-hooks:
+    description: "Merged skip list (input + override file)"
+    value: ${{ steps.setup.outputs.skip-hooks }}
+
+runs:
+  using: composite
+  steps:
+    - name: Apply coding-standards configs
+      id: setup
+      shell: bash
+      env:
+        CONFIG_FILE: ${{ inputs.config-file }}
+        INPUT_SKIP: ${{ inputs.skip-hooks }}
+        CS_ROOT: ${{ github.action_path }}
+      run: ${{ github.action_path }}/scripts/ci/apply-configs.sh

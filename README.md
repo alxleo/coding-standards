@@ -1,251 +1,257 @@
 # coding-standards
 
-Shared coding standards, linter configs, and templates synced across repositories. Provides a universal baseline that repos extend with language-specific tooling.
+Centralized linting and coding standards as a reusable GitHub Actions workflow. Consumer repos add a short workflow file — all linting runs in CI, not on developer machines. Each linter group posts its own commit status on the PR, so you see exactly what passed or failed.
+
+Works with both **GitHub Actions** and **Gitea Actions** (same `uses:` reference).
 
 ## Quick Start
 
-For repos receiving these configs via sync:
-
-```bash
-# 1. Check prerequisites
-just doctor
-
-# 2. Install git hooks (idempotent — safe to re-run)
-just setup
-
-# 3. Run all linters manually
-just lint
-```
-
-After sync, customize per-repo:
-
-- **`.pre-commit-config.yaml`** — Add language-specific hooks (eslint, shellcheck, hadolint, mypy)
-- **`.gitleaks.toml`** — Add `allowlist` entries for known false positives
-- **`.hadolint.yaml`** — Add `ignore` rules with documented reasoning
-- **Templates** in `templates/` — An LLM agent adapts these per-repo (removes inapplicable sections, adds repo-specific entries)
-
-## Architecture
-
-```
-coding-standards/
-├── configs/                 ← Synced as-is to all repos
-│   ├── .pre-commit-config.yaml   Core hooks (hygiene, secrets, formatting)
-│   ├── .editorconfig             Indentation, line endings, charset
-│   ├── .gitleaks.toml            Secret scanning rules
-│   ├── .yamllint                 YAML lint (relaxed, no line-length)
-│   ├── .hadolint.yaml            Dockerfile lint
-│   ├── .shellcheckrc             ShellCheck rules
-│   ├── .markdownlint-cli2.yaml   Markdown lint
-│   ├── .prettierrc               Prettier formatting
-│   ├── .jscpd.json               Copy-paste detection (informational)
-│   ├── .mega-linter.yml          MegaLinter baseline
-│   ├── .envrc.snippet            Direnv auto-install hooks
-│   ├── commitlint.config.mjs     Conventional commit rules
-│   └── justfile                   Task runner (setup, doctor, lint, clean)
-│
-├── templates/               ← Starting points, adapted per-repo by LLM
-│   ├── dependabot.yml            Dependabot multi-ecosystem config
-│   ├── eslint.config.baseline.mjs ESLint flat config (Node.js)
-│   ├── pyproject.toml.baseline   Ruff config (Python)
-│   └── pull_request_template.md  PR template (What/Why/Test)
-│
-├── workflows/               ← CI templates synced to consumer repos
-│   ├── lint-baseline.yml         Thin caller → reusable lint workflow
-│   └── security-scan.yml         Trivy + Semgrep scanning
-│
-├── scripts/                 ← Local git hook wrappers + utilities
-│   ├── setup-hooks.sh            Installs pre-commit + 4 custom hooks
-│   ├── compact-run               LLM-friendly output wrapper
-│   ├── git-pre-commit.sh         Lint staged files (quiet on success)
-│   ├── git-commit-msg.sh         Validate conventional commits
-│   ├── git-post-commit.sh        Auto-clean cruft files
-│   └── git-pre-push.sh           Block push to main + full validation
-│
-├── tests/                   ← Test suite for hook validation
-│   ├── test-hooks.sh             Negative tests (each hook catches its fixture)
-│   ├── test-git-hooks.bats       Integration tests for hook wrappers
-│   ├── test-compact-run.bats     Unit tests for compact-run
-│   └── fixtures/                 Intentionally-bad files for negative tests
-│
-├── sync-manifest.yml        ← Declares every file and its sync behavior
-│
-└── .github/workflows/       ← CI for THIS repo (not synced)
-    ├── lint.yml                  Reusable lint workflow (called by consumers)
-    └── ci.yml                    Self-test CI
-```
-
-### What's synced vs local-only
-
-| Synced to consumer repos | Local to this repo |
-|--------------------------|-------------------|
-| `configs/*` (incl. justfile) | `scripts/*` |
-| `templates/*` | `tests/*` |
-| `workflows/*` | root `justfile` (imports configs/justfile + dev tasks) |
-| | `.github/workflows/*` |
-
-Sync is handled by a separate private repo ([github-standards](https://github.com/BetaHuhn/repo-file-sync-action)) that opens PRs in target repos. This repo has no knowledge of its consumers.
-
-## Configs Reference
-
-### Hygiene
-
-| File | Purpose | Extend after sync? |
-|------|---------|-------------------|
-| `.pre-commit-config.yaml` | Universal pre-commit hooks: YAML/JSON/TOML validation, secret scanning, typo detection, GHA linting, markdown, commitlint, Python formatting | Yes — add language-specific hooks |
-| `.editorconfig` | Consistent indentation, line endings, charset | No |
-| `.yamllint` | YAML lint rules (relaxed comments, no line-length) | No |
-| `.shellcheckrc` | ShellCheck rules (check-extra-masked-returns, external-sources) | Yes — add rule disables |
-
-### Security
-
-| File | Purpose | Extend after sync? |
-|------|---------|-------------------|
-| `.gitleaks.toml` | Secret scanning baseline | Yes — add allowlists for false positives |
-| `.hadolint.yaml` | Dockerfile lint (trusted registries, strict labels) | Yes — add rule ignores with reasoning |
-
-### Formatting
-
-| File | Purpose | Extend after sync? |
-|------|---------|-------------------|
-| `.prettierrc` | Prettier config (semicolons, double quotes, 100 width) | No |
-| `.markdownlint-cli2.yaml` | Markdown lint (disabled: line-length, inline HTML) | No |
-| `commitlint.config.mjs` | Conventional commit rules | No |
-
-### CI / Quality
-
-| File | Purpose | Extend after sync? |
-|------|---------|-------------------|
-| `.jscpd.json` | Copy-paste detection (threshold: 5, informational only) | No |
-| `.mega-linter.yml` | MegaLinter baseline | Optional |
-
-### Developer Experience
-
-| File | Purpose | Extend after sync? |
-|------|---------|-------------------|
-| `.envrc.snippet` | Source in `.envrc` to auto-install hooks on `cd` | Yes — merge into existing `.envrc` |
-
-## Templates Reference
-
-Templates are starting points. An LLM agent adapts them per-repo after sync.
-
-| File | Purpose | What gets adapted |
-|------|---------|-------------------|
-| `dependabot.yml` | Multi-ecosystem Dependabot | Remove unused ecosystems; add per-directory entries for monorepos |
-| `eslint.config.baseline.mjs` | ESLint flat config (Node.js) | Add/remove plugins, parser configs, test file exceptions |
-| `pyproject.toml.baseline` | Ruff config (Python) | Adjust line-length, target version, add per-repo rules |
-| `pull_request_template.md` | PR template (What/Why/Architecture/Test) | Customize sections, add repo-specific runbook links |
-
-## Workflow Templates
-
-### `lint-baseline.yml`
-
-Thin caller synced to consumer repos. Invokes the reusable lint workflow hosted in this repo:
+Add this workflow to your repo at `.github/workflows/lint.yml`:
 
 ```yaml
-uses: alxleo/coding-standards/.github/workflows/lint.yml@main
+name: Lint
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  statuses: write    # per-linter status checks on PRs
+
+jobs:
+  lint:
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    uses: alxleo/coding-standards/.github/workflows/lint.yml@v1
 ```
 
-The reusable workflow auto-detects which tools to install based on file presence (`hashFiles`): just, OpenTofu, TFLint, Node.js. All tool installs use checksum-verified downloads.
+That's it. All linting configs, security scanning, and tool installs are handled by the workflow.
 
-### `security-scan.yml`
+## How It Works
 
-Standalone workflow running Trivy (IaC + dependency scanning) and Semgrep (SAST). Synced to consumer repos, runs on PR and push to main.
+The reusable workflow:
 
-## Git Hooks
+1. Checks out your code + the coding-standards configs
+2. Installs Python, Node.js, and pre-commit (all cached)
+3. Copies baseline linter configs into the workspace (won't overwrite your own)
+4. Self-selects tool installs (just, OpenTofu, TFLint) based on file presence
+5. Runs each linter group as a **separate visible step**
+6. Runs security scanning (Trivy + Semgrep)
+7. Posts **per-group commit statuses** via the Commit Status API
+8. Prints a summary table showing pass/fail/skip per group
 
-`just setup` (or `bash scripts/setup-hooks.sh`) installs four custom git hooks:
+Configs are centralized in this repo. When we update a rule, every consumer gets the update on their next CI run — no PRs, no syncing, no merge conflicts.
 
-| Hook | Trigger | Behavior |
-|------|---------|----------|
-| **pre-commit** | `git commit` | Lints staged files via pre-commit. Quiet on success, full output on failure. |
-| **commit-msg** | `git commit` | Validates conventional commit format via commitlint. |
-| **post-commit** | After commit succeeds | Auto-removes untracked cruft files (`.bak`, `.del`, `.tmp`, `.old`, `.orig`) and empty directories. Skips tracked files. |
-| **pre-push** | `git push` | Blocks direct push to `main`. Runs full `pre-commit --all-files` validation. |
+## Viewing Results
 
-### compact-run
+Each linter group posts its own commit status on the PR (e.g. `coding-standards: python`, `coding-standards: markdown`). Failed groups show as red X marks — you see exactly what broke without expanding logs.
 
-All hooks use `compact-run` for LLM-friendly output:
+On **GitHub**, a step summary is also written to the PR check with a markdown table of failures. On **Gitea**, the step summary is not rendered (Gitea does not yet support `$GITHUB_STEP_SUMMARY`), but the per-group commit statuses work identically.
 
-```
-Success:  ✓ 12 lines (0.8s)
-Failure:  ✗ exit 1 — 247 lines (2.3s)
-          [first 15 lines of output]
-          ... 232 more lines → /tmp/compact-run-a3f2.log
-```
+### Querying results programmatically
 
-Full logs always saved to `/tmp/compact-run-*.log`. Configurable via:
-
-- `COMPACT_LINES=15` — Error lines shown inline (default: 15)
-- `COMPACT_THRESHOLD=30` — Below this, show full output on failure (default: 30)
-
-### Auto-install via direnv
-
-Add to your `.envrc`:
+LLM agents and CI tooling can query results via the Commit Status API:
 
 ```bash
-source_url "https://raw.githubusercontent.com/alxleo/coding-standards/main/configs/.envrc.snippet" \
-  "sha256-XXXX"
+# GitHub
+gh api repos/{owner}/{repo}/commits/{sha}/statuses \
+  --jq '.[] | select(.context | startswith("coding-standards:")) | {context, state, description}'
+
+# Gitea
+curl -s https://gitea.example.com/api/v1/repos/{owner}/{repo}/statuses/{sha} \
+  -H "Authorization: token $TOKEN" | jq '.[] | select(.context | startswith("coding-standards:"))'
 ```
 
-Hooks install automatically on first `cd` into the repo if not already present.
+Each status includes:
 
-## Development
+| Field | Value |
+|-------|-------|
+| `context` | `coding-standards: <group name>` |
+| `state` | `success` or `failure` |
+| `description` | `Passed` or `Failed - see workflow log` |
+| `target_url` | Link to the workflow run |
 
-### Prerequisites
+Skipped groups do not post a status (no noise).
 
-| Tool | Required? | Purpose |
-|------|-----------|---------|
-| [just](https://just.systems) | Yes | Task runner |
-| [uv](https://docs.astral.sh/uv/) | Yes | Python tool management (runs pre-commit) |
-| [bats](https://bats-core.readthedocs.io/) | For testing | Bash test framework |
-| git | Yes | Version control |
+## Permissions
 
-Run `just doctor` to check what's installed.
+The workflow needs `statuses: write` to post per-group commit statuses. The consumer workflow must declare this permission — reusable workflows inherit the caller's permissions.
 
-### Tasks
+```yaml
+permissions:
+  contents: read
+  statuses: write
+```
 
-Consumer tasks (in `configs/justfile`, synced to repos):
+Without `statuses: write`, the workflow still runs all linters and reports results in the summary step, but per-group commit statuses will not appear on the PR.
+
+## Overrides
+
+### Skip linter groups
+
+Pass `skip-hooks` input with group names:
+
+```yaml
+jobs:
+  lint:
+    uses: alxleo/coding-standards/.github/workflows/lint.yml@v1
+    with:
+      skip-hooks: "commitlint,python"
+```
+
+Available groups: `hygiene`, `cruft`, `gitleaks`, `yaml`, `actions`, `markdown`, `commitlint`, `python`, `shell`, `justfile`, `hadolint`, `tflint`, `jscpd`, `knip`, `madge`, `eslint`, `prettier`, `typescript`, `npm-audit`, `license-check`, `trivy`, `semgrep`
+
+### Override via config file
+
+Drop a `.coding-standards.yml` in your repo root:
+
+```yaml
+# .coding-standards.yml
+skip-hooks:
+  - commitlint       # This repo uses a different commit convention
+  - python           # No Python in this repo
+  - justfile         # No justfiles in this repo
+```
+
+Either everything passes or the skip is **explicit in the repo**. No hidden ignores.
+
+### Override individual linter configs
+
+The workflow only copies config files that don't already exist in your repo. To override a specific linter's config, just add your own file:
+
+- `.yamllint` — Custom YAML lint rules
+- `.shellcheckrc` — Custom ShellCheck rules
+- `.gitleaks.toml` — Custom secret scanning allowlists
+- `.hadolint.yaml` — Custom Dockerfile lint rules
+- `.prettierrc` — Custom Prettier config
+- `.markdownlint-cli2.yaml` — Custom Markdown lint rules
+
+The workflow's `.pre-commit-config.yaml` always takes precedence (it defines which hooks run).
+
+### Add repo-specific checks
+
+Use `extra-lint-script` to run additional linters that aren't part of the standard set. Point it at a script in your repo:
+
+```yaml
+jobs:
+  lint:
+    uses: alxleo/coding-standards/.github/workflows/lint.yml@v1
+    with:
+      extra-lint-script: .github/lint-extra.sh
+```
+
+The script runs after all standard groups and gets the same treatment: output is collapsed in a `::group::`, errors are surfaced on failure, and a `coding-standards: extra checks` commit status is posted.
+
+Example `.github/lint-extra.sh` for a Node.js repo:
 
 ```bash
-just setup          # Install hooks
-just doctor         # Check prerequisites
-just lint           # Run pre-commit on all files
-just clean          # Remove cruft files
+#!/usr/bin/env bash
+set -euo pipefail
+rc=0
+npx eslint --max-warnings 0 . || rc=1
+npx stylelint "src/**/*.css" || rc=1
+exit $rc
 ```
 
-Dev tasks (in root `justfile`, local only):
+The script has access to Python (`uv`), Node.js (`npx`/`node`), and any tools installed by the workflow (just, OpenTofu, TFLint, Trivy). Install additional tools inline if needed:
 
 ```bash
-just test           # Run all tests
-just test-hooks     # Run negative tests (each hook catches its fixture)
-just test-git-hooks # Run integration tests (hook wrappers in sandbox repos)
-just check-manifest # Verify sync-manifest.yml covers all managed files
+#!/usr/bin/env bash
+set -euo pipefail
+npm ci  # install project deps for eslint plugins
+npx eslint --max-warnings 0 .
 ```
 
-### Adding a new config
+## Linter Groups
 
-1. Add the file to `configs/`
-2. Add an entry to `sync-manifest.yml` (`sync: all` or `sync: opt-in`)
-3. Update the sync config in github-standards (`.github/sync.yml`)
-4. Add a row to the Configs Reference table in this README
-5. If the config needs a negative test fixture, add one to `tests/fixtures/` and a test case to `tests/test-hooks.sh`
+Each group runs as a separate CI step and posts its own commit status:
 
-### Adding a new template
+| Group | Hooks | What it checks |
+|-------|-------|----------------|
+| `hygiene` | check-yaml, check-json, check-toml, check-merge-conflict, check-added-large-files, detect-private-key, end-of-file-fixer, trailing-whitespace, check-case-conflict, check-executables-have-shebangs | Basic file hygiene |
+| `cruft` | forbid-cruft-files, block-secret-files, verify-sops-encryption | Cruft and secret file blocking |
+| `gitleaks` | gitleaks | Secret scanning in file contents |
+| `yaml` | yamllint | YAML style linting (indentation, key ordering, etc.) |
+| `actions` | actionlint, zizmor | GitHub Actions workflow linting + security |
+| `markdown` | markdownlint-cli2 | Markdown style |
+| `commitlint` | commitlint | Conventional commit messages |
+| `python` | ruff, ruff-format | Python linting and formatting |
+| `shell` | pin-npm-versions, temp-file-needs-trap, forbid-bare-python | Shell script hygiene |
+| `justfile` | just-fmt-check | Justfile formatting |
+| `jscpd` | jscpd | Copy-paste detection (informational) |
+| `trivy` | trivy | IaC + dependency vulnerability scanning |
+| `semgrep` | semgrep | Static application security testing (SAST) |
 
-1. Add the file to `templates/` with a `.baseline` suffix if it will be renamed per-repo
-2. Add an entry to `sync-manifest.yml`
-3. Add a row to the Templates Reference table
-4. Document what an LLM agent should adapt
+### Baked-in Configs
 
-### Test strategy
+| Config | Key settings |
+|--------|-------------|
+| `.yamllint` | No line-length limit, relaxed comments, no document-start, truthy keys allowed |
+| `.shellcheckrc` | check-extra-masked-returns, deprecate-which, external-sources |
+| `.gitleaks.toml` | Default ruleset |
+| `.hadolint.yaml` | Trusted registries (docker.io, ghcr.io), strict labels, warning threshold |
+| `.markdownlint-cli2.yaml` | No line-length, no inline-HTML restriction, duplicate headings in different sections OK |
+| `.prettierrc` | Semicolons, double quotes, 2-space indent, trailing commas, 100 width |
+| `.editorconfig` | LF line endings, UTF-8, language-specific indent sizes |
+| `.jscpd.json` | Copy-paste threshold: 5 clones, 10+ lines, 50+ tokens |
+| `commitlint.config.mjs` | @commitlint/config-conventional |
 
-- **Negative tests** (`test-hooks.sh`): Each pre-commit hook has an intentionally-bad fixture file. Tests verify the hook catches the violation. Fixtures are excluded from normal lint runs via `exclude: ^tests/fixtures/`.
-- **Integration tests** (`test-git-hooks.bats`): Create throwaway git repos, install hooks, verify behavior (quiet on success, loud on failure, cruft cleanup, push blocking).
-- **Unit tests** (`test-compact-run.bats`): Verify compact-run output formatting, threshold behavior, and edge cases.
+## Inputs
+
+| Input | Default | Description |
+|-------|---------|-------------|
+| `skip-hooks` | `''` | Comma-separated linter groups to skip |
+| `config-file` | `.coding-standards.yml` | Path to override config in consumer repo |
+| `python-version` | `3.13` | Python version |
+| `node-version` | `22` | Node.js version |
+| `extra-lint-script` | `''` | Path to a repo-local script for additional checks |
+
+## Version Pinning and Releases
+
+Pin to a major version tag:
+
+```yaml
+uses: alxleo/coding-standards/.github/workflows/lint.yml@v1
+```
+
+The `v1` tag moves forward automatically. Every push to `main` creates a new release:
+
+- **`feat:` commits** → minor version bump (v1.2.0 → v1.3.0)
+- **Everything else** → patch version bump (v1.2.0 → v1.2.1)
+- The floating `v1` tag is updated to point to the latest release
+
+Consumer repos pinned to `@v1` get updates on their next CI run — no PRs, no syncing. Pin to a specific release (`@v1.2.3`) if you need exact reproducibility.
+
+## Contributing
+
+Two ways to add checks:
+
+1. **Universal checks** — PR to this repo. Add the linter group to `lint.yml`, update docs, and it becomes available to all consumers on the next release.
+2. **Repo-specific checks** — Use `extra-lint-script` in your consumer repo (no PR needed here).
+
+To add a new universal linter group:
+
+1. Add the step to `.github/workflows/lint.yml` with an `id`, `continue-on-error: true`, and wrap in `/tmp/lint-run.sh`
+2. Add the step outcome to the "Report lint statuses" env block
+3. Add a `post_status` call with the step name
+4. Add a `report` call in the Summary step
+5. Add the group to the README table and the `skip-hooks` list in `examples/.coding-standards.yml`
+
+## Gitea Actions
+
+The workflow is fully compatible with Gitea Actions. The only differences:
+
+- **Commit statuses**: Work identically. Each linter group posts its own status via the Commit Status API, which Gitea supports natively.
+- **Step summary**: `$GITHUB_STEP_SUMMARY` is not rendered in Gitea's UI (the file is written but not displayed). Results are still visible via commit statuses and the log output.
+- **Trivy**: Installed as a cached binary (same as just, OpenTofu, TFLint). No external action dependency — works identically on Gitea.
 
 ## Philosophy
 
-- **Baseline, not mandate** — Configs are starting points. Repos extend them with language-specific tooling.
-- **Language-agnostic core** — The baseline works for any repo. Language-specific tools (shellcheck, ruff, eslint) are added per-repo.
-- **LLM-friendly** — Strong guardrails that catch common AI-generated mistakes: secret leaks, cruft files, formatting drift, unpinned dependencies.
-- **Quiet on success** — Hooks and CI produce minimal output when everything passes. Full diagnostics only on failure, with logs saved to `/tmp/`.
+- **CI-only enforcement** — No local tooling burden. Developers write code, CI enforces standards.
+- **Non-blocking** — Failures are visible but don't prevent commits or pushes locally.
+- **Explicit overrides** — If a repo skips a check, it's visible in the repo's `.coding-standards.yml`.
+- **One artifact** — This repo is the single source of truth. Update once, all consumers get it.
+- **Cross-platform** — Works on GitHub Actions and Gitea Actions with the same `uses:` reference.
+- **Machine-readable** — Per-group commit statuses are queryable via API for LLM agents and CI tooling.

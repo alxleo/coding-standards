@@ -1,153 +1,424 @@
 ---
-# Reusable lint workflow — called by repos via workflow_call.
+# Reusable lint workflow — the main entry point for consumer repos.
 #
-# Self-selecting: installs tools only when matching files exist.
-# Fully cached: pre-commit envs, uv, and all tool binaries.
+# Each linter group runs as a separate visible step in the GitHub Actions UI.
+# Consumer repos call this with:
 #
-# Repos call this via a thin caller workflow (lint-baseline.yml).
-# Repos with custom needs can pass skip-hooks or use their own workflow.
-name: Lint (reusable)
+#   jobs:
+#     lint:
+#       uses: alxleo/coding-standards/.github/workflows/lint.yml@v1
+#
+name: Lint
 
 on:
   workflow_call:
     inputs:
       skip-hooks:
         type: string
-        default: ''
-        description: 'Comma-separated pre-commit hooks to skip'
+        default: ""
+        description: "Comma-separated linter groups to skip"
+      config-file:
+        type: string
+        default: ".coding-standards.yml"
+        description: "Path to override config file"
+      python-version:
+        type: string
+        default: "3.13"
+        description: "Python version"
+      node-version:
+        type: string
+        default: "22"
+        description: "Node.js version"
+      extra-lint-script:
+        type: string
+        default: ""
+        description: "Path to a repo-local script that runs additional linter checks"
 
 permissions:
   contents: read
+  statuses: write
 
 env:
-  TOFU_VERSION: '1.11.5'
-  TFLINT_VERSION: '0.61.0'
-  JUST_VERSION: '1.46.0'
+  JUST_VERSION: "1.46.0"
+  TOFU_VERSION: "1.11.5"
+  TFLINT_VERSION: "0.61.0"
+  TRIVY_VERSION: "0.69.3"
+  SEMGREP_VERSION: "1.153.1"
+  NPM_TOOLS: "jscpd@4 knip@5 madge@8 license-checker@25"
 
 jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
-      # ── uv + Python (always) ──────────────────────────────────
-      - uses: astral-sh/setup-uv@0ca8f610542aa7f4acaf39e65cf4eb3c35091883 # v7
+      # ── Fetch coding-standards configs ──────────────────────
+      # Self-test detection: if this repo IS coding-standards (has lint-configs-626465/),
+      # use local files instead of checking out from GitHub. This enables:
+      # - Testing branch changes before merge
+      # - Running on Gitea (which can't resolve alxleo/coding-standards)
+      - name: Detect self-test
+        id: detect
+        run: |
+          if [ -d "lint-configs-626465" ]; then
+            ln -s . .coding-standards
+            echo "self-test=true" >> "$GITHUB_OUTPUT"
+            echo "Self-test mode: using local configs/scripts"
+          fi
+
+      - name: Checkout coding-standards
+        if: steps.detect.outputs.self-test != 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: alxleo/coding-standards
+          path: .coding-standards
+          sparse-checkout: |
+            lint-configs-626465
+            scripts/ci
+            scripts/hooks
+          persist-credentials: false
+
+      # ── Setup toolchain ──────────────────────────────────────
+      - uses: astral-sh/setup-uv@6ee6290f1cbc4156c0bdd66691b2c144ef8df19a # v7.4.0
         with:
           enable-cache: true
+          cache-dependency-glob: ""
 
       - name: Install Python
-        run: uv python install 3.13
+        env:
+          PYTHON_VERSION: ${{ inputs.python-version }}
+        run: uv python install "$PYTHON_VERSION"
 
-      # ── Pre-commit environment cache ──────────────────────────
-      - name: Cache pre-commit environments
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          path: ~/.cache/pre-commit
-          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
-          restore-keys: pre-commit-${{ runner.os }}-
+          node-version: ${{ inputs.node-version }}
+
+      # Single consolidated cache — reduces action clone overhead on Gitea
+      # (act_runner clones the action ref once per `uses:` regardless of `if:`)
+      - name: Cache lint tools
+        if: env.GITEA_ACTIONS != 'true'
+        id: cache-tools
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        with:
+          path: |
+            ~/.cache/pre-commit
+            ~/.npm
+            ~/.npm-global
+            ~/.just/bin
+            ~/.tofu/bin
+            ~/.tflint/bin
+            ~/.trivy/bin
+            ~/.cache/trivy
+            ~/.local/share/uv/tools/semgrep
+          key: lint-tools-${{ runner.os }}-${{ hashFiles('.coding-standards/lint-configs-626465/.pre-commit-config.yaml', '**/package-lock.json', '.github/workflows/lint.yml') }}-${{ env.JUST_VERSION }}-${{ env.TOFU_VERSION }}-${{ env.TFLINT_VERSION }}-${{ env.TRIVY_VERSION }}-${{ env.SEMGREP_VERSION }}
+          restore-keys: lint-tools-${{ runner.os }}-
+
+      # ── Parse overrides + apply configs ────────────────────
+      - name: Apply coding-standards configs
+        id: config
+        env:
+          CONFIG_FILE: ${{ inputs.config-file }}
+          INPUT_SKIP: ${{ inputs.skip-hooks }}
+        run: .coding-standards/scripts/ci/apply-configs.sh
+
+      - name: Export skip list
+        env:
+          SKIP_VALUE: ${{ steps.config.outputs.skip-hooks }}
+        # Pad with commas for exact-match testing: contains(',foo,bar,', ',foo,')
+        run: echo "SKIP_HOOKS=,${SKIP_VALUE}," >> "$GITHUB_ENV" # zizmor: ignore[github-env]
 
       # ── Self-selecting tool installs (cached, version-pinned) ─
-      #
-      # Pattern: cache → install only on miss → add to PATH.
-      # Version in cache key — bumping version busts cache.
+      # Each tool: cache check → install if miss → add to PATH.
+      # Install logic is in scripts/ci/install-tool.sh.
 
-      # just — for justfile formatting hooks
-      - name: Cache just binary
-        if: hashFiles('**/justfile', '**/Justfile') != ''
-        id: cache-just
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: ~/.just/bin
-          key: just-${{ runner.os }}-${{ env.JUST_VERSION }}
-
+      # just
       - name: Install just
-        if: hashFiles('**/justfile', '**/Justfile') != '' && steps.cache-just.outputs.cache-hit != 'true'
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.just/bin && cd /tmp
-          JUST_VERSION="${{ env.JUST_VERSION }}"
-          JUST_TARBALL="just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz"
-          BASE_URL="https://github.com/casey/just/releases/download/${JUST_VERSION}"
-          curl -fsSLO "${BASE_URL}/${JUST_TARBALL}"
-          curl -fsSLO "${BASE_URL}/SHA256SUMS"
-          grep "  ${JUST_TARBALL}" SHA256SUMS | sha256sum -c -
-          tar -xzf "${JUST_TARBALL}" -C ~/.just/bin just
+        if: hashFiles('**/justfile', '**/Justfile') != '' && steps.cache-tools.outputs.cache-hit != 'true'
+        env:
+          TOOL_NAME: just
+          TOOL_VERSION: ${{ env.JUST_VERSION }}
+          TOOL_ARTIFACT: "just-${VERSION}-x86_64-unknown-linux-musl.tar.gz"
+          TOOL_URL: "https://github.com/casey/just/releases/download/${VERSION}"
+          TOOL_CHECKSUMS: SHA256SUMS
+          TOOL_EXTRACT: tar
+        run: .coding-standards/scripts/ci/install-tool.sh
 
       - name: Add just to PATH
         if: hashFiles('**/justfile', '**/Justfile') != ''
-        run: echo "$HOME/.just/bin" >> "$GITHUB_PATH"
+        run: echo "$HOME/.just/bin" >> "$GITHUB_PATH" # zizmor: ignore[github-env]
 
-      # OpenTofu — for tofu_fmt / tofu_tflint hooks
-      - name: Cache OpenTofu binary
-        if: hashFiles('**/*.tf') != ''
-        id: cache-tofu
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: ~/.tofu/bin
-          key: tofu-${{ runner.os }}-${{ env.TOFU_VERSION }}
-
+      # OpenTofu
       - name: Install OpenTofu
-        if: hashFiles('**/*.tf') != '' && steps.cache-tofu.outputs.cache-hit != 'true'
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.tofu/bin && cd /tmp
-          TOFU_VERSION="${{ env.TOFU_VERSION }}"
-          TOFU_ZIP="tofu_${TOFU_VERSION}_linux_amd64.zip"
-          BASE_URL="https://github.com/opentofu/opentofu/releases/download/v${TOFU_VERSION}"
-          curl -fsSLO "${BASE_URL}/${TOFU_ZIP}"
-          curl -fsSLO "${BASE_URL}/tofu_${TOFU_VERSION}_SHA256SUMS"
-          grep "  ${TOFU_ZIP}" "tofu_${TOFU_VERSION}_SHA256SUMS" | sha256sum -c -
-          unzip -o "${TOFU_ZIP}" tofu -d ~/.tofu/bin
-          chmod +x ~/.tofu/bin/tofu
+        if: hashFiles('**/*.tf') != '' && steps.cache-tools.outputs.cache-hit != 'true'
+        env:
+          TOOL_NAME: tofu
+          TOOL_VERSION: ${{ env.TOFU_VERSION }}
+          TOOL_ARTIFACT: "tofu_${VERSION}_linux_amd64.zip"
+          TOOL_URL: "https://github.com/opentofu/opentofu/releases/download/v${VERSION}"
+          TOOL_CHECKSUMS: "tofu_${VERSION}_SHA256SUMS"
+          TOOL_EXTRACT: unzip
+        run: .coding-standards/scripts/ci/install-tool.sh
 
       - name: Add OpenTofu to PATH
         if: hashFiles('**/*.tf') != ''
-        run: echo "$HOME/.tofu/bin" >> "$GITHUB_PATH"
+        run: echo "$HOME/.tofu/bin" >> "$GITHUB_PATH" # zizmor: ignore[github-env]
 
-      # TFLint — for tofu_tflint hook
-      - name: Cache TFLint binary
-        if: hashFiles('**/*.tf') != ''
-        id: cache-tflint
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: ~/.tflint/bin
-          key: tflint-${{ runner.os }}-${{ env.TFLINT_VERSION }}
-
+      # TFLint
       - name: Install TFLint
-        if: hashFiles('**/*.tf') != '' && steps.cache-tflint.outputs.cache-hit != 'true'
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.tflint/bin && cd /tmp
-          TFLINT_VERSION="v${{ env.TFLINT_VERSION }}"
-          TFLINT_ZIP="tflint_linux_amd64.zip"
-          BASE_URL="https://github.com/terraform-linters/tflint/releases/download/${TFLINT_VERSION}"
-          curl -fsSLO "${BASE_URL}/${TFLINT_ZIP}"
-          curl -fsSLO "${BASE_URL}/checksums.txt"
-          grep "  ${TFLINT_ZIP}" checksums.txt | sha256sum -c -
-          unzip -o "${TFLINT_ZIP}" -d ~/.tflint/bin
-          chmod +x ~/.tflint/bin/tflint
+        if: hashFiles('**/*.tf') != '' && steps.cache-tools.outputs.cache-hit != 'true'
+        env:
+          TOOL_NAME: tflint
+          TOOL_VERSION: ${{ env.TFLINT_VERSION }}
+          TOOL_ARTIFACT: tflint_linux_amd64.zip
+          TOOL_URL: "https://github.com/terraform-linters/tflint/releases/download/v${VERSION}"
+          TOOL_CHECKSUMS: checksums.txt
+          TOOL_EXTRACT: unzip
+        run: .coding-standards/scripts/ci/install-tool.sh
 
       - name: Add TFLint to PATH
         if: hashFiles('**/*.tf') != ''
-        run: echo "$HOME/.tflint/bin" >> "$GITHUB_PATH"
+        run: echo "$HOME/.tflint/bin" >> "$GITHUB_PATH" # zizmor: ignore[github-env]
 
-      # ── Node.js — for commitlint, markdownlint-cli2 ──────────
-      - name: Setup Node.js
-        if: hashFiles('commitlint.config.*', '.markdownlint-cli2.*', 'configs/commitlint.config.*', 'configs/.markdownlint-cli2.*') != ''
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: '22'
-
-      # ── Run pre-commit ────────────────────────────────────────
-      - name: Run pre-commit
+      # Trivy
+      - name: Install Trivy
+        if: "!contains(env.SKIP_HOOKS, ',trivy,') && steps.cache-tools.outputs.cache-hit != 'true'"
         env:
-          SKIP: ${{ inputs.skip-hooks }}
-        run: uvx pre-commit run --all-files
+          TOOL_NAME: trivy
+          TOOL_VERSION: ${{ env.TRIVY_VERSION }}
+          TOOL_ARTIFACT: "trivy_${VERSION}_Linux-64bit.tar.gz"
+          TOOL_URL: "https://github.com/aquasecurity/trivy/releases/download/v${VERSION}"
+          TOOL_CHECKSUMS: "trivy_${VERSION}_checksums.txt"
+          TOOL_EXTRACT: tar
+        run: .coding-standards/scripts/ci/install-tool.sh
 
-      # ── Copy-paste detection (informational) ────────────────
-      - name: Check for code duplication
+      - name: Add Trivy to PATH
+        if: "!contains(env.SKIP_HOOKS, ',trivy,')"
+        run: echo "$HOME/.trivy/bin" >> "$GITHUB_PATH" # zizmor: ignore[github-env]
+
+      # Semgrep
+      - name: Install Semgrep
+        if: "!contains(env.SKIP_HOOKS, ',semgrep,') && steps.cache-tools.outputs.cache-hit != 'true'"
+        run: uv tool install semgrep==${{ env.SEMGREP_VERSION }}
+
+      - name: Add uv tools to PATH
+        if: "!contains(env.SKIP_HOOKS, ',semgrep,')"
+        run: echo "$HOME/.local/share/uv/tools/semgrep/bin" >> "$GITHUB_PATH" # zizmor: ignore[github-env]
+
+      # ── Install pre-commit hooks ─────────────────────────────
+      # On Gitea, pre-commit environments persist in Docker volumes.
+      - name: Install pre-commit hooks
+        if: env.GITEA_ACTIONS != 'true'
+        run: uvx pre-commit install-hooks
+
+      # ── Install standalone npm tools (cached as global prefix) ──
+      - name: Install standalone npm lint tools
+        if: steps.cache-tools.outputs.cache-hit != 'true'
+        env:
+          NPM_CONFIG_PREFIX: ~/.npm-global
+        run: npm install -g ${{ env.NPM_TOOLS }}
+
+      - name: Add npm global tools to PATH
+        run: echo "$HOME/.npm-global/bin" >> "$GITHUB_PATH" # zizmor: ignore[github-env]
+
+      # ── Install consumer npm dependencies (for eslint, tsc) ──
+      - name: Install npm dependencies
+        if: hashFiles('**/package-lock.json') != ''
+        run: npm ci --ignore-scripts
+
+      # ══════════════════════════════════════════════════════════
+      # Individual linter groups — each step visible in the UI.
+      # continue-on-error: true so all groups run even if one fails.
+      # ══════════════════════════════════════════════════════════
+
+      - name: Create lint helpers
+        run: |
+          mkdir -p /tmp/lint-results
+          cp .coding-standards/scripts/ci/lint-run.sh /tmp/lint-run.sh
+          chmod +x /tmp/lint-run.sh
+
+      - name: "Lint: file hygiene"
+        id: hygiene
+        if: "!contains(env.SKIP_HOOKS, ',hygiene,')"
+        continue-on-error: true
+        run: /tmp/lint-run.sh hygiene .coding-standards/scripts/ci/run-hygiene.sh
+
+      - name: "Lint: cruft & secret file blocking"
+        id: cruft
+        if: "!contains(env.SKIP_HOOKS, ',cruft,')"
+        continue-on-error: true
+        run: /tmp/lint-run.sh cruft .coding-standards/scripts/ci/run-cruft.sh
+
+      - name: "Lint: secret scanning (gitleaks)"
+        id: gitleaks
+        if: "!contains(env.SKIP_HOOKS, ',gitleaks,')"
+        continue-on-error: true
+        run: /tmp/lint-run.sh gitleaks uvx pre-commit run gitleaks --all-files
+
+      - name: "Lint: YAML (yamllint)"
+        id: yaml
+        if: "!contains(env.SKIP_HOOKS, ',yaml,')"
+        continue-on-error: true
+        run: /tmp/lint-run.sh yaml uvx pre-commit run yamllint --all-files
+
+      - name: "Lint: GitHub Actions (actionlint + zizmor)"
+        id: actions
+        if: "!contains(env.SKIP_HOOKS, ',actions,')"
+        continue-on-error: true
+        run: /tmp/lint-run.sh actions .coding-standards/scripts/ci/run-actions.sh
+
+      - name: "Lint: markdown"
+        id: markdown
+        if: "!contains(env.SKIP_HOOKS, ',markdown,')"
+        continue-on-error: true
+        run: /tmp/lint-run.sh markdown uvx pre-commit run markdownlint-cli2 --all-files
+
+      - name: "Lint: commit messages (commitlint)"
+        id: commitlint
+        if: "!contains(env.SKIP_HOOKS, ',commitlint,')"
+        continue-on-error: true
+        run: /tmp/lint-run.sh commitlint uvx pre-commit run commitlint --hook-stage commit-msg --all-files
+
+      - name: "Lint: Python (ruff)"
+        id: python
+        if: "!contains(env.SKIP_HOOKS, ',python,')"
+        continue-on-error: true
+        run: /tmp/lint-run.sh python .coding-standards/scripts/ci/run-python.sh
+
+      - name: "Lint: shell hygiene"
+        id: shell
+        if: "!contains(env.SKIP_HOOKS, ',shell,')"
+        continue-on-error: true
+        run: /tmp/lint-run.sh shell uvx pre-commit run shell-hygiene --all-files
+
+      - name: "Lint: justfile formatting"
+        id: justfile
+        if: "!contains(env.SKIP_HOOKS, ',justfile,')"
+        continue-on-error: true
+        run: /tmp/lint-run.sh justfile uvx pre-commit run just-fmt-check --all-files
+
+      - name: "Lint: Dockerfile (hadolint)"
+        id: hadolint
+        if: "!contains(env.SKIP_HOOKS, ',hadolint,')"
+        continue-on-error: true
+        run: /tmp/lint-run.sh hadolint uvx pre-commit run hadolint --all-files
+
+      - name: "Lint: Terraform (tflint)"
+        id: tflint
+        if: "!contains(env.SKIP_HOOKS, ',tflint,') && hashFiles('**/*.tf') != ''"
+        continue-on-error: true
+        run: /tmp/lint-run.sh tflint bash -c 'tflint --recursive --minimum-failure-severity=warning'
+
+      - name: "Lint: copy-paste detection (jscpd)"
+        id: jscpd
+        if: "!contains(env.SKIP_HOOKS, ',jscpd,')"
+        continue-on-error: true
+        run: /tmp/lint-run.sh jscpd bash -c 'jscpd --config .coding-standards/lint-configs-626465/.jscpd.json . || true'
+
+      - name: "Lint: dead code detection (knip)"
+        id: knip
+        if: "!contains(env.SKIP_HOOKS, ',knip,') && hashFiles('**/package.json') != ''"
+        continue-on-error: true
+        run: /tmp/lint-run.sh knip knip
+
+      - name: "Lint: circular dependency detection (madge)"
+        id: madge
+        if: "!contains(env.SKIP_HOOKS, ',madge,') && hashFiles('**/package.json') != ''"
+        continue-on-error: true
+        run: /tmp/lint-run.sh madge madge --circular --extensions ts,js .
+
+      - name: "Lint: ESLint"
+        id: eslint
+        if: "!contains(env.SKIP_HOOKS, ',eslint,') && (hashFiles('**/.eslintrc*') != '' || hashFiles('**/eslint.config.*') != '')"
+        continue-on-error: true
+        run: /tmp/lint-run.sh eslint bash -c './node_modules/.bin/eslint .'
+
+      - name: "Lint: Prettier"
+        id: prettier
+        if: "!contains(env.SKIP_HOOKS, ',prettier,') && hashFiles('**/package.json') != ''"
+        continue-on-error: true
+        run: /tmp/lint-run.sh prettier uvx pre-commit run prettier --all-files
+
+      - name: "Lint: TypeScript type checking (tsc)"
+        id: typescript
+        if: "!contains(env.SKIP_HOOKS, ',typescript,') && hashFiles('**/tsconfig.json') != ''"
+        continue-on-error: true
+        run: /tmp/lint-run.sh typescript bash -c './node_modules/.bin/tsc --noEmit'
+
+      - name: "Lint: npm audit"
+        id: npm-audit
+        if: "!contains(env.SKIP_HOOKS, ',npm-audit,') && hashFiles('**/package-lock.json') != ''"
+        continue-on-error: true
+        run: /tmp/lint-run.sh npm-audit bash -c 'npm audit --audit-level=high'
+
+      - name: "Lint: license compliance"
+        id: license-check
+        if: "!contains(env.SKIP_HOOKS, ',license-check,') && hashFiles('**/package-lock.json') != ''"
+        continue-on-error: true
+        run: /tmp/lint-run.sh license-check bash -c 'license-checker --production --failOn "GPL-2.0;GPL-3.0;AGPL-1.0;AGPL-3.0"'
+
+      - name: "Security: Trivy (IaC + deps)"
+        id: trivy
+        if: "!contains(env.SKIP_HOOKS, ',trivy,')"
+        continue-on-error: true
+        run: /tmp/lint-run.sh trivy trivy fs --scanners vuln,secret --severity CRITICAL,HIGH --exit-code 1 --format table .
+
+      - name: "Security: Semgrep (SAST)"
+        id: semgrep
+        if: "!contains(env.SKIP_HOOKS, ',semgrep,')"
+        continue-on-error: true
+        run: /tmp/lint-run.sh semgrep semgrep scan --config auto --error --quiet .
+
+      - name: "Repo: extra checks"
+        id: extra
+        if: inputs.extra-lint-script != ''
+        continue-on-error: true
+        env:
+          EXTRA_SCRIPT: ${{ inputs.extra-lint-script }}
+        run: /tmp/lint-run.sh extra bash "$EXTRA_SCRIPT"
+
+      # ══════════════════════════════════════════════════════════
+      # Report per-group commit statuses (GitHub + Gitea compatible)
+      # ══════════════════════════════════════════════════════════
+      - name: Report lint statuses
         if: always()
-        run: npx jscpd@4 --config .jscpd.json .github/ || true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          API_URL: ${{ github.api_url }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RUN_ID: ${{ github.run_id }}
+          PYTHONPATH: .coding-standards/scripts/ci
+        run: uv run --no-project python3 .coding-standards/scripts/ci/report_statuses.py
+
+      # ══════════════════════════════════════════════════════════
+      # Cache audit — every tool install must hit cache on warm runs
+      # ══════════════════════════════════════════════════════════
+      - name: Audit cache hits
+        if: always() && env.GITEA_ACTIONS != 'true'
+        env:
+          C_TOOLS: ${{ steps.cache-tools.outputs.cache-hit }}
+        run: |
+          echo "Cache audit:"
+          if [ "$C_TOOLS" = "true" ]; then
+            echo "  ✓ lint-tools (consolidated cache)"
+            echo ""
+            echo "All caches hit"
+          else
+            echo "  ✗ lint-tools — CACHE MISS"
+            echo ""
+            echo "::warning::Cache miss detected — CI is slower than it should be"
+          fi
+
+      # ══════════════════════════════════════════════════════════
+      # Summary
+      # ══════════════════════════════════════════════════════════
+      - name: Summary
+        if: always()
+        env:
+          PYTHONPATH: .coding-standards/scripts/ci
+        run: uv run --no-project python3 .coding-standards/scripts/ci/summary.py
