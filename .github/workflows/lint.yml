@@ -43,6 +43,8 @@ env:
   TOFU_VERSION: "1.11.5"
   TFLINT_VERSION: "0.61.0"
   TRIVY_VERSION: "0.69.3"
+  SEMGREP_VERSION: "1.153.1"
+  NPM_TOOLS: "jscpd@4 knip@5 madge@8 license-checker@25"
 
 jobs:
   lint:
@@ -91,6 +93,7 @@ jobs:
         run: uv python install "$PYTHON_VERSION"
 
       - name: Cache pre-commit environments
+        id: cache-precommit
         uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         with:
           path: ~/.cache/pre-commit
@@ -103,6 +106,7 @@ jobs:
           node-version: ${{ inputs.node-version }}
 
       - name: Cache npm packages
+        id: cache-npm
         uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         with:
           path: ~/.npm
@@ -223,13 +227,53 @@ jobs:
         if: "!contains(env.SKIP_HOOKS, ',trivy,')"
         run: echo "$HOME/.trivy/bin" >> "$GITHUB_PATH" # zizmor: ignore[github-env]
 
+      # Semgrep
+      - name: Cache Semgrep
+        if: "!contains(env.SKIP_HOOKS, ',semgrep,')"
+        id: cache-semgrep
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        with:
+          path: ~/.local/share/uv/tools/semgrep
+          key: semgrep-${{ runner.os }}-${{ env.SEMGREP_VERSION }}
+
+      - name: Install Semgrep
+        if: "!contains(env.SKIP_HOOKS, ',semgrep,') && steps.cache-semgrep.outputs.cache-hit != 'true'"
+        run: uv tool install semgrep==${{ env.SEMGREP_VERSION }}
+
+      - name: Add uv tools to PATH
+        if: "!contains(env.SKIP_HOOKS, ',semgrep,')"
+        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH" # zizmor: ignore[github-env]
+
+      # Trivy vulnerability DB
+      - name: Cache Trivy DB
+        if: "!contains(env.SKIP_HOOKS, ',trivy,')"
+        id: cache-trivy-db
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        with:
+          path: ~/.cache/trivy
+          key: trivy-db-${{ runner.os }}
+          restore-keys: trivy-db-${{ runner.os }}
+
       # ── Install pre-commit hooks ─────────────────────────────
       - name: Install pre-commit hooks
         run: uvx pre-commit install-hooks
 
-      # ── Install standalone npm tools (cached via ~/.npm) ──
+      # ── Install standalone npm tools (cached as global prefix) ──
+      - name: Cache npm global tools
+        id: cache-npm-global
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        with:
+          path: ~/.npm-global
+          key: npm-global-${{ runner.os }}-${{ hashFiles('.github/workflows/lint.yml') }}
+
       - name: Install standalone npm lint tools
-        run: npm install -g jscpd@4 knip@5 madge@8 license-checker@25
+        if: steps.cache-npm-global.outputs.cache-hit != 'true'
+        env:
+          NPM_CONFIG_PREFIX: ~/.npm-global
+        run: npm install -g ${{ env.NPM_TOOLS }}
+
+      - name: Add npm global tools to PATH
+        run: echo "$HOME/.npm-global/bin" >> "$GITHUB_PATH" # zizmor: ignore[github-env]
 
       # ── Install consumer npm dependencies (for eslint, tsc) ──
       - name: Install npm dependencies
@@ -377,7 +421,7 @@ jobs:
         id: semgrep
         if: "!contains(env.SKIP_HOOKS, ',semgrep,')"
         continue-on-error: true
-        run: /tmp/lint-run.sh semgrep uvx semgrep scan --config auto --error --quiet .
+        run: /tmp/lint-run.sh semgrep semgrep scan --config auto --error --quiet .
 
       - name: "Repo: extra checks"
         id: extra
@@ -401,6 +445,61 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           PYTHONPATH: .coding-standards/scripts/ci
         run: uv run --no-project python3 .coding-standards/scripts/ci/report_statuses.py
+
+      # ══════════════════════════════════════════════════════════
+      # Cache audit — every tool install must hit cache on warm runs
+      # ══════════════════════════════════════════════════════════
+      - name: Audit cache hits
+        if: always()
+        env:
+          C_PRECOMMIT: ${{ steps.cache-precommit.outputs.cache-hit }}
+          C_NPM: ${{ steps.cache-npm.outputs.cache-hit }}
+          C_NPM_GLOBAL: ${{ steps.cache-npm-global.outputs.cache-hit }}
+          C_JUST: ${{ steps.cache-just.outputs.cache-hit }}
+          C_TOFU: ${{ steps.cache-tofu.outputs.cache-hit }}
+          C_TFLINT: ${{ steps.cache-tflint.outputs.cache-hit }}
+          C_TRIVY: ${{ steps.cache-trivy.outputs.cache-hit }}
+          C_TRIVY_DB: ${{ steps.cache-trivy-db.outputs.cache-hit }}
+          C_SEMGREP: ${{ steps.cache-semgrep.outputs.cache-hit }}
+        run: |
+          echo "Cache audit:"
+          misses=0
+          # Check each cache — empty means step was skipped (conditional tool)
+          for entry in \
+            "precommit:$C_PRECOMMIT" \
+            "npm:$C_NPM" \
+            "npm-global:$C_NPM_GLOBAL" \
+            "just:$C_JUST" \
+            "trivy:$C_TRIVY" \
+            "trivy-db:$C_TRIVY_DB" \
+            "semgrep:$C_SEMGREP" \
+          ; do
+            name="${entry%%:*}"
+            hit="${entry#*:}"
+            if [ -z "$hit" ]; then
+              echo "  · $name (skipped)"
+            elif [ "$hit" = "true" ]; then
+              echo "  ✓ $name"
+            else
+              echo "  ✗ $name — CACHE MISS"
+              misses=$((misses + 1))
+            fi
+          done
+          # Conditional tools (only warn if they ran but missed)
+          for entry in "tofu:$C_TOFU" "tflint:$C_TFLINT"; do
+            name="${entry%%:*}"
+            hit="${entry#*:}"
+            if [ "$hit" = "false" ]; then
+              echo "  ✗ $name — CACHE MISS"
+              misses=$((misses + 1))
+            fi
+          done
+          echo ""
+          if [ "$misses" -gt 0 ]; then
+            echo "::warning::$misses cache miss(es) detected — CI is slower than it should be"
+          else
+            echo "All caches hit"
+          fi
 
       # ══════════════════════════════════════════════════════════
       # Summary

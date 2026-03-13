@@ -155,3 +155,59 @@ class TestExtractHint:
         # The banner filter should exclude this — it's not a useful file:line hint
         # Falls through to banner fallback
         assert hint != ""
+
+
+class TestWorkflowCacheAudit:
+    """Every tool install in lint.yml must have a corresponding cache step."""
+
+    def _load_workflow(self):
+        import yaml
+
+        wf = Path(__file__).resolve().parent.parent / ".github" / "workflows" / "lint.yml"
+        return yaml.safe_load(wf.read_text())
+
+    def test_every_install_step_has_cache(self):
+        """Steps that install tools must be conditional on a cache-hit check."""
+        wf = self._load_workflow()
+        steps = wf["jobs"]["lint"]["steps"]
+
+        # Find install steps: name contains "Install" and has a run: key
+        # Exclude steps where caching is handled by a setup action:
+        #   - "Install Python" — cached by setup-uv (enable-cache: true)
+        #   - "Install pre-commit hooks" — cached by cache-precommit
+        #   - "Install npm dependencies" — consumer deps, not our tools
+        excluded = {"Install Python", "Install pre-commit hooks", "Install npm dependencies"}
+        install_steps = [
+            s
+            for s in steps
+            if s.get("name", "").startswith("Install")
+            and "run" in s
+            and s.get("name", "") not in excluded
+        ]
+
+        for step in install_steps:
+            condition = step.get("if", "")
+            assert "cache-hit" in condition, (
+                f"Install step '{step['name']}' is not conditional on a cache hit. "
+                f"Add a cache step and gate the install with: "
+                f"if: steps.cache-xxx.outputs.cache-hit != 'true'"
+            )
+
+    def test_all_cache_steps_have_ids(self):
+        """Every actions/cache step must have an id for the audit step to check."""
+        wf = self._load_workflow()
+        steps = wf["jobs"]["lint"]["steps"]
+
+        cache_steps = [
+            s
+            for s in steps
+            if isinstance(s.get("uses", ""), str)
+            and "actions/cache@" in s.get("uses", "")
+        ]
+        assert len(cache_steps) >= 5, "Expected at least 5 cache steps"
+
+        for step in cache_steps:
+            assert "id" in step, (
+                f"Cache step '{step.get('name', 'unnamed')}' has no id. "
+                f"Add id: cache-xxx so the audit step can verify cache hits."
+            )
