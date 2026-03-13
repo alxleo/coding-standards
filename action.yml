@@ -9,17 +9,17 @@ description: Copy centralized linter configs into the workspace
 
 inputs:
   config-file:
-    description: 'Path to override config file in consumer repo'
+    description: "Path to override config file in consumer repo"
     required: false
-    default: '.coding-standards.yml'
+    default: ".coding-standards.yml"
   skip-hooks:
-    description: 'Comma-separated linter groups to skip'
+    description: "Comma-separated linter groups to skip"
     required: false
-    default: ''
+    default: ""
 
 outputs:
   skip-hooks:
-    description: 'Merged skip list (input + override file)'
+    description: "Merged skip list (input + override file)"
     value: ${{ steps.setup.outputs.skip-hooks }}
 
 runs:
