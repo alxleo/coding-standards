@@ -9,11 +9,13 @@ on:
 
 permissions:
   contents: read
-  statuses: write    # allows per-linter status checks on PRs
+  statuses: write # allows per-linter status checks on PRs
 
 jobs:
   lint:
-    if: github.event.pull_request.draft == false
+    if: >-
+      github.event_name == 'push' ||
+      github.event.pull_request.draft == false
     uses: alxleo/coding-standards/.github/workflows/lint.yml@v1
     # with:
     #   skip-hooks: "commitlint,python"   # optional: skip groups

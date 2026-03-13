@@ -56,7 +56,11 @@ repos:
     rev: v0.21.0
     hooks:
       - id: markdownlint-cli2
-        args: [--config, .coding-standards/lint-configs-626465/.markdownlint-cli2.yaml]
+        args:
+          [
+            --config,
+            .coding-standards/lint-configs-626465/.markdownlint-cli2.yaml,
+          ]
 
   # ── Commit message linting ─────────────────────────────────
   - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
@@ -64,7 +68,11 @@ repos:
     hooks:
       - id: commitlint
         stages: [commit-msg]
-        args: [--config, .coding-standards/lint-configs-626465/commitlint.config.mjs]
+        args:
+          [
+            --config,
+            .coding-standards/lint-configs-626465/commitlint.config.mjs,
+          ]
 
   # ── Python linting + formatting ────────────────────────────
   - repo: https://github.com/astral-sh/ruff-pre-commit
@@ -92,7 +100,7 @@ repos:
 
       - id: verify-sops-encryption
         name: Verify SOPS files are encrypted
-        entry: "bash -c 'for f in \"$@\"; do if ! grep -q \"^sops:\" \"$f\" 2>/dev/null; then echo \"ERROR: $f is not SOPS-encrypted\"; exit 1; fi; done' --"
+        entry: 'bash -c ''for f in "$@"; do if ! grep -q "^sops:" "$f" 2>/dev/null; then echo "ERROR: $f is not SOPS-encrypted"; exit 1; fi; done'' --'
         language: system
         files: \.secrets\.yaml$
 
@@ -128,5 +136,6 @@ repos:
     rev: v4.0.0-alpha.8
     hooks:
       - id: prettier
-        args: [--config, .coding-standards/lint-configs-626465/.prettierrc, --check]
+        entry: prettier --check
+        args: [--config, .coding-standards/lint-configs-626465/.prettierrc]
         exclude: '\.md$'

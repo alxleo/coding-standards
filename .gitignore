@@ -1,5 +1,6 @@
-# Local dev symlink (justfile creates this so config paths resolve)
+# Local dev symlinks (justfile creates these so config paths resolve)
 /.coding-standards
+/.pre-commit-config.yaml
 
 # Configs copied to root by setup (originals in lint-configs-626465/)
 /.shellcheckrc

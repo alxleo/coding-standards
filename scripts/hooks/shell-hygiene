@@ -33,7 +33,7 @@ for f in "$@"; do
     fi
 
     # 3. Unpinned npx versions (applies to shell + yaml)
-    if grep -nE "npx [a-z]" "$f" | grep -vE "npx (--yes|--no|-)|@[0-9]|^[^:]*:#|^[^:]*:.*name:"; then
+    if grep -nE "npx [a-z]" "$f" | grep -vE "npx (--yes|--no|-)|@[0-9]|#.*npx|^[^:]*:.*name:"; then
         rc=1
     fi
 done

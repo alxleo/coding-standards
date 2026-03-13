@@ -23,7 +23,7 @@ permissions:
 
 jobs:
   lint:
-    if: github.event.pull_request.draft == false
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
     uses: alxleo/coding-standards/.github/workflows/lint.yml@v1
 ```
 

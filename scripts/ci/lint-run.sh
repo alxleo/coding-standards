@@ -23,8 +23,12 @@ else
 
   echo ""
   echo "── Failures ─────────────────────────────"
-  grep -v -E '^\[INFO\]|^- Installing|^- Using|^Initializing|^- repo:|^\s*$' "$logfile" \
-    | tail -40
+  # Show file:line errors first (most actionable), then other non-noise output
+  grep -E '^\S+:[0-9]+:' "$logfile" | grep -v -E '^::' | head -20 || true
+  # Show non-noise, non-banner summary (hooks that failed, error messages)
+  grep -v -E '^\[INFO\]|^- Installing|^- Using|^Initializing|^- repo:|^\s*$|^::' "$logfile" \
+    | grep -v -E '\.{3,}Passed' \
+    | tail -20
 
   # Emit ::error annotations for inline PR display (max 10 per step)
   grep -E '^[^:]+:[0-9]+:[0-9]*:' "$logfile" \
