@@ -100,10 +100,10 @@ Self-test mode is auto-detected: if `lint-configs-626465/` exists in the workspa
 
 ## Local development hooks
 
-CI-only enforcement — no local full-lint gate. Git hooks (installed by `gitea-ci wire`):
+CI-only enforcement — no local lint gate. All formatting and linting runs on Gitea CI. Local hooks only catch things that can't be fixed after the fact:
 
-- **pre-commit**: staged-file checks via pre-commit framework
-- **commit-msg**: commitlint (conventional commits)
+- **pre-commit**: secret detection only (`detect-private-key` + `gitleaks`) — secrets must never reach any remote
+- **commit-msg**: commitlint (conventional commits) — bad messages can't be fixed without rewriting history
 - **post-commit**: cruft cleanup + async push to Gitea (triggers CI)
 - **pre-push**: gates `git push origin` on Gitea CI passing (not local lint)
 
