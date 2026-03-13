@@ -226,7 +226,7 @@ jobs:
 
       # ── Install consumer npm dependencies (for eslint, tsc) ──
       - name: Install npm dependencies
-        if: hashFiles('**/package-lock.json') != ''
+        if: hashFiles('package-lock.json') != ''
         run: npm ci --ignore-scripts
 
       # ══════════════════════════════════════════════════════════
@@ -350,13 +350,13 @@ jobs:
 
       - name: "Lint: npm audit"
         id: npm-audit
-        if: "!contains(env.SKIP_HOOKS, ',npm-audit,') && hashFiles('**/package-lock.json') != ''"
+        if: "!contains(env.SKIP_HOOKS, ',npm-audit,') && hashFiles('package-lock.json') != ''"
         continue-on-error: true
         run: /tmp/lint-run.sh npm-audit bash -c 'npm audit --audit-level=high'
 
       - name: "Lint: license compliance"
         id: license-check
-        if: "!contains(env.SKIP_HOOKS, ',license-check,') && hashFiles('**/package-lock.json') != ''"
+        if: "!contains(env.SKIP_HOOKS, ',license-check,') && hashFiles('package-lock.json') != ''"
         continue-on-error: true
         run: /tmp/lint-run.sh license-check bash -c 'license-checker --production --failOn "GPL-2.0;GPL-3.0;AGPL-1.0;AGPL-3.0"'
 
