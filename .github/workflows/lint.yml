@@ -242,7 +242,7 @@ jobs:
 
       - name: Add uv tools to PATH
         if: "!contains(env.SKIP_HOOKS, ',semgrep,')"
-        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH" # zizmor: ignore[github-env]
+        run: echo "$HOME/.local/share/uv/tools/semgrep/bin" >> "$GITHUB_PATH" # zizmor: ignore[github-env]
 
       # Trivy vulnerability DB
       - name: Cache Trivy DB
