@@ -12,5 +12,13 @@
   "license": "ISC",
   "devDependencies": {
     "bats": "^1.13.0"
+  },
+  "knip": {
+    "ignore": [
+      "lint-configs-626465/**"
+    ],
+    "ignoreDependencies": [
+      "bats"
+    ]
   }
 }

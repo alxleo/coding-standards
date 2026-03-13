@@ -30,9 +30,9 @@ def api_request(
     body = json.dumps(data).encode() if data else None
     req = urllib.request.Request(url, data=body, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(
+        with urllib.request.urlopen(  # nosemgrep: dynamic-urllib-use-detected
             req, timeout=30
-        ) as resp:  # nosemgrep: dynamic-urllib-use-detected
+        ) as resp:
             return json.loads(resp.read())
     except (urllib.error.URLError, json.JSONDecodeError, OSError):
         return None
