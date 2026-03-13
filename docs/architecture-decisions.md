@@ -17,26 +17,83 @@ Adding a new linter group: add a step in `lint.yml` + a line in `groups.conf`.
 
 ### MegaLinter (oxsecurity/megalinter)
 
-**What:** Comprehensive meta-linter (50+ languages) shipped as a Docker image.
+**What:** Comprehensive meta-linter (134 linters in `all` flavor, 19 flavor variants) shipped as a Docker image. Python orchestration layer invokes linters directly — independent of pre-commit.
 
-**Pros:**
-- Per-linter GitHub commit statuses via GitHubStatusReporter
-- `DISABLE` / `DISABLE_LINTERS` for skip lists
-- Lower maintenance for adding standard linters
+#### Feature coverage mapping
 
-**Cons:**
-- No Gitea status reporter (GitHub API only)
-- Large Docker image (multi-GB, slow startup)
-- `language: system` custom hooks not supported
-- Centralized config distribution not built-in
-- Dependent on MegaLinter release cycle for linter version updates
-- Known issue (#4254) where workspace configs ignored with `LINTER_RULES_PATH`
+| coding-standards feature | MegaLinter equivalent | Gap? |
+|---|---|---|
+| yamllint, shellcheck, actionlint, markdownlint, jscpd | Built-in linters (same tools) | No |
+| ruff (Python lint + format) | `PYTHON_RUFF` | No |
+| gitleaks | `CREDENTIALS_GITLEAKS` | No |
+| Trivy (IaC + deps) | `REPOSITORY_TRIVY` | No |
+| Semgrep (SAST) | `REPOSITORY_SEMGREP` | No |
+| commitlint | Not included | **Yes** — needs `PRE_COMMANDS` or plugin |
+| `just --fmt` | Not included | **Yes** — no `just` descriptor exists |
+| pre-commit hygiene hooks (check-merge-conflict, check-added-large-files, detect-private-key, end-of-file-fixer, etc.) | Partial overlap via `REPOSITORY_CHECKOV`, `CREDENTIALS_SECRETLINT` | **Yes** — no direct equivalents for most |
+| Custom hooks (forbid-bare-python, temp-file-needs-trap, pin-npm-versions) | `BASH_EXEC` (runs scripts) — but single linter, not per-hook | **Yes** — loses per-hook granularity |
+| Secret-file blocking (block-secret-files, forbid-cruft-files) | No equivalent (gitleaks scans content, not filenames) | **Yes** |
+| Per-group commit statuses | `GITHUB_STATUS_REPORTER: true` — posts per-linter (e.g., `PYTHON_RUFF`), not per-group | Partial — more granular but different grouping |
+| Gitea commit statuses | No Gitea reporter — `GitHubStatusReporter` is GitHub-only | **Yes — blocker** |
+| Centralized config distribution | `EXTENDS` for `.mega-linter.yml` only — does **not** distribute individual linter configs (`.yamllint`, `.ruff.toml`, etc.) | **Yes** |
+| Consumer config overrides | `<LINTER>_CONFIG_FILE`, `LINTER_RULES_PATH` (but see #4254) | Partial — broken for workspace-root overrides |
+| Skip mechanism | `DISABLE` / `DISABLE_LINTERS` / `DISABLE_ERRORS_LINTERS` — per-linter, not per-group | No — actually more granular |
 
-**Verdict:** Partial fit. Worth revisiting if Gitea compatibility becomes optional or MegaLinter adds a Gitea reporter.
+#### Custom linter options in MegaLinter
+
+1. **Plugin system**: Create a `.megalinter-descriptor.yml` with `descriptor_id`, `file_extensions`, `linters[]`, and `install` instructions. Load via:
+
+   ```yaml
+   PLUGINS:
+     - https://raw.githubusercontent.com/org/repo/.../my.megalinter-descriptor.yml
+   ```
+
+   URL path must contain `**/mega-linter-plugin-**/`. Each plugin linter gets its own status. More structured than `language: system` but higher effort to create.
+
+2. **`PRE_COMMANDS` / `POST_COMMANDS`**: Run arbitrary shell commands before/after linters. Not treated as linters — no individual status, no reporting. Setup/teardown only.
+
+3. **`BASH_EXEC`**: Runs custom scripts, but as a single linter. All scripts report under one status.
+
+#### Docker image sizes
+
+| Flavor | Linters | Compressed size |
+|---|---|---|
+| `all` | 134 | ~3.4 GB |
+| `ci_light` | 22 | ~0.7 GB |
+| `security` | 25 | ~0.8 GB |
+| `cupcake` | 91 | ~2.0 GB |
+| Language-specific (python, javascript, etc.) | 50-68 | ~1.0 GB |
+
+Current workflow installs ~50 MB of cached binaries total.
+
+#### Known issues relevant to this project
+
+- **#4254**: `LINTER_RULES_PATH` ignores workspace-root config files. If a central config directory is set, consumer repos cannot override individual linter configs by placing them in the workspace root. Workaround: set `<LINTER>_CONFIG_FILE: LINTER_DEFAULT` per linter.
+- **#2894**: `LINTER_RULES_PATH` pointing to a non-root directory causes some linters (proselint, vale) to be skipped entirely.
+- **#2371**: Recursive `EXTENDS` (config A extends B extends C) does not work properly when mixing remote and local references.
+
+#### Verdict
+
+**Partial alternative, not a superset.** Covers ~70% of the feature surface out of the box. Three blockers:
+
+1. **No Gitea status reporter** — hard requirement for this project
+2. **No centralized config distribution** — `EXTENDS` only handles `.mega-linter.yml`, not individual linter config files. Would still need `apply-configs.sh` or equivalent.
+3. **Custom hooks lose granularity** — `BASH_EXEC` is all-or-nothing; plugin system is viable but high-effort
+
+**When to revisit:**
+
+- MegaLinter adds a generic/Gitea status reporter
+- Gitea support becomes optional for this project
+- Custom hooks are absorbed into standard linters (unlikely)
+
+**Current role:** Local CLI use via `npx mega-linter-runner --flavor ci_light` (see `lint-configs-626465/.mega-linter.yml`). This provides a fast local scan with standard linters only — complementary to CI, not a replacement.
 
 ### super-linter
 
+**What:** GitHub's official meta-linter action.
+
 **Cons vs current approach:**
+
 - No per-linter commit statuses (single pass/fail only)
 - `VALIDATE_*` env vars less flexible than `.coding-standards.yml`
 - No Gitea support for advanced features
@@ -46,6 +103,7 @@ Adding a new linter group: add a step in `lint.yml` + a line in `groups.conf`.
 ### pre-commit.ci
 
 **Cons:**
+
 - `language: system` hooks won't run (sandboxed Docker)
 - Single pass/fail status only
 - No Gitea support
@@ -56,6 +114,7 @@ Adding a new linter group: add a step in `lint.yml` + a line in `groups.conf`.
 ### trunk.io (Trunk Check)
 
 **Cons:**
+
 - No per-group commit statuses
 - No Gitea integration
 - No centralized config distribution
@@ -99,11 +158,13 @@ jobs:
 ### Trade-offs
 
 **Pros:**
+
 - Adding a group = adding a JSON entry (no YAML editing)
 - Native per-group checks in GitHub UI (may eliminate custom status posting)
 - Parallel execution across runners
 
 **Cons:**
+
 - Each matrix job pays separate runner startup + checkout cost
 - Summary becomes a separate "collect results" job
 - Matrix job outputs not aggregated (need artifact workaround)
@@ -113,6 +174,7 @@ jobs:
 ### When to Adopt
 
 Consider when:
+
 - Runner startup cost is acceptable (or caching is aggressive enough)
 - Gitea `fromJSON` matrix support is confirmed
 - The number of linter groups grows beyond ~20

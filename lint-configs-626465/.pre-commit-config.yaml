@@ -103,18 +103,21 @@ repos:
         entry: scripts/hooks/pin-npm-versions
         language: system
         types_or: [shell, yaml]
+        exclude: '\.bats$'
 
       - id: temp-file-needs-trap
         name: Shell temp files need trap cleanup
         entry: scripts/hooks/temp-file-needs-trap
         language: system
         types: [shell]
+        exclude: '\.bats$'
 
       - id: forbid-bare-python
         name: Use uv run, not bare python/python3
         entry: scripts/hooks/forbid-bare-python
         language: system
         types: [shell]
+        exclude: '\.bats$'
 
   # ── Justfile formatting ─────────────────────────────────────
   - repo: local
