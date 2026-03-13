@@ -179,7 +179,7 @@ class TestWorkflowCacheAudit:
         # Find install steps: name contains "Install" and has a run: key
         # Exclude steps where caching is handled by a setup action:
         #   - "Install Python" — cached by setup-uv (enable-cache: true)
-        #   - "Install pre-commit hooks" — cached by cache-precommit
+        #   - "Install pre-commit hooks" — cached by cache-tools (consolidated)
         #   - "Install npm dependencies" — consumer deps, not our tools
         excluded = {
             "Install Python",
@@ -202,8 +202,8 @@ class TestWorkflowCacheAudit:
                 f"if: steps.cache-xxx.outputs.cache-hit != 'true'"
             )
 
-    def test_all_cache_steps_have_ids(self):
-        """Every actions/cache step must have an id for the audit step to check."""
+    def test_consolidated_cache_step_has_id(self):
+        """The consolidated cache step must have an id for the audit step."""
         wf = self._load_workflow()
         steps = wf["jobs"]["lint"]["steps"]
 
@@ -213,10 +213,9 @@ class TestWorkflowCacheAudit:
             if isinstance(s.get("uses", ""), str)
             and "actions/cache@" in s.get("uses", "")
         ]
-        assert len(cache_steps) >= 5, "Expected at least 5 cache steps"
-
-        for step in cache_steps:
-            assert "id" in step, (
-                f"Cache step '{step.get('name', 'unnamed')}' has no id. "
-                f"Add id: cache-xxx so the audit step can verify cache hits."
-            )
+        assert len(cache_steps) == 1, (
+            f"Expected exactly 1 consolidated cache step, found {len(cache_steps)}"
+        )
+        assert cache_steps[0].get("id") == "cache-tools", (
+            "Consolidated cache step must have id: cache-tools"
+        )
