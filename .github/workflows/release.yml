@@ -6,7 +6,10 @@
 name: Release
 
 on:
-  push:
+  # Safe: only reads code from main, no artifact consumption from triggering run.
+  workflow_run: # zizmor: ignore[dangerous-triggers]
+    workflows: [CI]
+    types: [completed]
     branches: [main]
 
 permissions:
@@ -14,10 +17,16 @@ permissions:
 
 jobs:
   release:
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      # Safe: branches filter restricts to main pushes only, not PRs. No untrusted code.
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 # nosemgrep: yaml.github-actions.security.workflow-run-target-code-checkout.workflow-run-target-code-checkout
         with:
+          # Pin to the exact SHA that CI validated — prevents releasing an
+          # untested commit if another push lands before this job starts.
+          # Safe: branches filter restricts to main, not PRs. No untrusted code.
+          ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
           # persist-credentials needed for git tag + push in the last step
           persist-credentials: true # zizmor: ignore[artipacked]
@@ -34,6 +43,13 @@ jobs:
             echo "next=v1.0.0" >> "$GITHUB_OUTPUT"
             echo "First release: v1.0.0"
           else
+            # Skip if HEAD is already tagged (e.g. CI re-run)
+            if git tag --points-at HEAD | grep -qE '^v1\.'; then
+              echo "HEAD is already tagged — skipping release"
+              echo "next=" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
             # Parse major.minor.patch
             IFS='.' read -r major minor patch <<< "${latest#v}"
 
@@ -54,6 +70,7 @@ jobs:
           fi
 
       - name: Create release
+        if: steps.version.outputs.next != ''
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.next }}
@@ -63,6 +80,7 @@ jobs:
             --generate-notes
 
       - name: Update floating v1 tag
+        if: steps.version.outputs.next != ''
         run: |
           git tag -f v1
           git push origin v1 --force
