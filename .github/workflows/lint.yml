@@ -212,7 +212,11 @@ jobs:
       - name: Install pre-commit hooks
         run: uvx pre-commit install-hooks
 
-      # ── Install npm dependencies (for eslint, tsc, license-checker) ─
+      # ── Install standalone npm tools (cached via ~/.npm) ──
+      - name: Install standalone npm lint tools
+        run: npm install -g jscpd@4 knip@5 madge@8 license-checker@25
+
+      # ── Install consumer npm dependencies (for eslint, tsc) ──
       - name: Install npm dependencies
         if: hashFiles('**/package-lock.json') != ''
         run: npm ci --ignore-scripts
@@ -348,25 +352,25 @@ jobs:
         id: jscpd
         if: "!contains(env.SKIP_HOOKS, 'jscpd')"
         continue-on-error: true
-        run: /tmp/lint-run.sh jscpd bash -c 'npx jscpd@4 --config .coding-standards/lint-configs-626465/.jscpd.json . || true'
+        run: /tmp/lint-run.sh jscpd bash -c 'jscpd --config .coding-standards/lint-configs-626465/.jscpd.json . || true'
 
       - name: "Lint: dead code detection (knip)"
         id: knip
         if: "!contains(env.SKIP_HOOKS, 'knip') && hashFiles('**/package.json') != ''"
         continue-on-error: true
-        run: /tmp/lint-run.sh knip npx knip@5
+        run: /tmp/lint-run.sh knip knip
 
       - name: "Lint: circular dependency detection (madge)"
         id: madge
         if: "!contains(env.SKIP_HOOKS, 'madge') && hashFiles('**/package.json') != ''"
         continue-on-error: true
-        run: /tmp/lint-run.sh madge npx madge@8 --circular --extensions ts,js .
+        run: /tmp/lint-run.sh madge madge --circular --extensions ts,js .
 
       - name: "Lint: ESLint"
         id: eslint
         if: "!contains(env.SKIP_HOOKS, 'eslint') && (hashFiles('**/.eslintrc*') != '' || hashFiles('**/eslint.config.*') != '')"
         continue-on-error: true
-        run: /tmp/lint-run.sh eslint bash -c 'npx --no-install eslint .'
+        run: /tmp/lint-run.sh eslint bash -c './node_modules/.bin/eslint .'
 
       - name: "Lint: Prettier"
         id: prettier
@@ -378,7 +382,7 @@ jobs:
         id: typescript
         if: "!contains(env.SKIP_HOOKS, 'typescript') && hashFiles('**/tsconfig.json') != ''"
         continue-on-error: true
-        run: /tmp/lint-run.sh typescript bash -c 'npx --no-install tsc --noEmit'
+        run: /tmp/lint-run.sh typescript bash -c './node_modules/.bin/tsc --noEmit'
 
       - name: "Lint: npm audit"
         id: npm-audit
@@ -390,7 +394,7 @@ jobs:
         id: license-check
         if: "!contains(env.SKIP_HOOKS, 'license-check') && hashFiles('**/package-lock.json') != ''"
         continue-on-error: true
-        run: /tmp/lint-run.sh license-check bash -c 'npx license-checker@25 --production --failOn "GPL-2.0;GPL-3.0;AGPL-1.0;AGPL-3.0"'
+        run: /tmp/lint-run.sh license-check bash -c 'license-checker --production --failOn "GPL-2.0;GPL-3.0;AGPL-1.0;AGPL-3.0"'
 
       - name: "Security: Trivy (IaC + deps)"
         id: trivy
