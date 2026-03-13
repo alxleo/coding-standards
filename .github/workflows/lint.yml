@@ -326,6 +326,18 @@ jobs:
         continue-on-error: true
         run: /tmp/lint-run.sh justfile uvx pre-commit run just-fmt-check --all-files
 
+      - name: "Lint: Dockerfile (hadolint)"
+        id: hadolint
+        if: "!contains(env.SKIP_HOOKS, 'hadolint')"
+        continue-on-error: true
+        run: /tmp/lint-run.sh hadolint uvx pre-commit run hadolint --all-files
+
+      - name: "Lint: Terraform (tflint)"
+        id: tflint
+        if: "!contains(env.SKIP_HOOKS, 'tflint') && hashFiles('**/*.tf') != ''"
+        continue-on-error: true
+        run: /tmp/lint-run.sh tflint bash -c 'tflint --recursive --minimum-failure-severity=warning'
+
       - name: "Lint: copy-paste detection (jscpd)"
         id: jscpd
         if: "!contains(env.SKIP_HOOKS, 'jscpd')"

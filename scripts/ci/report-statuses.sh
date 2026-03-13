@@ -21,19 +21,13 @@ JOB_JSON=$(curl -fsS \
 if [ -n "$JOB_JSON" ]; then
   while IFS=$'\t' read -r step_url step_name; do
     STEP_URLS["$step_name"]="$step_url"
-  done < <(printf '%s' "$JOB_JSON" | uv run --no-project python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-for job in data.get('jobs', []):
-    if 'Lint' in job.get('name', ''):
-        job_url = job.get('html_url', '')
-        for step in job.get('steps', []):
-            num = step.get('number', '')
-            name = step.get('name', '')
-            if job_url and num:
-                print(f'{job_url}#step:{num}:1\t{name}')
-        break
-" 2>/dev/null) || true
+  done < <(printf '%s' "$JOB_JSON" | jq -r '
+    first(.jobs[] | select(.name | contains("Lint"))) // empty
+    | .html_url as $job_url
+    | .steps[]
+    | select(.number and $job_url)
+    | "\($job_url)#step:\(.number):1\t\(.name)"
+  ' 2>/dev/null) || true
 fi
 
 post_status() {

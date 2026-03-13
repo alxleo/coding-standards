@@ -37,9 +37,7 @@ except Exception:
 " 2>/dev/null || echo '{"skip":"","overrides":{}}')
 fi
 
-SKIP_FROM_OVERRIDE=$(printf '%s' "$PARSED" | uv run --no-project python3 -c "
-import json, sys; print(json.load(sys.stdin).get('skip', ''))
-" 2>/dev/null || echo "")
+SKIP_FROM_OVERRIDE=$(printf '%s' "$PARSED" | jq -r '.skip // ""')
 
 SKIP=""
 if [ -n "$INPUT_SKIP" ]; then
@@ -59,9 +57,7 @@ fi
 
 # ── Helper: read override path for a tool ─────────────
 get_override() {
-  printf '%s' "$PARSED" | uv run --no-project python3 -c "
-import json, sys; print(json.load(sys.stdin).get('overrides', {}).get('$1', ''))
-" 2>/dev/null || echo ""
+  printf '%s' "$PARSED" | jq -r ".overrides[\"$1\"] // \"\""
 }
 
 # ── Configs without --config support (must live at repo root) ──

@@ -95,6 +95,13 @@ repos:
         language: system
         files: \.secrets\.yaml$
 
+  # ── Dockerfile linting ─────────────────────────────────────
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.12.0
+    hooks:
+      - id: hadolint
+        args: [--config, .coding-standards/lint-configs-626465/.hadolint.yaml]
+
   # ── Shell hygiene ──────────────────────────────────────────
   - repo: local
     hooks:
