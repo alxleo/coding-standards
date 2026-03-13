@@ -19,9 +19,15 @@ set -euo pipefail
 
 BIN_DIR="$HOME/.${TOOL_NAME}/bin"
 BINARY="${TOOL_BINARY:-$TOOL_NAME}"
+VERSION="$TOOL_VERSION"
+
+# Skip if binary already exists (Docker volume persistence on Gitea)
+if [ -x "$BIN_DIR/$BINARY" ]; then
+  echo "$TOOL_NAME already installed at $BIN_DIR/$BINARY — skipping download"
+  exit 0
+fi
 
 # Expand ${VERSION} placeholders
-VERSION="$TOOL_VERSION"
 ARTIFACT=$(echo "$TOOL_ARTIFACT" | sed "s/\${VERSION}/$VERSION/g")
 BASE_URL=$(echo "$TOOL_URL" | sed "s/\${VERSION}/$VERSION/g")
 CHECKSUMS=$(echo "$TOOL_CHECKSUMS" | sed "s/\${VERSION}/$VERSION/g")
