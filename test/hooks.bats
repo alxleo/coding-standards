@@ -1,5 +1,7 @@
 #!/usr/bin/env bats
-# Tests for custom hook scripts in scripts/hooks/
+# Tests for scripts/hooks/shell-hygiene (merged hook)
+
+HOOK=scripts/hooks/shell-hygiene
 
 setup() {
   WORKDIR=$(mktemp -d)
@@ -9,116 +11,111 @@ teardown() {
   rm -rf "$WORKDIR"
 }
 
-# ── forbid-bare-python ─────────────────────────────────
+# ── Check 1: forbid bare python/python3 ───────────────
 
-@test "forbid-bare-python: rejects bare python3" {
+@test "rejects bare python3" {
   echo 'python3 script.py' > "$WORKDIR/test.sh"
-  run scripts/hooks/forbid-bare-python "$WORKDIR/test.sh"
+  run "$HOOK" "$WORKDIR/test.sh"
   [ "$status" -eq 1 ]
 }
 
-@test "forbid-bare-python: rejects bare python" {
+@test "rejects bare python" {
   echo 'python script.py' > "$WORKDIR/test.sh"
-  run scripts/hooks/forbid-bare-python "$WORKDIR/test.sh"
+  run "$HOOK" "$WORKDIR/test.sh"
   [ "$status" -eq 1 ]
 }
 
-@test "forbid-bare-python: allows uv run python3" {
+@test "allows uv run python3" {
   echo 'uv run python3 script.py' > "$WORKDIR/test.sh"
-  run scripts/hooks/forbid-bare-python "$WORKDIR/test.sh"
+  run "$HOOK" "$WORKDIR/test.sh"
   [ "$status" -eq 0 ]
 }
 
-@test "forbid-bare-python: allows uv run --no-project python3" {
+@test "allows uv run --no-project python3" {
   echo 'uv run --no-project python3 -c "print(1)"' > "$WORKDIR/test.sh"
-  run scripts/hooks/forbid-bare-python "$WORKDIR/test.sh"
+  run "$HOOK" "$WORKDIR/test.sh"
   [ "$status" -eq 0 ]
 }
 
-@test "forbid-bare-python: allows python in comments" {
-  echo '# python3 is great' > "$WORKDIR/test.sh"
-  run scripts/hooks/forbid-bare-python "$WORKDIR/test.sh"
-  # Note: the hook greps for python3 preceded by space/start-of-line,
-  # comments starting with "# python3" will match the space pattern
-  # This is a known limitation — comments are not filtered
-  true  # document the behavior, don't enforce
-}
-
-@test "forbid-bare-python: allows pythonic (embedded word)" {
+@test "allows pythonic (embedded word)" {
   echo 'echo "pythonic code"' > "$WORKDIR/test.sh"
-  run scripts/hooks/forbid-bare-python "$WORKDIR/test.sh"
+  run "$HOOK" "$WORKDIR/test.sh"
   [ "$status" -eq 0 ]
 }
 
-@test "forbid-bare-python: no files to check" {
-  run scripts/hooks/forbid-bare-python
-  [ "$status" -eq 0 ]
-}
+# ── Check 2: mktemp needs trap ────────────────────────
 
-# ── pin-npm-versions ──────────────────────────────────
-
-@test "pin-npm-versions: rejects unpinned npx" {
-  echo 'npx eslint .' > "$WORKDIR/test.sh"
-  run scripts/hooks/pin-npm-versions "$WORKDIR/test.sh"
-  [ "$status" -eq 1 ]
-}
-
-@test "pin-npm-versions: allows pinned npx with @version" {
-  echo 'npx eslint@8 .' > "$WORKDIR/test.sh"
-  run scripts/hooks/pin-npm-versions "$WORKDIR/test.sh"
-  [ "$status" -eq 0 ]
-}
-
-@test "pin-npm-versions: allows npx --yes" {
-  echo 'npx --yes eslint .' > "$WORKDIR/test.sh"
-  run scripts/hooks/pin-npm-versions "$WORKDIR/test.sh"
-  [ "$status" -eq 0 ]
-}
-
-@test "pin-npm-versions: allows npx with flags" {
-  echo 'npx -p eslint' > "$WORKDIR/test.sh"
-  run scripts/hooks/pin-npm-versions "$WORKDIR/test.sh"
-  [ "$status" -eq 0 ]
-}
-
-@test "pin-npm-versions: no files to check" {
-  run scripts/hooks/pin-npm-versions
-  [ "$status" -eq 0 ]
-}
-
-# ── temp-file-needs-trap ──────────────────────────────
-
-@test "temp-file-needs-trap: rejects mktemp without trap" {
+@test "rejects mktemp without trap" {
   cat > "$WORKDIR/test.sh" <<'SH'
 #!/usr/bin/env bash
 TMPFILE=$(mktemp)
 echo "hello" > "$TMPFILE"
 SH
-  run scripts/hooks/temp-file-needs-trap "$WORKDIR/test.sh"
+  run "$HOOK" "$WORKDIR/test.sh"
   [ "$status" -eq 1 ]
+  [[ "$output" == *"mktemp without trap"* ]]
 }
 
-@test "temp-file-needs-trap: allows mktemp with trap" {
+@test "allows mktemp with trap" {
   cat > "$WORKDIR/test.sh" <<'SH'
 #!/usr/bin/env bash
 TMPFILE=$(mktemp)
 trap 'rm -f "$TMPFILE"' EXIT
 echo "hello" > "$TMPFILE"
 SH
-  run scripts/hooks/temp-file-needs-trap "$WORKDIR/test.sh"
+  run "$HOOK" "$WORKDIR/test.sh"
   [ "$status" -eq 0 ]
 }
 
-@test "temp-file-needs-trap: allows scripts without mktemp" {
+@test "allows scripts without mktemp" {
+  echo 'echo "no temp files"' > "$WORKDIR/test.sh"
+  run "$HOOK" "$WORKDIR/test.sh"
+  [ "$status" -eq 0 ]
+}
+
+# ── Check 3: pinned npx versions ─────────────────────
+
+@test "rejects unpinned npx" {
+  echo 'npx eslint .' > "$WORKDIR/test.sh"
+  run "$HOOK" "$WORKDIR/test.sh"
+  [ "$status" -eq 1 ]
+}
+
+@test "allows pinned npx with @version" {
+  echo 'npx eslint@8 .' > "$WORKDIR/test.sh"
+  run "$HOOK" "$WORKDIR/test.sh"
+  [ "$status" -eq 0 ]
+}
+
+@test "allows npx --yes" {
+  echo 'npx --yes eslint .' > "$WORKDIR/test.sh"
+  run "$HOOK" "$WORKDIR/test.sh"
+  [ "$status" -eq 0 ]
+}
+
+@test "allows npx with flags" {
+  echo 'npx -p eslint' > "$WORKDIR/test.sh"
+  run "$HOOK" "$WORKDIR/test.sh"
+  [ "$status" -eq 0 ]
+}
+
+# ── Multiple violations ──────────────────────────────
+
+@test "reports all violations in one file" {
   cat > "$WORKDIR/test.sh" <<'SH'
 #!/usr/bin/env bash
-echo "no temp files here"
+TMPFILE=$(mktemp)
+python3 script.py
+npx eslint .
 SH
-  run scripts/hooks/temp-file-needs-trap "$WORKDIR/test.sh"
-  [ "$status" -eq 0 ]
+  run "$HOOK" "$WORKDIR/test.sh"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"python3"* ]]
+  [[ "$output" == *"mktemp without trap"* ]]
+  [[ "$output" == *"npx eslint"* ]]
 }
 
-@test "temp-file-needs-trap: no files to check" {
-  run scripts/hooks/temp-file-needs-trap
+@test "no files to check" {
+  run "$HOOK"
   [ "$status" -eq 0 ]
 }

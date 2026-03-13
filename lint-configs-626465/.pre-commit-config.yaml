@@ -98,25 +98,11 @@ repos:
   # ── Shell hygiene ──────────────────────────────────────────
   - repo: local
     hooks:
-      - id: pin-npm-versions
-        name: Require pinned npm/npx versions
-        entry: scripts/hooks/pin-npm-versions
+      - id: shell-hygiene
+        name: Shell hygiene (python, mktemp, npx)
+        entry: .coding-standards/scripts/hooks/shell-hygiene
         language: system
         types_or: [shell, yaml]
-        exclude: '\.bats$'
-
-      - id: temp-file-needs-trap
-        name: Shell temp files need trap cleanup
-        entry: scripts/hooks/temp-file-needs-trap
-        language: system
-        types: [shell]
-        exclude: '\.bats$'
-
-      - id: forbid-bare-python
-        name: Use uv run, not bare python/python3
-        entry: scripts/hooks/forbid-bare-python
-        language: system
-        types: [shell]
         exclude: '\.bats$'
 
   # ── Justfile formatting ─────────────────────────────────────

@@ -12,12 +12,22 @@ setup() {
   # Create required config files
   touch "$CONFIGS/.shellcheckrc" "$CONFIGS/.editorconfig"
   echo "repos: []" > "$CONFIGS/.pre-commit-config.yaml"
-  echo '#!/usr/bin/env bash' > "$CSDIR/scripts/hooks/test-hook"
-  chmod +x "$CSDIR/scripts/hooks/test-hook"
 
-  # Create path-based config defaults
-  for cfg in .gitleaks.toml .markdownlint-cli2.yaml .yamllint .hadolint.yaml .jscpd.json .prettierrc commitlint.config.mjs; do
-    echo "default" > "$CONFIGS/$cfg"
+  # Create baseline configs (extends-capable tools)
+  echo "baseline-yamllint" > "$CONFIGS/.yamllint.baseline"
+  echo "baseline-gitleaks" > "$CONFIGS/.gitleaks.baseline.toml"
+  echo "baseline-markdownlint" > "$CONFIGS/.markdownlint-cli2.baseline.yaml"
+  echo "baseline-commitlint" > "$CONFIGS/commitlint.config.baseline.mjs"
+
+  # Create active configs (will be overwritten by apply-configs.sh)
+  echo "active-yamllint" > "$CONFIGS/.yamllint"
+  echo "active-gitleaks" > "$CONFIGS/.gitleaks.toml"
+  echo "active-markdownlint" > "$CONFIGS/.markdownlint-cli2.yaml"
+  echo "active-commitlint" > "$CONFIGS/commitlint.config.mjs"
+
+  # Non-extends configs
+  for cfg in .hadolint.yaml .jscpd.json .prettierrc; do
+    echo "default-$cfg" > "$CONFIGS/$cfg"
   done
 
   export GITHUB_OUTPUT="$WORKDIR/github_output"
@@ -32,6 +42,8 @@ setup() {
 teardown() {
   rm -rf "$WORKDIR"
 }
+
+# ── Skip parsing ─────────────────────────────────────
 
 @test "no override file: empty skip, no error" {
   run bash "$BATS_TEST_DIRNAME/../scripts/ci/apply-configs.sh"
@@ -84,6 +96,8 @@ YAML
   grep -q "skip-hooks=" "$GITHUB_OUTPUT"
 }
 
+# ── Root configs (no --config support) ────────────────
+
 @test "copies .shellcheckrc to root when absent" {
   run bash "$BATS_TEST_DIRNAME/../scripts/ci/apply-configs.sh"
   [ "$status" -eq 0 ]
@@ -97,35 +111,122 @@ YAML
   [ "$(cat "$WORKDIR/.shellcheckrc")" = "consumer-content" ]
 }
 
-@test "consumer override replaces default in config dir" {
-  echo "custom-gitleaks" > "$WORKDIR/.gitleaks.toml"
-  run bash "$BATS_TEST_DIRNAME/../scripts/ci/apply-configs.sh"
-  [ "$status" -eq 0 ]
-  [ "$(cat "$CONFIGS/.gitleaks.toml")" = "custom-gitleaks" ]
-}
-
 @test "pre-commit config always copied to root" {
   run bash "$BATS_TEST_DIRNAME/../scripts/ci/apply-configs.sh"
   [ "$status" -eq 0 ]
   [ -f "$WORKDIR/.pre-commit-config.yaml" ]
 }
 
-@test "hook scripts copied and made executable" {
+# ── Extends-capable configs: no override ─────────────
+
+@test "no override: yamllint uses baseline" {
   run bash "$BATS_TEST_DIRNAME/../scripts/ci/apply-configs.sh"
   [ "$status" -eq 0 ]
-  [ -x "$WORKDIR/scripts/hooks/test-hook" ]
+  [ "$(cat "$CONFIGS/.yamllint")" = "baseline-yamllint" ]
 }
 
-@test "non-executable hook script fails validation" {
-  # Create a non-executable hook in the target location
-  mkdir -p "$WORKDIR/scripts/hooks"
-  echo "not a script" > "$WORKDIR/scripts/hooks/bad-hook"
-  # The copy step will overwrite with CS_ROOT hooks, but let's test
-  # by adding a non-executable hook to the source
-  echo "not a script" > "$CSDIR/scripts/hooks/bad-hook"
-  # Don't make it executable
+@test "no override: gitleaks uses baseline" {
   run bash "$BATS_TEST_DIRNAME/../scripts/ci/apply-configs.sh"
-  # chmod +x scripts/hooks/* makes all executable, so this should pass
-  # The validation only fails if chmod itself fails
   [ "$status" -eq 0 ]
+  [ "$(cat "$CONFIGS/.gitleaks.toml")" = "baseline-gitleaks" ]
+}
+
+# ── Extends-capable configs: with override ────────────
+
+@test "yamllint override applied from .coding-standards.yml" {
+  echo "consumer-yamllint-extends-baseline" > "$WORKDIR/.yamllint.local.yml"
+  cat > "$CONFIG_FILE" <<'YAML'
+overrides:
+  yamllint: .yamllint.local.yml
+YAML
+  run bash "$BATS_TEST_DIRNAME/../scripts/ci/apply-configs.sh"
+  [ "$status" -eq 0 ]
+  [ "$(cat "$CONFIGS/.yamllint")" = "consumer-yamllint-extends-baseline" ]
+}
+
+@test "gitleaks override applied from .coding-standards.yml" {
+  echo "consumer-gitleaks-extends-baseline" > "$WORKDIR/.gitleaks.local.toml"
+  cat > "$CONFIG_FILE" <<'YAML'
+overrides:
+  gitleaks: .gitleaks.local.toml
+YAML
+  run bash "$BATS_TEST_DIRNAME/../scripts/ci/apply-configs.sh"
+  [ "$status" -eq 0 ]
+  [ "$(cat "$CONFIGS/.gitleaks.toml")" = "consumer-gitleaks-extends-baseline" ]
+}
+
+@test "markdownlint override applied" {
+  echo "consumer-markdownlint" > "$WORKDIR/.markdownlint.local.yaml"
+  cat > "$CONFIG_FILE" <<'YAML'
+overrides:
+  markdownlint: .markdownlint.local.yaml
+YAML
+  run bash "$BATS_TEST_DIRNAME/../scripts/ci/apply-configs.sh"
+  [ "$status" -eq 0 ]
+  [ "$(cat "$CONFIGS/.markdownlint-cli2.yaml")" = "consumer-markdownlint" ]
+}
+
+@test "missing override file: falls back to baseline" {
+  cat > "$CONFIG_FILE" <<'YAML'
+overrides:
+  yamllint: nonexistent.yml
+YAML
+  run bash "$BATS_TEST_DIRNAME/../scripts/ci/apply-configs.sh"
+  [ "$status" -eq 0 ]
+  [ "$(cat "$CONFIGS/.yamllint")" = "baseline-yamllint" ]
+}
+
+@test "baseline preserved when override applied" {
+  echo "consumer-yamllint" > "$WORKDIR/.yamllint.local.yml"
+  cat > "$CONFIG_FILE" <<'YAML'
+overrides:
+  yamllint: .yamllint.local.yml
+YAML
+  run bash "$BATS_TEST_DIRNAME/../scripts/ci/apply-configs.sh"
+  [ "$status" -eq 0 ]
+  # Baseline file should be untouched
+  [ "$(cat "$CONFIGS/.yamllint.baseline")" = "baseline-yamllint" ]
+  # Active config should be the consumer's override
+  [ "$(cat "$CONFIGS/.yamllint")" = "consumer-yamllint" ]
+}
+
+# ── Non-extends configs: full replacement ─────────────
+
+@test "hadolint consumer override replaces default" {
+  echo "custom-hadolint" > "$WORKDIR/.hadolint.yaml"
+  run bash "$BATS_TEST_DIRNAME/../scripts/ci/apply-configs.sh"
+  [ "$status" -eq 0 ]
+  [ "$(cat "$CONFIGS/.hadolint.yaml")" = "custom-hadolint" ]
+}
+
+@test "jscpd consumer override replaces default" {
+  echo "custom-jscpd" > "$WORKDIR/.jscpd.json"
+  run bash "$BATS_TEST_DIRNAME/../scripts/ci/apply-configs.sh"
+  [ "$status" -eq 0 ]
+  [ "$(cat "$CONFIGS/.jscpd.json")" = "custom-jscpd" ]
+}
+
+# ── No hook copying ──────────────────────────────────
+
+@test "does not copy hooks to workspace" {
+  run bash "$BATS_TEST_DIRNAME/../scripts/ci/apply-configs.sh"
+  [ "$status" -eq 0 ]
+  # scripts/hooks/ should NOT exist in consumer workspace
+  [ ! -d "$WORKDIR/scripts/hooks" ]
+}
+
+# ── Combined: skip-hooks + overrides ─────────────────
+
+@test "skip-hooks and overrides both work together" {
+  echo "consumer-yamllint" > "$WORKDIR/.yamllint.local.yml"
+  cat > "$CONFIG_FILE" <<'YAML'
+skip-hooks:
+  - python
+overrides:
+  yamllint: .yamllint.local.yml
+YAML
+  run bash "$BATS_TEST_DIRNAME/../scripts/ci/apply-configs.sh"
+  [ "$status" -eq 0 ]
+  grep -q "skip-hooks=python" "$GITHUB_OUTPUT"
+  [ "$(cat "$CONFIGS/.yamllint")" = "consumer-yamllint" ]
 }

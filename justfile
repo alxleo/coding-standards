@@ -33,7 +33,7 @@ lint: _setup-pre-commit
     run_group "GitHub Actions" uvx pre-commit run actionlint --all-files -c {{ pre-commit-config }}
     run_group "Zizmor" uvx pre-commit run zizmor --all-files -c {{ pre-commit-config }}
     run_group "Markdown" uvx pre-commit run markdownlint-cli2 --all-files -c {{ pre-commit-config }}
-    run_group "Shell hygiene" uvx pre-commit run pin-npm-versions --all-files -c {{ pre-commit-config }}
+    run_group "Shell hygiene" uvx pre-commit run shell-hygiene --all-files -c {{ pre-commit-config }}
 
     if [ $rc -ne 0 ]; then
         echo ""

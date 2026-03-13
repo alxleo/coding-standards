@@ -88,6 +88,12 @@ jobs:
         with:
           node-version: ${{ inputs.node-version }}
 
+      - name: Cache npm packages
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-jscpd4
+
       # ── Parse overrides + apply configs ────────────────────
       - name: Apply coding-standards configs
         id: config
@@ -312,14 +318,7 @@ jobs:
         id: shell
         if: "!contains(env.SKIP_HOOKS, 'shell')"
         continue-on-error: true
-        run: |
-          /tmp/lint-run.sh shell bash -c '
-            rc=0
-            uvx pre-commit run pin-npm-versions --all-files || rc=1
-            uvx pre-commit run temp-file-needs-trap --all-files || rc=1
-            uvx pre-commit run forbid-bare-python --all-files || rc=1
-            exit $rc
-          '
+        run: /tmp/lint-run.sh shell uvx pre-commit run shell-hygiene --all-files
 
       - name: "Lint: justfile formatting"
         id: justfile

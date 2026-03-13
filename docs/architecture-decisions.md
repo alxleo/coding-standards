@@ -13,6 +13,16 @@ Data-driven reusable GitHub Actions workflow. Key design:
 
 Adding a new linter group: add a step in `lint.yml` + a line in `groups.conf`.
 
+### Config override strategy
+
+Two tiers based on tool capability:
+
+1. **Extends-capable tools** (yamllint, gitleaks, markdownlint, commitlint): Baseline configs live as `.baseline` files. Consumer specifies an override file in `.coding-standards.yml` that uses the tool's native extends/inherit syntax to chain back to the baseline. `apply-configs.sh` copies the consumer's file into the active config path.
+
+2. **Non-extends tools** (hadolint, jscpd, prettier, shellcheck, editorconfig): Full file replacement. Consumer drops their config at repo root; `apply-configs.sh` copies it into the config directory.
+
+Hook scripts run directly from `.coding-standards/scripts/hooks/` — no copy into the consumer workspace.
+
 ## Evaluated Alternatives
 
 ### MegaLinter (oxsecurity/megalinter)

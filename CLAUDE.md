@@ -54,7 +54,8 @@ LLM agents can query `GET /repos/{owner}/{repo}/commits/{sha}/statuses` and filt
 Consumer repos can:
 
 1. **Skip groups** — via `skip-hooks` workflow input or `.coding-standards.yml` in repo root
-2. **Override linter configs** — drop their own `.yamllint`, `.gitleaks.toml`, etc. The workflow won't overwrite existing files.
+2. **Extend linter configs** — for tools with native extends support (yamllint, gitleaks, markdownlint, commitlint), specify an override file in `.coding-standards.yml` that extends the baseline. The consumer's file chains to our `.baseline` config via the tool's native inheritance.
+3. **Replace linter configs** — for tools without extends (hadolint, jscpd, prettier, shellcheck, editorconfig), drop the config at repo root for full replacement.
 
 The `.pre-commit-config.yaml` always comes from this repo (it defines which hooks run).
 
@@ -81,7 +82,7 @@ That's it — `report-statuses.sh` and `summary.sh` are data-driven from `groups
 ## Running tests
 
 ```bash
-just test     # bats-core tests (52 tests across CI scripts + hooks)
+just test     # bats-core tests (58 tests across CI scripts + hooks)
 just lint     # full lint suite (mirrors CI)
 ```
 
