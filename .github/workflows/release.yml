@@ -6,7 +6,8 @@
 name: Release
 
 on:
-  workflow_run:
+  # Safe: only reads code from main, no artifact consumption from triggering run.
+  workflow_run: # zizmor: ignore[dangerous-triggers]
     workflows: [CI]
     types: [completed]
     branches: [main]
