@@ -5,8 +5,10 @@
 # Either everything passes or it's explicit here that it's ignored.
 #
 # Available groups:
-#   hygiene, cruft, gitleaks, typos, yaml, actions, markdown,
-#   commitlint, python, shell, justfile, jscpd, trivy, semgrep
+#   hygiene, cruft, gitleaks, cspell, yaml, actions, markdown,
+#   commitlint, python, shell, justfile, hadolint, tflint, jscpd,
+#   knip, madge, eslint, prettier, typescript, npm-audit,
+#   license-check, trivy, semgrep
 #
 # overrides: per-tool config files that extend the coding-standards baseline.
 # Your config file must use the tool's native extends/inherit syntax to
@@ -19,7 +21,7 @@
 #   commitlint    — import from baseline file
 #
 # Tools without extends support use full replacement:
-#   Place your own .hadolint.yaml, .jscpd.json, or .prettierrc at repo root.
+#   Place your own .hadolint.yaml, .jscpd.json, .prettierrc, or .cspell.json at repo root.
 
 # skip-hooks:
 #   - commitlint    # Skip if repo uses a different commit convention
@@ -28,6 +30,13 @@
 #   - actions       # Skip if repo has no GitHub Actions workflows
 #   - trivy         # Skip vulnerability scanning
 #   - semgrep       # Skip SAST scanning
+#   - eslint        # Skip if repo has no ESLint config
+#   - prettier      # Skip formatting checks
+#   - typescript    # Skip type checking
+#   - knip          # Skip dead code detection
+#   - madge         # Skip circular dependency detection
+#   - npm-audit     # Skip npm vulnerability audit
+#   - license-check # Skip license compliance
 
 # overrides:
 #   yamllint: .yamllint.yml           # Your file extending our baseline

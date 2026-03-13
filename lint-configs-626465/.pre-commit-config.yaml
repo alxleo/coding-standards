@@ -33,11 +33,12 @@ repos:
       - id: gitleaks
         args: [--config, .coding-standards/lint-configs-626465/.gitleaks.toml]
 
-  # ── Typo detection ──────────────────────────────────────────
-  - repo: https://github.com/crate-ci/typos
-    rev: v1.44.0
+  # ── Spell checking ─────────────────────────────────────────
+  - repo: https://github.com/streetsidesoftware/cspell-cli
+    rev: v9.0.1
     hooks:
-      - id: typos
+      - id: cspell
+        args: [--config, .coding-standards/lint-configs-626465/.cspell.json]
 
   # ── GitHub Actions linting ─────────────────────────────────
   - repo: https://github.com/rhysd/actionlint
@@ -121,3 +122,11 @@ repos:
         language: system
         files: (^|/)justfile$
         pass_filenames: false
+
+  # ── Prettier (formatting) ─────────────────────────────────
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
+    hooks:
+      - id: prettier
+        args: [--config, .coding-standards/lint-configs-626465/.prettierrc, --check]
+        exclude: '\.md$'

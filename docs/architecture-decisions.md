@@ -193,47 +193,35 @@ Consider when:
 
 Assessment of additional linters for potential inclusion. Status: **already covered**, **added**, **evaluate**, or **skip**.
 
-### Already Covered
+### Covered
 
 | Tool | Status | How |
 |---|---|---|
-| ESLint | Skip | Consumer-specific — rulesets vary too much across repos. Consumers add via `extra-lint-script`. |
-| Prettier | Skip | Consumer-specific formatting. Config slot exists (`replace_configs`) but no central hook. |
-| shellcheck | Covered | Via `.shellcheckrc` (root-copy config). Not a pre-commit hook — used by actionlint for shell in YAML. |
+| shellcheck | Covered | Via `.shellcheckrc` (root-copy config). Used by actionlint for shell in YAML. |
 | markdownlint | Covered | `markdownlint-cli2` hook with extends-capable config override. |
 | yamllint | Covered | Hook with extends-capable config override. |
-| hadolint | **Added** | Pre-commit hook + linter group added. Extends-capable via `replace_configs`. |
+| hadolint | Covered | Pre-commit hook + linter group. Full-replacement config override. |
+| TFLint | Covered | Binary cached, runs `--recursive`. Gated on `*.tf` file presence. |
 | jscpd | Covered | `npx jscpd@4` with npm cache. Full-replacement config override. |
 | gitleaks | Covered | Pre-commit hook with extends-capable config override. |
 | ruff | Covered | `ruff` + `ruff-format` hooks (Python lint + format). |
 | Trivy | Covered | Binary install + `trivy fs` for IaC + dependency vulnerabilities. |
 | Semgrep | Covered | `uvx semgrep scan --config auto` for SAST. |
+| cspell | Covered | Pre-commit hook. Replaced `typos` — more configurable with custom dictionaries. Baseline `.cspell.json` with full-replacement override. |
+| ESLint | Covered | `npx eslint .` (direct, not pre-commit — needs consumer's `node_modules` for plugins). Gated on eslint config file presence. |
+| Prettier | Covered | Pre-commit hook with `--check`. Excludes markdown (handled by markdownlint). Gated on `package.json`. |
+| tsc --noEmit | Covered | `npx tsc --noEmit`. Gated on `tsconfig.json`. |
+| knip | Covered | `npx knip` — zero-config dead code detection for JS/TS. Gated on `package.json`. |
+| madge | Covered | `npx madge --circular` — circular dependency detection. Gated on `package.json`. |
+| npm audit | Covered | `npm audit --audit-level=high`. Gated on `package-lock.json`. |
+| license-checker | Covered | `npx license-checker --production --failOn GPL/AGPL`. Gated on `package-lock.json`. Uses npm package (not Ruby `license_finder`). |
 
-### Added This Iteration
+### Not Included (with rationale)
 
-| Tool | Group | Notes |
+| Tool | Category | Rationale |
 |---|---|---|
-| hadolint | `hadolint` | Dockerfile linting. Config at `lint-configs-626465/.hadolint.yaml`, full-replacement override. |
-| TFLint | `tflint` | Terraform linting. Binary cached, runs `--recursive`. Only when `*.tf` files present. |
-
-### Evaluate Later
-
-| Tool | Category | Fit | Notes |
-|---|---|---|---|
-| **knip** | Dead code detection | Good | Detects unused exports, orphaned files, unreachable code in JS/TS projects. `npx knip` — zero-config for standard project layouts. Consumer-specific (needs `tsconfig.json`). Add as optional group gated on `package.json` presence. |
-| **dependency-cruiser** | Architectural boundaries | Good | Enforces import rules between modules. Requires `.dependency-cruiser.cjs` config — highly project-specific. Best as `extra-lint-script` or optional group. |
-| **madge** | Circular dependencies | Moderate | Lighter than dependency-cruiser for cycle detection only. `npx madge --circular src/`. Could be a standard group for JS/TS repos. |
-| **cspell** | Spell checking | Good | More configurable than typos (custom dictionaries, per-language settings). Currently using `typos` which is faster but less configurable. Consider if consumers need per-project dictionaries. |
-| **license_finder** | License compliance | Good | Flags problematic licenses in dependency trees. Useful for commercial/enterprise consumers. Heavy setup (Ruby gem). Consider as optional group. |
-| **npm audit** | Security audit | Moderate | Known vulnerabilities in npm dependency tree. Overlaps with Trivy's dependency scanning. Add only if Trivy's npm coverage proves insufficient. |
-| **tsc --noEmit** | Type checking | Skip for now | Requires consumer's `tsconfig.json` in strict mode. Too project-specific for a central workflow — consumers should add via `extra-lint-script`. |
-| **SonarQube CE** | Holistic review | Skip | Complexity scoring, duplication, security hotspots. Requires a running SonarQube server — doesn't fit the "zero-infra" model. Consider SonarCloud (SaaS) as a separate integration, not part of this workflow. |
-| **Renovate** | Dependency freshness | Out of scope | Auto-generates PRs for dependency bumps. Not a linter — separate concern. Consumers should configure Renovate independently. |
-| **secretlint** | Credential scanning | Skip | Overlaps with gitleaks. gitleaks has broader pattern coverage and is already integrated. |
-
-### Priority Recommendations
-
-1. **knip** — High value for JS/TS repos, zero-config, fast. Gate on `package.json`.
-2. **cspell** — Consider as alternative/supplement to typos if consumers need custom dictionaries.
-3. **madge** — Simple cycle detection, low overhead. Gate on `package.json`.
-4. **license_finder** — High value for enterprise consumers, but heavy. Optional group only.
+| **dependency-cruiser** | Architectural boundaries | Requires `.dependency-cruiser.cjs` config — highly project-specific. Best added via `extra-lint-script`. |
+| **SonarQube CE** | Holistic review | Requires a running SonarQube server — doesn't fit the "zero-infra" model. |
+| **Renovate** | Dependency freshness | Not a linter — separate concern. Consumers configure independently. |
+| **secretlint** | Credential scanning | Overlaps with gitleaks. gitleaks has broader pattern coverage and is already integrated. |
+| **typos** | Spell checking | Replaced by cspell. cspell offers custom dictionaries and per-language settings. |

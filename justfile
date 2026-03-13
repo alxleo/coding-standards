@@ -29,10 +29,11 @@ lint: _setup-pre-commit
     run_group "File hygiene" uvx pre-commit run check-yaml --all-files -c {{ pre-commit-config }}
     run_group "YAML (yamllint)" uvx pre-commit run yamllint --all-files -c {{ pre-commit-config }}
     run_group "Secret scanning" uvx pre-commit run gitleaks --all-files -c {{ pre-commit-config }}
-    run_group "Typo detection" uvx pre-commit run typos --all-files -c {{ pre-commit-config }}
+    run_group "Spell checking" uvx pre-commit run cspell --all-files -c {{ pre-commit-config }}
     run_group "GitHub Actions" uvx pre-commit run actionlint --all-files -c {{ pre-commit-config }}
     run_group "Zizmor" uvx pre-commit run zizmor --all-files -c {{ pre-commit-config }}
     run_group "Markdown" uvx pre-commit run markdownlint-cli2 --all-files -c {{ pre-commit-config }}
+    run_group "Prettier" uvx pre-commit run prettier --all-files -c {{ pre-commit-config }}
     run_group "Shell hygiene" uvx pre-commit run shell-hygiene --all-files -c {{ pre-commit-config }}
 
     if [ $rc -ne 0 ]; then

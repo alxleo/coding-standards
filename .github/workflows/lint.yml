@@ -92,7 +92,8 @@ jobs:
         uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         with:
           path: ~/.npm
-          key: npm-${{ runner.os }}-jscpd4
+          key: npm-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: npm-${{ runner.os }}-
 
       # ── Parse overrides + apply configs ────────────────────
       - name: Apply coding-standards configs
@@ -211,6 +212,11 @@ jobs:
       - name: Install pre-commit hooks
         run: uvx pre-commit install-hooks
 
+      # ── Install npm dependencies (for eslint, tsc, license-checker) ─
+      - name: Install npm dependencies
+        if: hashFiles('**/package-lock.json') != ''
+        run: npm ci --ignore-scripts
+
       # ══════════════════════════════════════════════════════════
       # Individual linter groups — each step visible in the UI.
       # continue-on-error: true so all groups run even if one fails.
@@ -262,11 +268,11 @@ jobs:
         continue-on-error: true
         run: /tmp/lint-run.sh gitleaks uvx pre-commit run gitleaks --all-files
 
-      - name: "Lint: typo detection"
-        id: typos
-        if: "!contains(env.SKIP_HOOKS, 'typos')"
+      - name: "Lint: spell checking (cspell)"
+        id: cspell
+        if: "!contains(env.SKIP_HOOKS, 'cspell')"
         continue-on-error: true
-        run: /tmp/lint-run.sh typos uvx pre-commit run typos --all-files
+        run: /tmp/lint-run.sh cspell uvx pre-commit run cspell --all-files
 
       - name: "Lint: YAML (yamllint)"
         id: yaml
@@ -343,6 +349,48 @@ jobs:
         if: "!contains(env.SKIP_HOOKS, 'jscpd')"
         continue-on-error: true
         run: /tmp/lint-run.sh jscpd bash -c 'npx jscpd@4 --config .coding-standards/lint-configs-626465/.jscpd.json . || true'
+
+      - name: "Lint: dead code detection (knip)"
+        id: knip
+        if: "!contains(env.SKIP_HOOKS, 'knip') && hashFiles('**/package.json') != ''"
+        continue-on-error: true
+        run: /tmp/lint-run.sh knip npx knip
+
+      - name: "Lint: circular dependency detection (madge)"
+        id: madge
+        if: "!contains(env.SKIP_HOOKS, 'madge') && hashFiles('**/package.json') != ''"
+        continue-on-error: true
+        run: /tmp/lint-run.sh madge npx madge --circular --extensions ts,js .
+
+      - name: "Lint: ESLint"
+        id: eslint
+        if: "!contains(env.SKIP_HOOKS, 'eslint') && (hashFiles('**/.eslintrc*') != '' || hashFiles('**/eslint.config.*') != '')"
+        continue-on-error: true
+        run: /tmp/lint-run.sh eslint bash -c 'npx eslint .'
+
+      - name: "Lint: Prettier"
+        id: prettier
+        if: "!contains(env.SKIP_HOOKS, 'prettier') && hashFiles('**/package.json') != ''"
+        continue-on-error: true
+        run: /tmp/lint-run.sh prettier uvx pre-commit run prettier --all-files
+
+      - name: "Lint: TypeScript type checking (tsc)"
+        id: typescript
+        if: "!contains(env.SKIP_HOOKS, 'typescript') && hashFiles('**/tsconfig.json') != ''"
+        continue-on-error: true
+        run: /tmp/lint-run.sh typescript bash -c 'npx tsc --noEmit'
+
+      - name: "Lint: npm audit"
+        id: npm-audit
+        if: "!contains(env.SKIP_HOOKS, 'npm-audit') && hashFiles('**/package-lock.json') != ''"
+        continue-on-error: true
+        run: /tmp/lint-run.sh npm-audit bash -c 'npm audit --audit-level=high'
+
+      - name: "Lint: license compliance"
+        id: license-check
+        if: "!contains(env.SKIP_HOOKS, 'license-check') && hashFiles('**/package-lock.json') != ''"
+        continue-on-error: true
+        run: /tmp/lint-run.sh license-check bash -c 'npx license-checker --production --failOn "GPL-2.0;GPL-3.0;AGPL-1.0;AGPL-3.0"'
 
       - name: "Security: Trivy (IaC + deps)"
         id: trivy

@@ -1,0 +1,13 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "ignorePaths": [
+    "node_modules/**",
+    ".git/**",
+    "*.lock",
+    "*.min.js",
+    "*.min.css"
+  ],
+  "words": [],
+  "flagWords": []
+}
