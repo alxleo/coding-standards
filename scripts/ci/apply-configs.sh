@@ -21,20 +21,100 @@ CS="${CS_ROOT}/lint-configs-626465"
 PARSED='{"skip":"","overrides":{}}'
 if [ -f "$CONFIG_FILE" ]; then
   echo "Found override file: $CONFIG_FILE"
-  PARSED=$(uv run --no-project python3 -c "
-import yaml, json
+  if command -v uv >/dev/null 2>&1; then
+    PARSED=$(CONFIG_FILE="$CONFIG_FILE" uv run --with pyyaml --no-project python3 - <<'PYCODE' 2>/dev/null || echo '{"skip":"","overrides":{}}')
+import json
+import os
+import pathlib
+import sys
+
+result = {"skip": "", "overrides": {}}
+cfg_path = os.environ.get("CONFIG_FILE", "")
+if not cfg_path or not pathlib.Path(cfg_path).is_file():
+    print(json.dumps(result))
+    sys.exit(0)
+
 try:
-    with open('$CONFIG_FILE') as f:
-        cfg = yaml.safe_load(f) or {}
-    hooks = cfg.get('skip-hooks', [])
-    skip = ','.join(hooks) if isinstance(hooks, list) else str(hooks)
-    overrides = cfg.get('overrides', {})
-    if not isinstance(overrides, dict):
-        overrides = {}
-    print(json.dumps({'skip': skip, 'overrides': overrides}))
+    import yaml  # type: ignore
 except Exception:
-    print(json.dumps({'skip': '', 'overrides': {}}))
-" 2>/dev/null || echo '{"skip":"","overrides":{}}')
+    print(json.dumps(result))
+    sys.exit(0)
+
+try:
+    with open(cfg_path, encoding="utf-8") as f:
+        cfg = yaml.safe_load(f) or {}
+except Exception:
+    print(json.dumps(result))
+    sys.exit(0)
+
+hooks = cfg.get("skip-hooks", [])
+if isinstance(hooks, list):
+    result["skip"] = ",".join(str(h) for h in hooks)
+elif hooks:
+    result["skip"] = str(hooks)
+
+overrides = cfg.get("overrides", {})
+if isinstance(overrides, dict):
+    result["overrides"] = overrides
+
+print(json.dumps(result))
+PYCODE
+  else
+    PARSED=$(CONFIG_FILE="$CONFIG_FILE" python3 - <<'PYCODE' 2>/dev/null || echo '{"skip":"","overrides":{}}')
+import json
+import os
+import pathlib
+import subprocess
+import sys
+
+result = {"skip": "", "overrides": {}}
+cfg_path = os.environ.get("CONFIG_FILE", "")
+if not cfg_path or not pathlib.Path(cfg_path).is_file():
+    print(json.dumps(result))
+    sys.exit(0)
+
+def load_yaml():
+    try:
+        import yaml  # type: ignore
+        return yaml
+    except Exception:
+        try:
+            subprocess.run(
+                [sys.executable, "-m", "pip", "install", "--quiet", "pyyaml"],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            import yaml  # type: ignore
+            return yaml
+        except Exception:
+            return None
+
+yaml = load_yaml()
+if yaml is None:
+    print(json.dumps(result))
+    sys.exit(0)
+
+try:
+    with open(cfg_path, encoding="utf-8") as f:
+        cfg = yaml.safe_load(f) or {}
+except Exception:
+    print(json.dumps(result))
+    sys.exit(0)
+
+hooks = cfg.get("skip-hooks", [])
+if isinstance(hooks, list):
+    result["skip"] = ",".join(str(h) for h in hooks)
+elif hooks:
+    result["skip"] = str(hooks)
+
+overrides = cfg.get("overrides", {})
+if isinstance(overrides, dict):
+    result["overrides"] = overrides
+
+print(json.dumps(result))
+PYCODE
+  fi
 fi
 
 SKIP_FROM_OVERRIDE=$(printf '%s' "$PARSED" | jq -r '.skip // ""')
