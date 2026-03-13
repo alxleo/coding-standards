@@ -90,12 +90,30 @@ just lint     # full lint suite (mirrors CI)
 
 ## CI self-test
 
-`.github/workflows/ci.yml` calls `./.github/workflows/lint.yml` (local ref) to test the workflow against this repo. If CI passes, the workflow works.
+`.github/workflows/ci.yml` calls `./.github/workflows/lint.yml` (local ref) to test the workflow against this repo.
+
+Self-test mode is auto-detected: if `lint-configs-626465/` exists in the workspace, lint.yml creates a symlink (`.coding-standards` → `.`) instead of checking out from `alxleo/coding-standards`. This means:
+
+- Branch changes to scripts/configs are tested before merge
+- Works on Gitea (no GitHub repo reference to resolve)
+- Consumer repos are unaffected (they don't have `lint-configs-626465/`)
+
+## Local development hooks
+
+CI-only enforcement — no local full-lint gate. Git hooks (installed by `gitea-ci wire`):
+
+- **pre-commit**: staged-file checks via pre-commit framework
+- **commit-msg**: commitlint (conventional commits)
+- **post-commit**: cruft cleanup + async push to Gitea (triggers CI)
+- **pre-push**: gates `git push origin` on Gitea CI passing (not local lint)
+
+To reinstall hooks: `gitea-ci wire ~/personal/coding-standards`
 
 ## Gitea compatibility
 
 The workflow targets both GitHub Actions and Gitea Actions. Key differences:
 
 - **Commit Status API**: Works identically on both platforms
+- **Self-test detection**: lint.yml auto-detects this repo and uses local files (no GitHub checkout needed)
 - **`$GITHUB_STEP_SUMMARY`**: Not rendered in Gitea (harmless no-op — file is written, just not displayed)
 - **Third-party actions** (trivy-action, cache, setup-node): Gitea runners must be able to resolve GitHub-hosted action references

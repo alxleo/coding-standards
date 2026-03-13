@@ -54,7 +54,21 @@ jobs:
           persist-credentials: false
 
       # ── Fetch coding-standards configs ──────────────────────
+      # Self-test detection: if this repo IS coding-standards (has lint-configs-626465/),
+      # use local files instead of checking out from GitHub. This enables:
+      # - Testing branch changes before merge
+      # - Running on Gitea (which can't resolve alxleo/coding-standards)
+      - name: Detect self-test
+        id: detect
+        run: |
+          if [ -d "lint-configs-626465" ]; then
+            ln -s . .coding-standards
+            echo "self-test=true" >> "$GITHUB_OUTPUT"
+            echo "Self-test mode: using local configs/scripts"
+          fi
+
       - name: Checkout coding-standards
+        if: steps.detect.outputs.self-test != 'true'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: alxleo/coding-standards
