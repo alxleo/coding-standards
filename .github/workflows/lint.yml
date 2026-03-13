@@ -464,7 +464,7 @@ jobs:
         run: |
           echo "Cache audit:"
           misses=0
-          # Check each cache — empty means step was skipped (conditional tool)
+          # Always-run caches — empty means miss (actions/cache outputs '' on no match)
           for entry in \
             "precommit:$C_PRECOMMIT" \
             "npm:$C_NPM" \
@@ -476,20 +476,22 @@ jobs:
           ; do
             name="${entry%%:*}"
             hit="${entry#*:}"
-            if [ -z "$hit" ]; then
-              echo "  · $name (skipped)"
-            elif [ "$hit" = "true" ]; then
+            if [ "$hit" = "true" ]; then
               echo "  ✓ $name"
             else
               echo "  ✗ $name — CACHE MISS"
               misses=$((misses + 1))
             fi
           done
-          # Conditional tools (only warn if they ran but missed)
+          # Conditional caches — only present when files trigger install
           for entry in "tofu:$C_TOFU" "tflint:$C_TFLINT"; do
             name="${entry%%:*}"
             hit="${entry#*:}"
-            if [ "$hit" = "false" ]; then
+            if [ -z "$hit" ]; then
+              echo "  · $name (skipped)"
+            elif [ "$hit" = "true" ]; then
+              echo "  ✓ $name"
+            else
               echo "  ✗ $name — CACHE MISS"
               misses=$((misses + 1))
             fi
