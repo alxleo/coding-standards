@@ -93,6 +93,7 @@ jobs:
         run: uv python install "$PYTHON_VERSION"
 
       - name: Cache pre-commit environments
+        if: env.GITEA_ACTIONS != 'true'
         id: cache-precommit
         uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         with:
@@ -106,6 +107,7 @@ jobs:
           node-version: ${{ inputs.node-version }}
 
       - name: Cache npm packages
+        if: env.GITEA_ACTIONS != 'true'
         id: cache-npm
         uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         with:
@@ -133,7 +135,7 @@ jobs:
 
       # just
       - name: Cache just binary
-        if: hashFiles('**/justfile', '**/Justfile') != ''
+        if: env.GITEA_ACTIONS != 'true' && hashFiles('**/justfile', '**/Justfile') != ''
         id: cache-just
         uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         with:
@@ -157,7 +159,7 @@ jobs:
 
       # OpenTofu
       - name: Cache OpenTofu binary
-        if: hashFiles('**/*.tf') != ''
+        if: env.GITEA_ACTIONS != 'true' && hashFiles('**/*.tf') != ''
         id: cache-tofu
         uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         with:
@@ -181,7 +183,7 @@ jobs:
 
       # TFLint
       - name: Cache TFLint binary
-        if: hashFiles('**/*.tf') != ''
+        if: env.GITEA_ACTIONS != 'true' && hashFiles('**/*.tf') != ''
         id: cache-tflint
         uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         with:
@@ -205,7 +207,7 @@ jobs:
 
       # Trivy
       - name: Cache Trivy binary
-        if: "!contains(env.SKIP_HOOKS, ',trivy,')"
+        if: "env.GITEA_ACTIONS != 'true' && !contains(env.SKIP_HOOKS, ',trivy,')"
         id: cache-trivy
         uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         with:
@@ -229,7 +231,7 @@ jobs:
 
       # Semgrep
       - name: Cache Semgrep
-        if: "!contains(env.SKIP_HOOKS, ',semgrep,')"
+        if: "env.GITEA_ACTIONS != 'true' && !contains(env.SKIP_HOOKS, ',semgrep,')"
         id: cache-semgrep
         uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         with:
@@ -246,7 +248,7 @@ jobs:
 
       # Trivy vulnerability DB
       - name: Cache Trivy DB
-        if: "!contains(env.SKIP_HOOKS, ',trivy,')"
+        if: "env.GITEA_ACTIONS != 'true' && !contains(env.SKIP_HOOKS, ',trivy,')"
         id: cache-trivy-db
         uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         with:
@@ -255,11 +257,14 @@ jobs:
           restore-keys: trivy-db-${{ runner.os }}
 
       # ── Install pre-commit hooks ─────────────────────────────
+      # On Gitea, pre-commit environments persist in Docker volumes.
       - name: Install pre-commit hooks
+        if: env.GITEA_ACTIONS != 'true'
         run: uvx pre-commit install-hooks
 
       # ── Install standalone npm tools (cached as global prefix) ──
       - name: Cache npm global tools
+        if: env.GITEA_ACTIONS != 'true'
         id: cache-npm-global
         uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         with:
@@ -450,7 +455,7 @@ jobs:
       # Cache audit — every tool install must hit cache on warm runs
       # ══════════════════════════════════════════════════════════
       - name: Audit cache hits
-        if: always()
+        if: always() && env.GITEA_ACTIONS != 'true'
         env:
           C_PRECOMMIT: ${{ steps.cache-precommit.outputs.cache-hit }}
           C_NPM: ${{ steps.cache-npm.outputs.cache-hit }}
