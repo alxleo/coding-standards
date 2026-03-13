@@ -6,10 +6,10 @@ Data-driven reusable GitHub Actions workflow. Key design:
 
 - `groups.conf` — single source of truth for linter group metadata
 - `lint-run.sh` — wraps each lint step, writes `.outcome` files
-- `summary.sh` / `report-statuses.sh` — iterate `groups.conf` + `.outcome` files
+- `summary.py` / `report_statuses.py` — iterate `groups.conf` + `.outcome` files (Python, stdlib only)
+- `lint_helpers.py` — shared parsing and error extraction (replaces `lib/common.sh`)
 - `install-tool.sh` — shared script for pinned binary tool installation
 - `apply-configs.sh` — config application (used by both `lint.yml` and `action.yml`)
-- `lib/common.sh` — shared error extraction helpers
 
 Adding a new linter group: add a step in `lint.yml` + a line in `groups.conf`.
 
@@ -207,7 +207,7 @@ Assessment of additional linters for potential inclusion. Status: **already cove
 | ruff | Covered | `ruff` + `ruff-format` hooks (Python lint + format). |
 | Trivy | Covered | Binary install + `trivy fs` for IaC + dependency vulnerabilities. |
 | Semgrep | Covered | `uvx semgrep scan --config auto` for SAST. |
-| cspell | Covered | Pre-commit hook. Replaced `typos` — more configurable with custom dictionaries. Baseline `.cspell.json` with full-replacement override. |
+| ~~cspell~~ | Removed | Replaced `typos`, then removed — dictionary grew with tool names/variable names without catching meaningful typos in a shell/YAML-heavy repo. |
 | ESLint | Covered | `npx eslint .` (direct, not pre-commit — needs consumer's `node_modules` for plugins). Gated on eslint config file presence. |
 | Prettier | Covered | Pre-commit hook with `--check`. Excludes markdown (handled by markdownlint). Gated on `package.json`. |
 | tsc --noEmit | Covered | `npx tsc --noEmit`. Gated on `tsconfig.json`. |
@@ -224,4 +224,4 @@ Assessment of additional linters for potential inclusion. Status: **already cove
 | **SonarQube CE** | Holistic review | Requires a running SonarQube server — doesn't fit the "zero-infra" model. |
 | **Renovate** | Dependency freshness | Not a linter — separate concern. Consumers configure independently. |
 | **secretlint** | Credential scanning | Overlaps with gitleaks. gitleaks has broader pattern coverage and is already integrated. |
-| **typos** | Spell checking | Replaced by cspell. cspell offers custom dictionaries and per-language settings. |
+| **typos** | Spell checking | Was replaced by cspell, which was then removed — neither provided value in a shell/YAML repo. |

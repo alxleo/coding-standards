@@ -5,7 +5,7 @@
 # Either everything passes or it's explicit here that it's ignored.
 #
 # Available groups:
-#   hygiene, cruft, gitleaks, cspell, yaml, actions, markdown,
+#   hygiene, cruft, gitleaks, yaml, actions, markdown,
 #   commitlint, python, shell, justfile, hadolint, tflint, jscpd,
 #   knip, madge, eslint, prettier, typescript, npm-audit,
 #   license-check, trivy, semgrep
@@ -21,7 +21,7 @@
 #   commitlint    — import from baseline file
 #
 # Tools without extends support use full replacement:
-#   Place your own .hadolint.yaml, .jscpd.json, .prettierrc, or .cspell.json at repo root.
+#   Place your own .hadolint.yaml, .jscpd.json, or .prettierrc at repo root.
 
 # skip-hooks:
 #   - commitlint    # Skip if repo uses a different commit convention

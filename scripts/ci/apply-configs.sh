@@ -98,7 +98,7 @@ done
 # ── Non-extends configs: full replacement ─────────────
 # If consumer has their own config at the conventional root location,
 # overlay it into our config dir so the --config path resolves correctly.
-replace_configs=(.hadolint.yaml .jscpd.json .prettierrc .cspell.json)
+replace_configs=(.hadolint.yaml .jscpd.json .prettierrc)
 for cfg in "${replace_configs[@]}"; do
   if [ -f "$cfg" ]; then
     cp "$cfg" "$CS/$cfg"

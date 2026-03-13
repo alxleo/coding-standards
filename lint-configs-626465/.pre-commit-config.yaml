@@ -33,13 +33,6 @@ repos:
       - id: gitleaks
         args: [--config, .coding-standards/lint-configs-626465/.gitleaks.toml]
 
-  # ── Spell checking ─────────────────────────────────────────
-  - repo: https://github.com/streetsidesoftware/cspell-cli
-    rev: v9.0.1
-    hooks:
-      - id: cspell
-        args: [--config, .coding-standards/lint-configs-626465/.cspell.json]
-
   # ── GitHub Actions linting ─────────────────────────────────
   - repo: https://github.com/rhysd/actionlint
     rev: v1.7.11

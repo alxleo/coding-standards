@@ -27,13 +27,15 @@ Consumer repos add a short workflow stub. The reusable workflow:
 - `lint-configs-626465/.pre-commit-config.yaml` — source of truth for all pre-commit hooks
 - `scripts/ci/groups.conf` — single source of truth for linter group metadata
 - `scripts/ci/lint-run.sh` — lint step wrapper (logs, outcomes, error annotations)
-- `scripts/ci/summary.sh` — summary table + GitHub step summary
-- `scripts/ci/report-statuses.sh` — per-group commit status posting
+- `scripts/ci/summary.py` — summary table + GitHub step summary (Python)
+- `scripts/ci/report_statuses.py` — per-group commit status posting (Python)
+- `scripts/ci/lint_helpers.py` — shared parsing + error extraction (Python)
+- `scripts/ci/run-{hygiene,cruft,actions,python}.sh` — extracted multi-hook group runners
 - `scripts/ci/install-tool.sh` — data-driven binary tool installer
 - `scripts/ci/apply-configs.sh` — config application + consumer override merging
-- `scripts/ci/lib/common.sh` — shared error extraction helpers
 - `scripts/hooks/` — custom hook scripts referenced by pre-commit config
 - `test/*.bats` — bats-core tests for CI scripts and hooks
+- `test/test_*.py` — pytest tests for Python CI scripts
 - `docs/architecture-decisions.md` — evaluated alternatives + future options
 - `examples/lint.yml` — example consumer workflow
 - `examples/.coding-standards.yml` — example override file
@@ -77,12 +79,12 @@ The `.pre-commit-config.yaml` always comes from this repo (it defines which hook
 3. Update the README linter groups table
 4. Update `examples/.coding-standards.yml` available groups comment
 
-That's it — `report-statuses.sh` and `summary.sh` are data-driven from `groups.conf`.
+That's it — `report_statuses.py` and `summary.py` are data-driven from `groups.conf`.
 
 ## Running tests
 
 ```bash
-just test     # bats-core tests (58 tests across CI scripts + hooks)
+just test     # pytest + bats-core tests
 just lint     # full lint suite (mirrors CI)
 ```
 
