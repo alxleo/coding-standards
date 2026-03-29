@@ -91,10 +91,13 @@ class TestCustomPattern:
         f.write_text(f"# SUNSET: {PAST}\n")
         result = subprocess.run(
             [
-                sys.executable, SCRIPT,
+                sys.executable,
+                SCRIPT,
                 str(tmp_path),
-                "--pattern", r"SUNSET:\s*(\d{4}-\d{2}-\d{2})",
-                "--ext", ".yml",
+                "--pattern",
+                r"SUNSET:\s*(\d{4}-\d{2}-\d{2})",
+                "--ext",
+                ".yml",
             ],
             capture_output=True,
             text=True,

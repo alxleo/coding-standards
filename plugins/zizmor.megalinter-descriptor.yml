@@ -15,7 +15,6 @@ linters:
     cli_help_arg_name: --help
     cli_version_arg_name: --version
     files_sub_directory: ""
-    file_extensions: []
     # Note: directory-based activation doesn't work (os.path.isfile only).
     # Zizmor activates via ENABLE_LINTERS. It gracefully handles repos without workflows.
     file_extensions:

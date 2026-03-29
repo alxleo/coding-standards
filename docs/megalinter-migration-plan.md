@@ -3,6 +3,7 @@
 ## Goal
 
 Replace the 400-line custom reusable workflow with a single Docker image that:
+
 - Runs identically everywhere: `docker run`, Gitea CI, GitHub Actions, git hooks
 - Auto-detects relevant linters based on file presence (MegaLinter's model)
 - Covers both file linters AND centralizable project analyzers
@@ -226,7 +227,8 @@ See `.mega-linter-default.yml` in this repo for the complete configuration.
 
 ## Output Strategy
 
-### Image produces (capability):
+### Image produces (capability)
+
 - `megalinter-reports/mega-linter-report.json` — structured per-linter results
   (status, error count, warning count, per-file stdout, elapsed time)
 - `megalinter-reports/linters_logs/` — one text log per linter, filename
@@ -234,12 +236,14 @@ See `.mega-linter-default.yml` in this repo for the complete configuration.
 - stdout with `file:line:col: message` format — what agents read
 - Exit code 0/1 — universal gate
 
-### CI produces (interface):
+### CI produces (interface)
+
 - Per-linter commit statuses via Gitea/GitHub API (reads JSON report)
 - Step summary table (GitHub only, from JSON report)
 - A ~30-line `report-statuses.py` replaces current `report_statuses.py` + `summary.py`
 
-### Agent consumption:
+### Agent consumption
+
 - Agents read raw CI logs (research confirmed no agent consumes SARIF)
 - Clean stdout with `file:line:col: message` is the universal format
 - Compact JSON summary at end of log for structured extraction
@@ -247,7 +251,7 @@ See `.mega-linter-default.yml` in this repo for the complete configuration.
 
 ## Consumer Repo Experience
 
-### Minimal setup (new repo):
+### Minimal setup (new repo)
 
 ```yaml
 # .gitea/workflows/lint.yml (or .github/workflows/lint.yml)
@@ -276,7 +280,7 @@ jobs:
 Image auto-detects which linters apply based on files present. Zero config
 for standard repos.
 
-### Customization (existing repo):
+### Customization (existing repo)
 
 ```yaml
 # .mega-linter.yml in repo root
@@ -297,7 +301,8 @@ PYTHON_RUFF_CONFIG_FILE: ruff.toml
 YAML_YAMLLINT_CONFIG_FILE: .yamllint.yml
 ```
 
-### Skip mechanism:
+### Skip mechanism
+
 - `DISABLE_LINTERS` for individual tools
 - `DISABLE` for entire categories (e.g., `PYTHON`, `JAVASCRIPT`)
 - `SKIP` env var for backward compat with current `.coding-standards.yml`
@@ -315,17 +320,17 @@ YAML_YAMLLINT_CONFIG_FILE: .yamllint.yml
 
 ### Phase 2: Consumer Rollout
 
-7. **home-network** — replace 180-line bespoke lint.yml with 3-step workflow
-8. **platform** — replace experiment/megalinter branch with production setup
-9. **github-standards** — update sync targets
-10. **Example workflow** — update `examples/lint.yml`
+1. **home-network** — replace 180-line bespoke lint.yml with 3-step workflow
+2. **platform** — replace experiment/megalinter branch with production setup
+3. **github-standards** — update sync targets
+4. **Example workflow** — update `examples/lint.yml`
 
 ### Phase 3: Polish
 
-11. **Custom hooks migration** — convert current pre-commit hooks to MegaLinter plugins
-12. **Config distribution** — evaluate whether `.mega-linter.yml` EXTENDS replaces `apply-configs.sh`
-13. **Local development** — `just lint` recipe that runs the same image
-14. **Documentation** — update README, CLAUDE.md, architecture-decisions.md
+1. **Custom hooks migration** — convert current pre-commit hooks to MegaLinter plugins
+2. **Config distribution** — evaluate whether `.mega-linter.yml` EXTENDS replaces `apply-configs.sh`
+3. **Local development** — `just lint` recipe that runs the same image
+4. **Documentation** — update README, CLAUDE.md, architecture-decisions.md
 
 ## Multi-Tier Strategy
 
@@ -360,14 +365,16 @@ that includes only our linters + custom tools. Set
 The Trivy supply chain compromise (March 2026, v0.69.4-6 malicious) proved
 that semver tags are not trustworthy. SHA pinning is the only guarantee.
 
-### What gets pinned:
+### What gets pinned
+
 - **Docker base image**: `FROM oxsecurity/megalinter-cupcake:v9@sha256:...`
 - **Multi-stage COPY sources**: `COPY --from=ghcr.io/aquasecurity/trivy:0.69.3@sha256:...`
 - **Binary downloads**: checksum verification on every curl/wget install
 - **npm packages**: exact versions (`@commitlint/cli@19.7.1`), not ranges
 - **GitHub Actions** (in consumer workflows): commit SHA, not tag
 
-### Automated maintenance:
+### Automated maintenance
+
 - Renovate watches Dockerfile, package.json, workflow files
 - Auto-creates PRs with updated digests/checksums on new releases
 - CI tests the update before merge
@@ -388,6 +395,7 @@ that semver tags are not trustworthy. SHA pinning is the only guarantee.
 ## What Gets Retired
 
 Once Phase 2 is complete, these become obsolete:
+
 - `.github/workflows/lint.yml` (400-line reusable workflow)
 - `scripts/ci/groups.conf`, `lint-run.sh`, `summary.py` (custom orchestration)
 - `scripts/ci/run-{hygiene,cruft,actions,python}.sh` (group runners)
@@ -396,6 +404,7 @@ Once Phase 2 is complete, these become obsolete:
 - `action.yml` (composite action)
 
 What stays:
+
 - `lint-configs-626465/` — linter config files (referenced by MegaLinter via `*_CONFIG_FILE` env vars)
 - `scripts/hooks/` — custom hook scripts (now invoked by MegaLinter plugins instead of pre-commit)
 - `scripts/report-statuses.py` — rewritten to read MegaLinter JSON

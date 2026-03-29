@@ -16,6 +16,7 @@ docker run --rm -v $PWD:/tmp/lint -e ENABLE_LINTERS=PYTHON_RUFF ghcr.io/alxleo/c
 ```
 
 The image:
+
 1. Auto-detects which linters apply based on files present
 2. Runs 34 linters (18 cupcake built-in + 12 custom plugins + 4 self-selecting)
 3. Uses allowlist activation (ENABLE_LINTERS) — no surprise linters on upgrades
