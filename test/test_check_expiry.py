@@ -14,6 +14,7 @@ _spec = importlib.util.spec_from_file_location(
     "check_expiry",
     Path(__file__).resolve().parent.parent / "scripts" / "ci" / "check-expiry.py",
 )
+assert _spec is not None and _spec.loader is not None
 check_expiry = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(check_expiry)
 
