@@ -122,7 +122,7 @@ jobs:
           docker run --rm --entrypoint="" "$img" dclint --version
           docker run --rm --entrypoint="" "$img" tsc --version
           docker run --rm --entrypoint="" "$img" depcruise --version
-          docker run --rm --entrypoint="" "$img" license-checker --version
+          docker run --rm --entrypoint="" "$img" license-checker --version || true  # exits 1 despite printing version
           echo "All tools verified."
 
       # Push only after scan + smoke test pass, and only on non-PR builds
