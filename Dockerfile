@@ -42,6 +42,8 @@ RUN npm install -g \
 # zizmor — GitHub Actions security scanner
 RUN pip install --no-cache-dir zizmor==1.23.1
 
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
 # PMD-CPD — copy-paste detector (replaces jscpd, ~50x faster)
 RUN PMD_VERSION="7.12.0" && \
   PMD_SHA256="418dd819d38a16a49d7f345ef9a0a51e9f53e99f022d8b0722de77b7049bb8b8" && \
@@ -51,8 +53,6 @@ RUN PMD_VERSION="7.12.0" && \
   unzip -q /tmp/pmd.zip -d /opt && \
   ln -s /opt/pmd-bin-${PMD_VERSION}/bin/pmd /usr/local/bin/pmd && \
   rm /tmp/pmd.zip
-
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # caddy — Caddyfile formatter (pinned version with checksum, multi-arch)
 ARG TARGETARCH=amd64

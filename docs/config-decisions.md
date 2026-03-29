@@ -50,6 +50,7 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 - Prevents surprise linters on MegaLinter version bumps.
 
 ### Blocking: two tiers
+
 - Error: security + types + syntax + correctness tools.
 - Warn: formatters + style + links + schema + new additions.
 - No "info" tier. If not worth acting on, don't run it.
