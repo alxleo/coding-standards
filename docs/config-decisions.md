@@ -111,6 +111,16 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 - v8r schema caching: pending (11+12s savings expected)
 - Wall clock: 3+ min → 31s under emulation, estimated 15-20s native amd64
 
+### Monorepo scoping
+FILTER_REGEX_INCLUDE/EXCLUDE only works for file-mode linters (shellcheck, ruff, yamllint).
+Project-mode linters (trivy, semgrep, gitleaks, conftest, knip, etc.) ignore it entirely.
+For monorepos like home-network: single MegaLinter run + tool-native scoping:
+- ruff: per-file-ignores in ruff.toml
+- ansible-lint: exclude_paths in .ansible-lint
+- tflint: auto-scoped via file presence (.tf)
+- hadolint: auto-scoped via file presence (Dockerfile)
+Matrix strategy (parallel per-directory runs) is possible but adds CI complexity.
+
 ### Graduated rollout for new rules
 New rules follow the Clippy/Biome pattern:
 - Rules are enabled in the config from day one (new code must comply).
