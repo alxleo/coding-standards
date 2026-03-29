@@ -19,6 +19,10 @@ FROM oxsecurity/megalinter-cupcake:v9@sha256:e4ac6e253ef839c448cfe36a4659c8a56c7
 LABEL org.opencontainers.image.source="https://github.com/alxleo/coding-standards"
 LABEL org.opencontainers.image.description="Centralized linting image — MegaLinter cupcake + custom tools"
 
+# Patch base image CVEs (MegaLinter may lag behind Alpine security updates)
+# hadolint ignore=DL3018
+RUN apk upgrade --no-cache
+
 # ── Custom tool installs ──────────────────────────────────────
 # Tools MegaLinter doesn't include natively.
 # Each gets a plugin descriptor in plugins/ for MegaLinter orchestration.
