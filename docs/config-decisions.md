@@ -3,6 +3,7 @@
 Decisions made 2026-03-29. Revisit if assumptions change.
 
 ## Architecture
+
 - **MegaLinter cupcake base** — covers 18/34 tools. No larger flavor fills gaps.
 - **Custom Docker image** — FROM cupcake + 16 custom tools as plugins/installs.
 - **Multi-arch** via Custom Flavor Builder — amd64 (Gitea/GHA) + arm64 (Mac). All our tools are arm64-compatible.
@@ -12,6 +13,7 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 ## Linter Selection
 
 ### Python: ruff only (+ pyright standard)
+
 - flake8/black/isort: 100% superseded by ruff.
 - pylint: needs per-project deps. Generic rules already in ruff.
 - mypy: skips unannotated functions by default. Wrong for LLM code.

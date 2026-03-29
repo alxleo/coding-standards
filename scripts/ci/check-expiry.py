@@ -22,6 +22,7 @@ DEFAULT_PATTERNS = [
     r"TODO\((\d{4}-\d{2}-\d{2})\)",
 ]
 
+
 def scan_file(path: Path, patterns: list[re.Pattern], today: date) -> list[str]:
     findings = []
     try:
@@ -34,18 +35,16 @@ def scan_file(path: Path, patterns: list[re.Pattern], today: date) -> list[str]:
                 expiry = date.fromisoformat(match.group(1))
                 if expiry < today:
                     findings.append(
-                        f"{path}:{i}: expired marker "
-                        f"(was {expiry}, today is {today})"
+                        f"{path}:{i}: expired marker (was {expiry}, today is {today})"
                     )
     return findings
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("dirs", nargs="*", default=["."])
     parser.add_argument("--pattern", action="append", default=[])
-    parser.add_argument(
-        "--ext", default=".yml,.yaml,.sh,.py,.tf,.md,.toml,.cfg"
-    )
+    parser.add_argument("--ext", default=".yml,.yaml,.sh,.py,.tf,.md,.toml,.cfg")
     args = parser.parse_args()
 
     raw_patterns = args.pattern or DEFAULT_PATTERNS
@@ -66,6 +65,7 @@ def main():
         print(f"\n{len(findings)} expired marker(s) found.")
         sys.exit(1)
     print("No expired markers found.")
+
 
 if __name__ == "__main__":
     main()

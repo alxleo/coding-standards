@@ -2,25 +2,25 @@ descriptor_id: COPYPASTE
 descriptor_type: other
 lint_all_files: true
 linters:
-- linter_name: pmd-cpd
-  name: COPYPASTE_PMD_CPD
-  descriptor_flavors:
-  - cupcake
-  cli_lint_mode: project
-  linter_text: Copy-paste detection across multiple languages (Java-based, fast)
-  linter_url: https://pmd.github.io/latest/pmd_userdocs_cpd.html
-  cli_executable: pmd
-  cli_lint_extra_args:
-  - cpd
-  - --minimum-tokens
-  - '70'
-  - --dir
-  - .
-  - --exclude
-  - node_modules,vendor,.terraform,.git,megalinter-reports,test
-  - --skip-duplicate-files
-  - --no-fail-on-violation
-  cli_help_arg_name: --help
-  cli_version_arg_name: --version
-  files_sub_directory: ''
-  file_extensions: []
+  - linter_name: pmd-cpd
+    name: COPYPASTE_PMD_CPD
+    descriptor_flavors:
+      - cupcake
+    cli_lint_mode: project
+    linter_text: Copy-paste detection across multiple languages (Java-based, fast)
+    linter_url: https://pmd.github.io/latest/pmd_userdocs_cpd.html
+    cli_executable: pmd
+    cli_lint_extra_args:
+      - cpd
+      - --minimum-tokens
+      - "70"
+      - --dir
+      - .
+      - --exclude
+      - node_modules,vendor,.terraform,.git,megalinter-reports,test
+      - --skip-duplicate-files
+      - --no-fail-on-violation
+    cli_help_arg_name: --help
+    cli_version_arg_name: --version
+    files_sub_directory: ""
+    file_extensions: []

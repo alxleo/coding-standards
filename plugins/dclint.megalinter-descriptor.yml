@@ -1,21 +1,21 @@
 descriptor_id: DOCKERFILE
 descriptor_type: tooling
 linters:
-- linter_name: dclint
-  name: DOCKERFILE_DCLINT
-  descriptor_flavors:
-  - cupcake
-  cli_lint_mode: list_of_files
-  linter_text: Lint Docker Compose files
-  linter_url: https://github.com/zavoloklom/docker-compose-linter
-  cli_executable: dclint
-  cli_lint_extra_args:
-  - lint
-  cli_help_arg_name: --help
-  cli_version_arg_name: --version
-  file_extensions:
-  - .yml
-  - .yaml
-  file_names_regex:
-  - (^|/)docker-compose[^/]*\.ya?ml$
-  - (^|/)compose[^/]*\.ya?ml$
+  - linter_name: dclint
+    name: DOCKERFILE_DCLINT
+    descriptor_flavors:
+      - cupcake
+    cli_lint_mode: list_of_files
+    linter_text: Lint Docker Compose files
+    linter_url: https://github.com/zavoloklom/docker-compose-linter
+    cli_executable: dclint
+    cli_lint_extra_args:
+      - lint
+    cli_help_arg_name: --help
+    cli_version_arg_name: --version
+    file_extensions:
+      - .yml
+      - .yaml
+    file_names_regex:
+      - (^|/)docker-compose[^/]*\.ya?ml$
+      - (^|/)compose[^/]*\.ya?ml$

@@ -7,8 +7,8 @@ rules:
     severity: WARNING
     patterns:
       - pattern-regex: '(?:^|\s)python3?\s'
-      - pattern-not-regex: 'uv run python3?'
-      - pattern-not-regex: '#.*python3?'
+      - pattern-not-regex: "uv run python3?"
+      - pattern-not-regex: "#.*python3?"
     paths:
       include:
         - "*.sh"
@@ -20,13 +20,13 @@ rules:
       'trap ... EXIT' for cleanup.
     languages: [generic]
     severity: ERROR
-    pattern-regex: 'mktemp'
+    pattern-regex: "mktemp"
     paths:
       include:
         - "*.sh"
         - scripts/
     metadata:
-      requires-also: 'trap .* EXIT'
+      requires-also: "trap .* EXIT"
 
   - id: pin-npm-versions
     message: >

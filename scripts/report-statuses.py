@@ -67,12 +67,14 @@ for linter in report.get("linters", []):
 
     context = f"coding-standards: {linter['linter_name']}"
 
-    payload = json.dumps({
-        "state": state,
-        "target_url": target_url,
-        "description": desc[:140],
-        "context": context,
-    }).encode()
+    payload = json.dumps(
+        {
+            "state": state,
+            "target_url": target_url,
+            "description": desc[:140],
+            "context": context,
+        }
+    ).encode()
 
     req = urllib.request.Request(
         api_url,

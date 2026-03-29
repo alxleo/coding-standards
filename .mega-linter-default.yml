@@ -154,12 +154,12 @@ REPOSITORY_SEMGREP_RULESETS:
   - /opt/coding-standards/semgrep-rules/
 
 # ── Formatting / style ────────────────────────────────────────
-FORMATTERS_DISABLE_ERRORS: true      # formatters warn, don't block (explicit)
-JAVASCRIPT_DEFAULT_STYLE: prettier   # not standard
+FORMATTERS_DISABLE_ERRORS: true # formatters warn, don't block (explicit)
+JAVASCRIPT_DEFAULT_STYLE: prettier # not standard
 TYPESCRIPT_DEFAULT_STYLE: prettier
 
 # ── Safety ────────────────────────────────────────────────────
-FAIL_IF_MISSING_LINTER_IN_FLAVOR: true  # catch Dockerfile mistakes
+FAIL_IF_MISSING_LINTER_IN_FLAVOR: true # catch Dockerfile mistakes
 
 # ── Auto-fix (caller-controlled) ─────────────────────────────
 # Default: check only. Pass -e APPLY_FIXES=all to auto-fix.
@@ -171,9 +171,9 @@ TEXT_REPORTER: true
 JSON_REPORTER: true
 JSON_REPORTER_OUTPUT_DETAIL: detailed
 MARKDOWN_SUMMARY_REPORTER: true
-TAP_REPORTER: false           # CRITICAL: breaks project-mode linters
+TAP_REPORTER: false # CRITICAL: breaks project-mode linters
 SARIF_REPORTER: false
-GITHUB_STATUS_REPORTER: false  # we post statuses ourselves (Gitea + GitHub)
+GITHUB_STATUS_REPORTER: false # we post statuses ourselves (Gitea + GitHub)
 GITHUB_COMMENT_REPORTER: false
 CONFIG_REPORTER: false
 UPDATED_SOURCES_REPORTER: false

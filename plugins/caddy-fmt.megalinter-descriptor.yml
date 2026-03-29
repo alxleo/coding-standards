@@ -1,19 +1,19 @@
 descriptor_id: REPOSITORY
 descriptor_type: other
 linters:
-- linter_name: caddy-fmt
-  name: REPOSITORY_CADDY_FMT
-  descriptor_flavors:
-  - cupcake
-  cli_lint_mode: list_of_files
-  linter_text: Format Caddyfile configuration
-  linter_url: https://caddyserver.com/docs/command-line#caddy-fmt
-  cli_executable: caddy
-  cli_lint_extra_args:
-  - fmt
-  - --diff
-  cli_help_arg_name: help
-  cli_version_arg_name: version
-  file_names_regex:
-  - (^|/)Caddyfile$
-  file_extensions: []
+  - linter_name: caddy-fmt
+    name: REPOSITORY_CADDY_FMT
+    descriptor_flavors:
+      - cupcake
+    cli_lint_mode: list_of_files
+    linter_text: Format Caddyfile configuration
+    linter_url: https://caddyserver.com/docs/command-line#caddy-fmt
+    cli_executable: caddy
+    cli_lint_extra_args:
+      - fmt
+      - --diff
+    cli_help_arg_name: help
+    cli_version_arg_name: version
+    file_names_regex:
+      - (^|/)Caddyfile$
+    file_extensions: []

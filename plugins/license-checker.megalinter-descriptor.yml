@@ -2,21 +2,21 @@ descriptor_id: REPOSITORY
 descriptor_type: other
 lint_all_files: true
 linters:
-- linter_name: license-checker
-  name: REPOSITORY_LICENSE_CHECKER
-  descriptor_flavors:
-  - cupcake
-  cli_lint_mode: project
-  linter_text: Check npm dependency licenses for compliance
-  linter_url: https://github.com/davglass/license-checker
-  cli_executable: license-checker
-  cli_lint_extra_args:
-  - --production
-  - --failOn
-  - GPL;AGPL
-  cli_help_arg_name: --help
-  cli_version_arg_name: --version
-  files_sub_directory: ''
-  file_extensions: []
-  active_only_if_file_found:
-  - package-lock.json
+  - linter_name: license-checker
+    name: REPOSITORY_LICENSE_CHECKER
+    descriptor_flavors:
+      - cupcake
+    cli_lint_mode: project
+    linter_text: Check npm dependency licenses for compliance
+    linter_url: https://github.com/davglass/license-checker
+    cli_executable: license-checker
+    cli_lint_extra_args:
+      - --production
+      - --failOn
+      - GPL;AGPL
+    cli_help_arg_name: --help
+    cli_version_arg_name: --version
+    files_sub_directory: ""
+    file_extensions: []
+    active_only_if_file_found:
+      - package-lock.json

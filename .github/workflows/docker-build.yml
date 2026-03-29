@@ -40,7 +40,7 @@ concurrency:
 permissions:
   contents: read
   packages: write
-  security-events: write  # for Trivy SARIF upload
+  security-events: write # for Trivy SARIF upload
 
 env:
   REGISTRY: ghcr.io
@@ -93,7 +93,7 @@ jobs:
 
       # Scan the built image for vulnerabilities before pushing
       - name: Trivy image scan
-        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947e7b4b18e97b232c9 # v0.29.0
+        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # v0.29.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ci-test
           severity: CRITICAL
@@ -111,10 +111,14 @@ jobs:
           docker run --rm --entrypoint="" "$img" caddy version
           docker run --rm --entrypoint="" "$img" just --version
           docker run --rm --entrypoint="" "$img" conftest --version
-          docker run --rm --entrypoint="" "$img" npx commitlint --version
+          docker run --rm --entrypoint="" "$img" npx commitlint --version  # npx inside image (version pinned in Dockerfile)
           docker run --rm --entrypoint="" "$img" pyright --version
           docker run --rm --entrypoint="" "$img" zizmor --version
           docker run --rm --entrypoint="" "$img" knip --version
+          docker run --rm --entrypoint="" "$img" dclint --version
+          docker run --rm --entrypoint="" "$img" tsc --version
+          docker run --rm --entrypoint="" "$img" depcruise --version
+          docker run --rm --entrypoint="" "$img" license-checker --version
           echo "All tools verified."
 
       # Push only after scan + smoke test pass, and only on non-PR builds

@@ -207,7 +207,7 @@ Consumer repos that need a different set copy and amend the list.
 
 - `IGNORE_GENERATED_FILES: true` — skip @generated markers
 - `IGNORE_GITIGNORED_FILES: true` — respect .gitignore
-- Additional excluded dirs: megalinter-reports, .terraform, __pycache__, etc.
+- Additional excluded dirs: megalinter-reports, .terraform, `__pycache__`, etc.
 
 ### Security
 

@@ -2,25 +2,25 @@ descriptor_id: REPOSITORY
 descriptor_type: other
 lint_all_files: true
 linters:
-- linter_name: commitlint
-  name: REPOSITORY_COMMITLINT
-  descriptor_flavors:
-  - cupcake
-  cli_lint_mode: project
-  linter_text: Lint commit messages against conventional commit rules
-  linter_url: https://commitlint.js.org/
-  cli_executable: commitlint
-  cli_lint_extra_args:
-  - --from
-  - HEAD~1
-  cli_help_arg_name: --help
-  cli_version_arg_name: --version
-  config_file_name: commitlint.config.mjs
-  files_sub_directory: ''
-  file_extensions: []
-  active_only_if_file_found:
-  - commitlint.config.mjs
-  - commitlint.config.js
-  - commitlint.config.cjs
-  - .commitlintrc.yml
-  - .commitlintrc.json
+  - linter_name: commitlint
+    name: REPOSITORY_COMMITLINT
+    descriptor_flavors:
+      - cupcake
+    cli_lint_mode: project
+    linter_text: Lint commit messages against conventional commit rules
+    linter_url: https://commitlint.js.org/
+    cli_executable: commitlint
+    cli_lint_extra_args:
+      - --from
+      - HEAD~1
+    cli_help_arg_name: --help
+    cli_version_arg_name: --version
+    config_file_name: commitlint.config.mjs
+    files_sub_directory: ""
+    file_extensions: []
+    active_only_if_file_found:
+      - commitlint.config.mjs
+      - commitlint.config.js
+      - commitlint.config.cjs
+      - .commitlintrc.yml
+      - .commitlintrc.json

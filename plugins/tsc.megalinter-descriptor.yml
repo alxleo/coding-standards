@@ -1,20 +1,20 @@
 descriptor_id: TYPESCRIPT
 descriptor_type: language
 linters:
-- linter_name: tsc
-  name: TYPESCRIPT_TSC
-  descriptor_flavors:
-  - cupcake
-  cli_lint_mode: project
-  linter_text: TypeScript type checking (compile without emit)
-  linter_url: https://www.typescriptlang.org/
-  cli_executable: tsc
-  cli_lint_extra_args:
-  - --noEmit
-  cli_help_arg_name: --help
-  cli_version_arg_name: --version
-  config_file_name: tsconfig.json
-  files_sub_directory: ''
-  file_extensions: []
-  active_only_if_file_found:
-  - tsconfig.json
+  - linter_name: tsc
+    name: TYPESCRIPT_TSC
+    descriptor_flavors:
+      - cupcake
+    cli_lint_mode: project
+    linter_text: TypeScript type checking (compile without emit)
+    linter_url: https://www.typescriptlang.org/
+    cli_executable: tsc
+    cli_lint_extra_args:
+      - --noEmit
+    cli_help_arg_name: --help
+    cli_version_arg_name: --version
+    config_file_name: tsconfig.json
+    files_sub_directory: ""
+    file_extensions: []
+    active_only_if_file_found:
+      - tsconfig.json

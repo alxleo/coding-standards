@@ -99,8 +99,8 @@ COPY semgrep-rules/ /opt/coding-standards/semgrep-rules/
 # ── Shared Conftest policies ─────────────────────────────────
 COPY policies/ /opt/coding-standards/policies/
 
-# ── Mechanism scripts (drift checker, expiry enforcer) ────────
-COPY scripts/ci/check-drift.sh scripts/ci/check-expiry.py /opt/coding-standards/scripts/
+# ── Mechanism scripts + reporting ─────────────────────────────
+COPY scripts/ci/check-drift.sh scripts/ci/check-expiry.py scripts/report-statuses.py /opt/coding-standards/scripts/
 RUN chmod +x /opt/coding-standards/scripts/check-drift.sh
 
 # ── Linter config files ──────────────────────────────────────
@@ -108,12 +108,10 @@ RUN chmod +x /opt/coding-standards/scripts/check-drift.sh
 # LINTER_RULES_PATH in .mega-linter.yml points here
 COPY lint-configs-626465/ /opt/coding-standards/configs/
 
-# ── Default config ────────────────────────────────────────────
-# Baseline .mega-linter.yml baked into image and used by default via
-# MEGALINTER_CONFIG. When set, this env var takes absolute precedence —
-# a workspace .mega-linter.yml will NOT override it.
-# Consumer repos that need a different config should override
-# MEGALINTER_CONFIG at runtime:
-#   docker run -e MEGALINTER_CONFIG=".mega-linter.yml" ...
+# ── Default config + smart entrypoint ─────────────────────────
+# Entrypoint checks: if workspace has .mega-linter.yml, use it.
+# Otherwise use the baked default. Zero flags for consumers.
 COPY .mega-linter-default.yml /opt/coding-standards/.mega-linter.yml
-ENV MEGALINTER_CONFIG="/opt/coding-standards/.mega-linter.yml"
+COPY scripts/entrypoint.sh /opt/coding-standards/entrypoint.sh
+RUN chmod +x /opt/coding-standards/entrypoint.sh
+ENTRYPOINT ["/opt/coding-standards/entrypoint.sh"]
