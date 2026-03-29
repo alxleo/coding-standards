@@ -111,6 +111,16 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 - v8r schema caching: pending (11+12s savings expected)
 - Wall clock: 3+ min → 31s under emulation, estimated 15-20s native amd64
 
+### Graduated rollout for new rules
+New rules follow the Clippy/Biome pattern:
+- Rules are enabled in the config from day one (new code must comply).
+- Existing code uses `ruff --add-noqa` to generate inline suppressions.
+- Each suppression is a visible TODO, not hidden tech debt.
+- Over time, clean up suppressions — the noqa count is a health metric.
+- Preferred over warn-tier demotion because it enforces quality on NEW code immediately.
+
+Migration recipe in consumer-guide.md: `ruff check --fix && ruff check --add-noqa`.
+
 ### Skipped
 - LLM Advisor: the agent consuming output IS an LLM. Skip.
 - Grafana/API reporter: not needed now.

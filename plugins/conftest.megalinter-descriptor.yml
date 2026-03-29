@@ -23,4 +23,3 @@ linters:
     file_extensions: []
     active_only_if_file_found:
       - conftest.toml
-      - .conftest.yml

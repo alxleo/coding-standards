@@ -149,6 +149,24 @@ YAML_YAMLLINT_CONFIG_FILE: .yamllint
 PYTHON_RUFF_CONFIG_FILE: ruff.toml
 ```
 
+## Migrating to new rules
+
+When coding-standards adds new ruff rules, your repo may get hundreds of new findings. Use this one-command migration:
+
+```bash
+# Auto-fix what's fixable, suppress the rest with inline comments
+uvx ruff check --config lint-configs-626465/ruff.toml --fix . && \
+uvx ruff check --config lint-configs-626465/ruff.toml --add-noqa .
+```
+
+This gets your CI green immediately. Clean up the `# noqa` suppressions over time — each one is a TODO, not permanent tech debt.
+
+For shellcheck findings (e.g., `require-double-brackets`):
+```bash
+# No auto-fix — manually replace [ ] with [[ ]] in bash scripts
+# Focus on scripts you actively maintain first
+```
+
 ## Local development (Mac)
 
 The image is amd64. On Apple Silicon it runs under Rosetta (slower but works):

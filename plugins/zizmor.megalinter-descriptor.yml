@@ -16,6 +16,11 @@ linters:
     cli_version_arg_name: --version
     files_sub_directory: ""
     file_extensions: []
-    active_only_if_file_found:
-      - .github/workflows
-      - .gitea/workflows
+    # Note: directory-based activation doesn't work (os.path.isfile only).
+    # Zizmor activates via ENABLE_LINTERS. It gracefully handles repos without workflows.
+    file_extensions:
+      - .yml
+      - .yaml
+    file_names_regex:
+      - (^|/)\.github/workflows/.*\.ya?ml$
+      - (^|/)\.gitea/workflows/.*\.ya?ml$
