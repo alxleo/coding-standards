@@ -19,7 +19,7 @@ rules:
       Unpinned npx pulls latest, which breaks reproducibility.
     languages: [generic]
     severity: WARNING
-    pattern-regex: '^\s*npx\s+[a-z][a-z0-9-]+(?!\s*@|\s+--)'
+    pattern-regex: '^\s*npx\s+(?:--yes\s+)?[a-z][a-z0-9-]+(?!\s*@|\s+--)'
     paths:
       include:
         - "*.sh"

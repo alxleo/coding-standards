@@ -40,7 +40,6 @@ concurrency:
 permissions:
   contents: read
   packages: write
-  security-events: write # for Trivy SARIF upload
 
 env:
   REGISTRY: ghcr.io

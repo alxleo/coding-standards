@@ -32,7 +32,13 @@ def scan_file(path: Path, patterns: list[re.Pattern], today: date) -> list[str]:
     for i, line in enumerate(text.splitlines(), 1):
         for pattern in patterns:
             for match in pattern.finditer(line):
-                expiry = date.fromisoformat(match.group(1))
+                try:
+                    expiry = date.fromisoformat(match.group(1))
+                except ValueError:
+                    findings.append(
+                        f"{path}:{i}: invalid date in marker: {match.group(1)}"
+                    )
+                    continue
                 if expiry < today:
                     findings.append(
                         f"{path}:{i}: expired marker (was {expiry}, today is {today})"
