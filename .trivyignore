@@ -3,7 +3,9 @@
 DS-0002
 # Linting image runs and exits — no HEALTHCHECK needed
 DS-0026
-# Go stdlib CVE in compiled binaries (conftest, trivy, gitleaks, etc.)
-# Can't fix — upstream tools need to rebuild with Go 1.24.13+
-# Remove when MegaLinter/tool authors update their Go version
-CVE-2025-68121
+# Go dependency CVEs in compiled binaries (conftest, trivy, gitleaks, etc.)
+# We can't rebuild upstream Go binaries — they need to update their Go version.
+# Remove entries as upstream tools release patched versions.
+CVE-2025-68121  # crypto/tls: session resumption (Go stdlib, fixed in 1.24.13+)
+CVE-2026-33186  # gRPC-Go: authorization bypass (fixed in 1.79.3)
+CVE-2024-45337  # golang.org/x/crypto/ssh: misuse (fixed in 0.31.0)
