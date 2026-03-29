@@ -3,3 +3,7 @@
 DS-0002
 # Linting image runs and exits — no HEALTHCHECK needed
 DS-0026
+# Go stdlib CVE in compiled binaries (conftest, trivy, gitleaks, etc.)
+# Can't fix — upstream tools need to rebuild with Go 1.24.13+
+# Remove when MegaLinter/tool authors update their Go version
+CVE-2025-68121
