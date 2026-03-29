@@ -57,6 +57,12 @@ RUN curl -fsSL 'https://caddyserver.com/api/download?os=linux&arch=amd64' \
 # just — justfile formatter
 RUN curl -fsSL https://just.systems/install.sh | bash -s -- --to /usr/local/bin
 
+# conftest — OPA/Rego policy engine for structural validation
+RUN curl -fsSL "https://github.com/open-policy-agent/conftest/releases/download/v0.58.0/conftest_0.58.0_Linux_x86_64.tar.gz" \
+  -o /tmp/conftest.tar.gz && \
+  tar xzf /tmp/conftest.tar.gz -C /usr/local/bin conftest && \
+  rm /tmp/conftest.tar.gz
+
 # ── Schema download (v8r offline validation) ─────────────────
 COPY scripts/download-schemas.sh /tmp/download-schemas.sh
 RUN chmod +x /tmp/download-schemas.sh && \
@@ -66,6 +72,16 @@ RUN chmod +x /tmp/download-schemas.sh && \
 # ── Plugin descriptors ────────────────────────────────────────
 # Tell MegaLinter how to invoke our custom tools
 COPY plugins/ /mega-linter-plugin-custom/
+
+# ── Centralized semgrep rules ─────────────────────────────────
+COPY semgrep-rules/ /opt/coding-standards/semgrep-rules/
+
+# ── Shared Conftest policies ─────────────────────────────────
+COPY policies/ /opt/coding-standards/policies/
+
+# ── Mechanism scripts (drift checker, expiry enforcer) ────────
+COPY scripts/ci/check-drift.sh scripts/ci/check-expiry.py /opt/coding-standards/scripts/
+RUN chmod +x /opt/coding-standards/scripts/check-drift.sh
 
 # ── Linter config files ──────────────────────────────────────
 # Baked into image at /opt/coding-standards/configs

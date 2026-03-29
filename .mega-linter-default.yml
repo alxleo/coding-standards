@@ -40,6 +40,8 @@ ENABLE_LINTERS:
   - REPOSITORY_SEMGREP
   # Security (vuln + IaC)
   - REPOSITORY_TRIVY_CUSTOM
+  # Structural policy (Conftest/OPA)
+  - REPOSITORY_CONFTEST
   # GHA security
   - REPOSITORY_ZIZMOR
   # Commits
@@ -145,11 +147,11 @@ JSON_V8R_ARGUMENTS:
   - "--config"
   - "/opt/coding-standards/configs/.v8rrc.yml"
 
-# Semgrep: auto ruleset (server selects relevant rules per language)
-# Local bundled rules were slower (too many rules). The ~10s download
-# is the cost of curated rule selection — acceptable tradeoff.
+# Semgrep: auto ruleset + centralized custom rules
+# auto = server-curated community rules. Local path = shipped in image.
 REPOSITORY_SEMGREP_RULESETS:
   - auto
+  - /opt/coding-standards/semgrep-rules/
 
 # ── Formatting / style ────────────────────────────────────────
 FORMATTERS_DISABLE_ERRORS: true      # formatters warn, don't block (explicit)
@@ -246,3 +248,4 @@ PLUGINS:
   - "file:///mega-linter-plugin-custom/license-checker.megalinter-descriptor.yml"
   - "file:///mega-linter-plugin-custom/tsc.megalinter-descriptor.yml"
   - "file:///mega-linter-plugin-custom/pmd-cpd.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/conftest.megalinter-descriptor.yml"

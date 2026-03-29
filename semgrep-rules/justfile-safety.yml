@@ -1,0 +1,28 @@
+rules:
+  - id: justfile-eval-usage
+    message: >
+      Avoid eval in justfile recipes. Use direct command invocation
+      or just's built-in variable interpolation.
+    languages: [generic]
+    severity: WARNING
+    pattern-regex: '\beval\b'
+    paths:
+      include:
+        - justfile
+        - Justfile
+        - "*.just"
+
+  - id: justfile-curl-pipe-sh
+    message: >
+      Piping curl output to sh/bash is a security risk.
+      Download to a file, verify checksum, then execute.
+    languages: [generic]
+    severity: ERROR
+    pattern-regex: 'curl\s.*\|\s*(ba)?sh'
+    paths:
+      include:
+        - justfile
+        - Justfile
+        - "*.just"
+        - "*.sh"
+        - Dockerfile

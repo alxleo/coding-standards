@@ -1,0 +1,26 @@
+descriptor_id: REPOSITORY
+descriptor_type: other
+lint_all_files: true
+linters:
+- linter_name: conftest
+  name: REPOSITORY_CONFTEST
+  descriptor_flavors:
+  - cupcake
+  cli_lint_mode: project
+  linter_text: OPA/Rego policy engine for structural validation of config files
+  linter_url: https://www.conftest.dev/
+  cli_executable: conftest
+  cli_lint_extra_args:
+  - test
+  - --all-namespaces
+  - --no-color
+  - -p
+  - policy/
+  - .
+  cli_help_arg_name: --help
+  cli_version_arg_name: --version
+  files_sub_directory: ''
+  file_extensions: []
+  active_only_if_file_found:
+  - conftest.toml
+  - .conftest.yml
