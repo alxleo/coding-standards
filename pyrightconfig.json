@@ -1,0 +1,4 @@
+{
+  "typeCheckingMode": "standard",
+  "include": ["scripts/ci", "test"]
+}

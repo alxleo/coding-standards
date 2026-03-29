@@ -1,0 +1,5 @@
+# Trivy ignores for this Dockerfile
+# MegaLinter base image runs as root (needs tool installation permissions)
+DS-0002
+# Linting image runs and exits — no HEALTHCHECK needed
+DS-0026

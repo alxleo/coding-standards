@@ -1,0 +1,25 @@
+descriptor_id: REPOSITORY
+descriptor_type: other
+lint_all_files: true
+linters:
+- linter_name: trivy
+  name: REPOSITORY_TRIVY_CUSTOM
+  descriptor_flavors:
+  - cupcake
+  cli_lint_mode: project
+  linter_text: Scan for vulnerabilities in IaC files and dependencies
+  linter_url: https://trivy.dev/
+  cli_executable: trivy
+  cli_lint_extra_args:
+  - fs
+  - --scanners
+  - vuln,misconfig,secret
+  - --skip-db-update
+  - --exit-code
+  - '1'
+  - --quiet
+  - .
+  cli_help_arg_name: --help
+  cli_version_arg_name: --version
+  files_sub_directory: ''
+  file_extensions: []

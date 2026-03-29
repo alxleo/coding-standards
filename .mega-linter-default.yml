@@ -1,0 +1,248 @@
+# coding-standards baseline MegaLinter configuration
+# Baked into Docker image. Consumer repos override via their own .mega-linter.yml.
+#
+# Activation: allowlist (ENABLE_LINTERS). New MegaLinter versions don't change
+# what runs. Consumer repos that need a different set copy and amend this list.
+
+# ── Linter activation (allowlist) ─────────────────────────────
+ENABLE_LINTERS:
+  # Shell
+  - BASH_SHELLCHECK
+  - BASH_SHFMT
+  # Python
+  - PYTHON_RUFF
+  - PYTHON_PYRIGHT
+  # YAML
+  - YAML_YAMLLINT
+  - YAML_PRETTIER
+  - YAML_V8R
+  # JSON
+  - JSON_PRETTIER
+  - JSON_V8R
+  # Markdown
+  - MARKDOWN_MARKDOWNLINT
+  # Dockerfile
+  - DOCKERFILE_HADOLINT
+  - DOCKERFILE_DCLINT
+  # GitHub Actions
+  - ACTION_ACTIONLINT
+  # Terraform
+  - TERRAFORM_TFLINT
+  # Editorconfig
+  - EDITORCONFIG_EDITORCONFIG_CHECKER
+  # Copy-paste (PMD-CPD replaces jscpd — 50x faster)
+  - COPYPASTE_PMD_CPD
+  # Links
+  - SPELL_LYCHEE
+  # Secrets
+  - REPOSITORY_GITLEAKS
+  # Security (SAST)
+  - REPOSITORY_SEMGREP
+  # Security (vuln + IaC)
+  - REPOSITORY_TRIVY_CUSTOM
+  # GHA security
+  - REPOSITORY_ZIZMOR
+  # Commits
+  - REPOSITORY_COMMITLINT
+  # JS/TS
+  - JAVASCRIPT_ES
+  - TYPESCRIPT_ES
+  - JSX_ESLINT
+  - TSX_ESLINT
+  - JAVASCRIPT_PRETTIER
+  - TYPESCRIPT_PRETTIER
+  # JS/TS type checking
+  - TYPESCRIPT_TSC
+  # JS/TS project analyzers
+  - REPOSITORY_KNIP
+  - REPOSITORY_DEPENDENCY_CRUISER
+  - REPOSITORY_NPM_AUDIT
+  - REPOSITORY_LICENSE_CHECKER
+  # CSS
+  - CSS_STYLELINT
+  # SQL
+  - SQL_SQLFLUFF
+  # Ansible
+  - ANSIBLE_ANSIBLE_LINT
+  # Kubernetes
+  - KUBERNETES_KUBECONFORM
+  # Formatting
+  - REPOSITORY_CADDY_FMT
+  - REPOSITORY_JUST_FMT
+  # Git
+  - REPOSITORY_GIT_DIFF
+
+# ── Blocking policy (two tiers) ──────────────────────────────
+# Tier 1: everything not listed below BLOCKS the build
+# Tier 2: warn but don't fail
+DISABLE_ERRORS_LINTERS:
+  - JAVASCRIPT_PRETTIER
+  - TYPESCRIPT_PRETTIER
+  - JSON_PRETTIER
+  - YAML_PRETTIER
+  - BASH_SHFMT
+  - MARKDOWN_MARKDOWNLINT
+  - YAML_YAMLLINT
+  - COPYPASTE_PMD_CPD
+  - EDITORCONFIG_EDITORCONFIG_CHECKER
+  - CSS_STYLELINT
+  - SPELL_LYCHEE
+  - JSON_V8R
+  - YAML_V8R
+  - DOCKERFILE_DCLINT
+  - SQL_SQLFLUFF
+  - ANSIBLE_ANSIBLE_LINT
+  - KUBERNETES_KUBECONFORM
+
+# ── Per-linter configuration ──────────────────────────────────
+# Pyright: configured via pyrightconfig.json (baked into image configs)
+# Standard mode, reportMissingImports: warning
+# Explicit ARGUMENTS for linters where _CONFIG_FILE alone doesn't work
+PYTHON_PYRIGHT_ARGUMENTS:
+  - "--project"
+  - "/opt/coding-standards/configs/pyrightconfig.json"
+PYTHON_RUFF_ARGUMENTS:
+  - "--config"
+  - "/opt/coding-standards/configs/ruff.toml"
+TERRAFORM_TFLINT_ARGUMENTS:
+  - "--config"
+  - "/opt/coding-standards/configs/.tflint.hcl"
+
+# Per-linter config file overrides (point to baked configs)
+YAML_YAMLLINT_CONFIG_FILE: /opt/coding-standards/configs/.yamllint
+YAML_YAMLLINT_ARGUMENTS:
+  - "-c"
+  - "/opt/coding-standards/configs/.yamllint"
+DOCKERFILE_HADOLINT_CONFIG_FILE: /opt/coding-standards/configs/.hadolint.yaml
+DOCKERFILE_HADOLINT_ARGUMENTS:
+  - "--config"
+  - "/opt/coding-standards/configs/.hadolint.yaml"
+# jscpd replaced by PMD-CPD (50x faster, no config file needed)
+MARKDOWN_MARKDOWNLINT_CONFIG_FILE: /opt/coding-standards/configs/.markdownlint-cli2.yaml
+MARKDOWN_MARKDOWNLINT_ARGUMENTS:
+  - "--config"
+  - "/opt/coding-standards/configs/.markdownlint-cli2.yaml"
+# Explicit config paths for every linter with a config file.
+# Ensures consistent behavior — no reliance on auto-discovery.
+# Consumer repos override specific tools via <LINTER>_CONFIG_FILE in their .mega-linter.yml.
+BASH_SHELLCHECK_CONFIG_FILE: /opt/coding-standards/configs/.shellcheckrc
+JSON_PRETTIER_CONFIG_FILE: /opt/coding-standards/configs/.prettierrc
+YAML_PRETTIER_CONFIG_FILE: /opt/coding-standards/configs/.prettierrc
+JAVASCRIPT_PRETTIER_CONFIG_FILE: /opt/coding-standards/configs/.prettierrc
+TYPESCRIPT_PRETTIER_CONFIG_FILE: /opt/coding-standards/configs/.prettierrc
+REPOSITORY_GITLEAKS_CONFIG_FILE: /opt/coding-standards/configs/.gitleaks.toml
+PYTHON_PYRIGHT_CONFIG_FILE: /opt/coding-standards/configs/pyrightconfig.json
+PYTHON_RUFF_CONFIG_FILE: /opt/coding-standards/configs/ruff.toml
+TERRAFORM_TFLINT_CONFIG_FILE: /opt/coding-standards/configs/.tflint.hcl
+EDITORCONFIG_EDITORCONFIG_CHECKER_CONFIG_FILE: /opt/coding-standards/configs/.editorconfig
+# v8r: bundled schemas for offline validation (~20s savings)
+YAML_V8R_CONFIG_FILE: /opt/coding-standards/configs/.v8rrc.yml
+JSON_V8R_CONFIG_FILE: /opt/coding-standards/configs/.v8rrc.yml
+YAML_V8R_ARGUMENTS:
+  - "--config"
+  - "/opt/coding-standards/configs/.v8rrc.yml"
+JSON_V8R_ARGUMENTS:
+  - "--config"
+  - "/opt/coding-standards/configs/.v8rrc.yml"
+
+# Semgrep: auto ruleset (server selects relevant rules per language)
+# Local bundled rules were slower (too many rules). The ~10s download
+# is the cost of curated rule selection — acceptable tradeoff.
+REPOSITORY_SEMGREP_RULESETS:
+  - auto
+
+# ── Formatting / style ────────────────────────────────────────
+FORMATTERS_DISABLE_ERRORS: true      # formatters warn, don't block (explicit)
+JAVASCRIPT_DEFAULT_STYLE: prettier   # not standard
+TYPESCRIPT_DEFAULT_STYLE: prettier
+
+# ── Safety ────────────────────────────────────────────────────
+FAIL_IF_MISSING_LINTER_IN_FLAVOR: true  # catch Dockerfile mistakes
+
+# ── Auto-fix (caller-controlled) ─────────────────────────────
+# Default: check only. Pass -e APPLY_FIXES=all to auto-fix.
+APPLY_FIXES: none
+
+# ── Reporters ─────────────────────────────────────────────────
+CONSOLE_REPORTER: true
+TEXT_REPORTER: true
+JSON_REPORTER: true
+JSON_REPORTER_OUTPUT_DETAIL: detailed
+MARKDOWN_SUMMARY_REPORTER: true
+TAP_REPORTER: false           # CRITICAL: breaks project-mode linters
+SARIF_REPORTER: false
+GITHUB_STATUS_REPORTER: false  # we post statuses ourselves (Gitea + GitHub)
+GITHUB_COMMENT_REPORTER: false
+CONFIG_REPORTER: false
+UPDATED_SOURCES_REPORTER: false
+FILEIO_REPORTER: false
+EMAIL_REPORTER: false
+API_REPORTER: false
+
+# ── Performance ───────────────────────────────────────────────
+PARALLEL: true
+PARALLEL_PROCESS_NUMBER: 8
+SHOW_ELAPSED_TIME: true
+PRINT_ALPACA: false
+PRINT_ALL_FILES: false
+FLAVOR_SUGGESTIONS: false
+SHOW_SKIPPED_LINTERS: false
+
+# ── File filtering ────────────────────────────────────────────
+VALIDATE_ALL_CODEBASE: true
+IGNORE_GENERATED_FILES: true
+IGNORE_GITIGNORED_FILES: true
+ADDITIONAL_EXCLUDED_DIRECTORIES:
+  - megalinter-reports
+  - .terraform
+  - .terragrunt-cache
+  - __pycache__
+  - .mypy_cache
+  - .ruff_cache
+  - coverage
+  - .nyc_output
+  - .next
+  - .nuxt
+
+# ── Linter config files ──────────────────────────────────────
+# Configs baked into image. Consumer repos override specific tools via
+# <LINTER>_CONFIG_FILE pointing at their workspace file.
+LINTER_RULES_PATH: /opt/coding-standards/configs
+
+# ── Security ──────────────────────────────────────────────────
+SECURED_ENV_VARIABLES:
+  - GITEA_TOKEN
+
+# ── Report cleanup ────────────────────────────────────────────
+CLEAR_REPORT_FOLDER: true
+
+# ── PRE_COMMANDS ──────────────────────────────────────────────
+PRE_COMMANDS:
+  # Fix Docker UID mismatch + CRLF
+  - command: >-
+      git config --global --add safe.directory '*' &&
+      git config --global core.autocrlf input
+    cwd: workspace
+    continue_if_failed: true
+  # Install JS deps if package-lock.json exists
+  # (needed for knip, dep-cruiser, tsc)
+  - command: >-
+      test -f package-lock.json &&
+      npm ci --ignore-scripts || true
+    cwd: workspace
+    continue_if_failed: true
+
+# ── Plugins (custom tools baked into image) ───────────────────
+PLUGINS:
+  - "file:///mega-linter-plugin-custom/commitlint.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/trivy.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/dclint.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/zizmor.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/caddy-fmt.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/just-fmt.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/knip.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/dependency-cruiser.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/npm-audit.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/license-checker.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/tsc.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/pmd-cpd.megalinter-descriptor.yml"

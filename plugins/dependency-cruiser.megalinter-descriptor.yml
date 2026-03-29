@@ -1,0 +1,25 @@
+descriptor_id: REPOSITORY
+descriptor_type: other
+lint_all_files: true
+linters:
+- linter_name: dependency-cruiser
+  name: REPOSITORY_DEPENDENCY_CRUISER
+  descriptor_flavors:
+  - cupcake
+  cli_lint_mode: project
+  linter_text: Validate and enforce JS/TS module dependency rules
+  linter_url: https://github.com/sverweij/dependency-cruiser
+  cli_executable: depcruise
+  cli_lint_extra_args:
+  - --validate
+  - src
+  cli_help_arg_name: --help
+  cli_version_arg_name: --version
+  config_file_name: .dependency-cruiser.cjs
+  files_sub_directory: ''
+  file_extensions: []
+  active_only_if_file_found:
+  - .dependency-cruiser.cjs
+  - .dependency-cruiser.mjs
+  - .dependency-cruiser.js
+  - .dependency-cruiser.json
