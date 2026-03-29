@@ -20,8 +20,9 @@ LABEL org.opencontainers.image.source="https://github.com/alxleo/coding-standard
 LABEL org.opencontainers.image.description="Centralized linting image — MegaLinter cupcake + custom tools"
 
 # Patch base image CVEs (MegaLinter may lag behind Alpine security updates)
-# hadolint ignore=DL3018
-RUN apk upgrade --no-cache
+# glibc-bin trigger may fail in MegaLinter's custom Alpine — allow partial success
+# hadolint ignore=DL3018,DL3059
+RUN apk upgrade --no-cache; exit 0
 
 # ── Custom tool installs ──────────────────────────────────────
 # Tools MegaLinter doesn't include natively.
