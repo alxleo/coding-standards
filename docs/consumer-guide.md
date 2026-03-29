@@ -23,6 +23,7 @@ That's it. The image auto-detects which linters apply based on files in your rep
 41 linters covering: Python, Shell, YAML, JSON, Markdown, Dockerfile, GitHub Actions, Terraform, CSS, SQL, Ansible, Kubernetes, and more. See `docs/config-decisions.md` for the full list.
 
 Two-tier blocking:
+
 - **Errors** (block the build): security tools, type checkers, syntax errors, correctness
 - **Warnings** (report but pass): formatters, style, links, schema validation
 
