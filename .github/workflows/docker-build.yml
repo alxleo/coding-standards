@@ -17,6 +17,8 @@ on:
       - lint-configs-626465/**
       - plugins/**
       - scripts/**
+      - policies/**
+      - semgrep-rules/**
   schedule:
     # Daily at 03:00 UTC — refreshes trivy vuln DB + schemas
     - cron: "0 3 * * *"
@@ -28,10 +30,17 @@ on:
       - lint-configs-626465/**
       - plugins/**
       - scripts/**
+      - policies/**
+      - semgrep-rules/**
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
   packages: write
+  security-events: write  # for Trivy SARIF upload
 
 env:
   REGISTRY: ghcr.io
@@ -39,9 +48,16 @@ env:
 
 jobs:
   build:
+    # Skip expensive Docker builds on bot PRs (Renovate digest bumps).
+    # The image only matters at merge time.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.user.type != 'Bot'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
@@ -64,12 +80,50 @@ jobs:
             type=raw,value={{date 'YYYY-MM-DD'}},enable=${{ github.event_name == 'schedule' }}
             type=sha,prefix=sha-
 
-      - name: Build and push
+      # Build locally first (don't push yet) — scan + test before push
+      - name: Build image
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
-          push: ${{ github.event_name != 'pull_request' }}
+          load: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ci-test
+          cache-from: type=gha
+          # Only export cache on non-PR builds (PR cache export wastes 60-120s)
+          cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,mode=min' || '' }}
+
+      # Scan the built image for vulnerabilities before pushing
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947e7b4b18e97b232c9 # v0.29.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ci-test
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: 1
+          scanners: vuln
+
+      # Smoke test — verify all custom tools are installed and working
+      - name: Smoke test
+        run: |
+          img="${REGISTRY}/${IMAGE_NAME}:ci-test"
+          echo "Testing tool availability..."
+          docker run --rm --entrypoint="" "$img" trivy --version
+          docker run --rm --entrypoint="" "$img" pmd --version
+          docker run --rm --entrypoint="" "$img" caddy version
+          docker run --rm --entrypoint="" "$img" just --version
+          docker run --rm --entrypoint="" "$img" conftest --version
+          docker run --rm --entrypoint="" "$img" npx commitlint --version
+          docker run --rm --entrypoint="" "$img" pyright --version
+          docker run --rm --entrypoint="" "$img" zizmor --version
+          docker run --rm --entrypoint="" "$img" knip --version
+          echo "All tools verified."
+
+      # Push only after scan + smoke test pass, and only on non-PR builds
+      - name: Push image
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
