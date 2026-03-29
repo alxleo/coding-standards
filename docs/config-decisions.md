@@ -133,6 +133,7 @@ New rules follow the Clippy/Biome pattern:
 Migration recipe in consumer-guide.md: `ruff check --fix && ruff check --add-noqa`.
 
 ### Skipped
+
 - LLM Advisor: the agent consuming output IS an LLM. Skip.
 - Grafana/API reporter: not needed now.
 - SARIF: no consumer (agents read raw logs).
