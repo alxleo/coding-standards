@@ -59,11 +59,11 @@ for linter in report.get("linters", []):
     elapsed = linter.get("elapsed_time_s", 0)
 
     if state == "failure":
-        desc = f"{errors} errors ({elapsed:.1f}s)"
-    elif errors > 0:
-        desc = f"{errors} warnings ({elapsed:.1f}s)"
+        desc = f"{errors} error(s) ({elapsed:.1f}s)"
+    elif warnings > 0:
+        desc = f"{warnings} warning(s) ({elapsed:.1f}s)"
     else:
-        desc = f"No errors ({elapsed:.1f}s)"
+        desc = f"No issues ({elapsed:.1f}s)"
 
     context = f"coding-standards: {linter['linter_name']}"
 
@@ -90,6 +90,9 @@ for linter in report.get("linters", []):
             status_code = resp.status
     except urllib.error.HTTPError as e:
         status_code = e.code
+    except urllib.error.URLError as e:
+        print(f"  ⚠ {context}: connection error: {e.reason}")
+        status_code = 0
 
     icon = "✅" if state == "success" else "❌"
     print(f"  {icon} {context:45s} {state:8s} → HTTP {status_code}")
