@@ -1,0 +1,18 @@
+rules:
+  - id: unexpanded-env-var-in-yaml
+    message: >
+      YAML value contains ${VAR} that won't be expanded by most
+      YAML-consuming tools. Use envsubst, the tool's native env
+      mechanism, or inject the value at runtime.
+    languages: [yaml]
+    severity: WARNING
+    pattern-regex: '(?<!\$)\$\{[A-Z_][A-Z0-9_]*\}'
+    paths:
+      include:
+        - "*.yml"
+        - "*.yaml"
+      exclude:
+        - "**/docker-compose*.yml"
+        - "**/compose*.yml"
+        - "**/.github/**"
+        - "**/dags/**"
