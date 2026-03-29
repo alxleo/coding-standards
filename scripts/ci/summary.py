@@ -69,8 +69,10 @@ def main() -> None:
                 for logfile in sorted(LOGDIR.glob("*.log")):
                     errors = extract_errors(logfile)
                     if errors:
+                        name = logfile.stem
                         f.write(
-                            f"<details><summary><b>{logfile.stem}</b> errors</summary>\n\n"
+                            f"<details><summary><b>{name}</b>"
+                            " errors</summary>\n\n"
                         )
                         f.write("```\n")
                         for line in errors:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from unittest.mock import patch
 
 import summary
@@ -63,11 +64,12 @@ class TestSummaryFailure:
         (tmp_path / "python.outcome").write_text("failure")
         (tmp_path / "python.log").write_text("ERROR: bad\n")
 
-        with patch.dict("os.environ", env), patch.object(summary, "LOGDIR", tmp_path):
-            try:
-                summary.main()
-            except SystemExit:
-                pass
+        with (
+            patch.dict("os.environ", env),
+            patch.object(summary, "LOGDIR", tmp_path),
+            contextlib.suppress(SystemExit),
+        ):
+            summary.main()
 
         out = capsys.readouterr().out
         # Verify the group name appears on a line that also contains FAIL
@@ -82,11 +84,12 @@ class TestSummaryFailure:
         (tmp_path / "python.outcome").write_text("failure")
         (tmp_path / "python.log").write_text("src/main.py:1:1: E302\n")
 
-        with patch.dict("os.environ", env), patch.object(summary, "LOGDIR", tmp_path):
-            try:
-                summary.main()
-            except SystemExit:
-                pass
+        with (
+            patch.dict("os.environ", env),
+            patch.object(summary, "LOGDIR", tmp_path),
+            contextlib.suppress(SystemExit),
+        ):
+            summary.main()
 
         content = summary_file.read_text()
         assert "failures detected" in content
@@ -102,11 +105,12 @@ class TestSummaryFailure:
             "src/main.py:1:1: E302 expected 2 blank lines\n"
         )
 
-        with patch.dict("os.environ", env), patch.object(summary, "LOGDIR", tmp_path):
-            try:
-                summary.main()
-            except SystemExit:
-                pass
+        with (
+            patch.dict("os.environ", env),
+            patch.object(summary, "LOGDIR", tmp_path),
+            contextlib.suppress(SystemExit),
+        ):
+            summary.main()
 
         content = summary_file.read_text()
         assert "<details>" in content
@@ -121,11 +125,12 @@ class TestSummaryFailure:
         (tmp_path / "yaml.outcome").write_text("failure")
         (tmp_path / "yaml.log").write_text("ERROR: config.yml:3:1 wrong indentation\n")
 
-        with patch.dict("os.environ", env), patch.object(summary, "LOGDIR", tmp_path):
-            try:
-                summary.main()
-            except SystemExit:
-                pass
+        with (
+            patch.dict("os.environ", env),
+            patch.object(summary, "LOGDIR", tmp_path),
+            contextlib.suppress(SystemExit),
+        ):
+            summary.main()
 
         out = capsys.readouterr().out
         assert "\u21b3" in out

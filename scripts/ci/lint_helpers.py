@@ -7,7 +7,8 @@ from pathlib import Path
 
 # Noise patterns to filter from lint logs
 NOISE_RE = re.compile(
-    r"^\[INFO\]|^- Installing|^- Using|^Initializing|^- repo:|^\s*$|^::group|^::endgroup|^::"
+    r"^\[INFO\]|^- Installing|^- Using|^Initializing"
+    r"|^- repo:|^\s*$|^::group|^::endgroup|^::"
 )
 
 # Pre-commit banner lines (e.g. "Check YAML...Passed", "Shell hygiene...Failed")
@@ -17,7 +18,7 @@ BANNER_RE = re.compile(r"\.{3,}(Passed|Failed|Skipped)")
 def parse_groups(
     conf_path: str | Path,
 ) -> list[tuple[str, str, str, str]]:
-    """Parse groups.conf and return list of (logkey, display_name, status_context, step_name)."""
+    """Parse groups.conf into (logkey, display, context, step) tuples."""
     groups = []
     with open(conf_path) as f:
         for line in f:

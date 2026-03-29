@@ -1,0 +1,28 @@
+# Ruff baseline — synced to all repos.
+# Consumer repos override by placing ruff.toml in their root.
+
+target-version = "py311"
+
+[lint]
+select = [
+  "E",    # pycodestyle errors
+  "W",    # pycodestyle warnings
+  "F",    # pyflakes
+  "I",    # isort
+  "B",    # flake8-bugbear
+  "S",    # flake8-bandit (security)
+  "UP",   # pyupgrade
+  "SIM",  # flake8-simplify
+  "C4",   # flake8-comprehensions
+  "RUF",  # ruff-specific rules
+]
+
+[lint.per-file-ignores]
+# Test files: allow assert (S101), /tmp paths (S108), subprocess (S603/S607)
+"test/**" = ["S101", "S108", "S603", "S607"]
+"test_*" = ["S101", "S108", "S603", "S607"]
+# CI scripts: allow /tmp defaults (S108), urllib (S310), subprocess (S603/S607)
+"scripts/**" = ["S108", "S310", "S603", "S607"]
+
+[format]
+quote-style = "double"

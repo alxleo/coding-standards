@@ -5,7 +5,54 @@ set unstable := true
 
 pre-commit-config := "lint-configs-626465/.pre-commit-config.yaml"
 
-# ── Lint ────────────────────────────────────────────────────
+# ── Docker lint (MegaLinter) ────────────────────────────────
+# Primary lint path — runs the same image as CI
+
+image := "coding-standards:prototype"
+
+[doc('Run full MegaLinter suite via Docker')]
+[group('docker-lint')]
+docker-lint:
+    docker run --rm -v "$PWD:/tmp/lint" {{ image }}
+
+[doc('Run MegaLinter with auto-fix enabled')]
+[group('docker-lint')]
+docker-lint-fix:
+    docker run --rm -v "$PWD:/tmp/lint" -e APPLY_FIXES=all {{ image }}
+
+[doc('Run a single linter (e.g. just docker-lint-only BASH_SHELLCHECK)')]
+[group('docker-lint')]
+docker-lint-only linter:
+    docker run --rm -v "$PWD:/tmp/lint" -e ENABLE_LINTERS={{ linter }} {{ image }}
+
+[doc('Show results from last MegaLinter run (no re-run)')]
+[group('docker-lint')]
+docker-lint-report:
+    @python3 -c "\
+    import json, sys; \
+    r = json.load(open('megalinter-reports/mega-linter-report.json')); \
+    blockers = [l for l in r['linters'] if l['return_code'] != 0]; \
+    warns = [l for l in r['linters'] if l['return_code'] == 0 and l.get('total_number_errors', 0) > 0]; \
+    passing = [l for l in r['linters'] if l['return_code'] == 0 and l.get('total_number_errors', 0) == 0]; \
+    print(f'BLOCKING ({len(blockers)}):'); \
+    [print(f'  ❌ {l[\"name\"]:35s} {l.get(\"total_number_errors\",0)} errors') for l in blockers]; \
+    print(f'WARNINGS ({len(warns)}):'); \
+    [print(f'  ⚠️  {l[\"name\"]:35s} {l.get(\"total_number_errors\",0)} issues') for l in warns]; \
+    print(f'PASSING ({len(passing)}):'); \
+    [print(f'  ✅ {l[\"name\"]}') for l in passing]; \
+    "
+
+[doc('Show detailed errors for a specific linter from last run')]
+[group('docker-lint')]
+docker-lint-errors linter:
+    @python3 -c "\
+    import json; \
+    r = json.load(open('megalinter-reports/mega-linter-report.json')); \
+    matches = [l for l in r['linters'] if '{{ linter }}'.upper() in l['name']]; \
+    [print(f'{l[\"name\"]}: {l[\"status\"]} ({l.get(\"total_number_errors\",0)} errors)\n') for l in matches]; \
+    " && cat megalinter-reports/linters_logs/*{{ linter }}* 2>/dev/null || echo "No log found for {{ linter }}"
+
+# ── Pre-commit lint (legacy) ───────────────────────────────
 
 [doc('Run the full lint suite locally (mirrors CI)')]
 [group('lint')]

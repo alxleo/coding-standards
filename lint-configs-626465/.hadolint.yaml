@@ -10,3 +10,6 @@ trustedRegistries:
 failure-threshold: warning
 
 strict-labels: true
+
+ignored:
+  - DL3059  # Multiple consecutive RUN — intentional for layer caching

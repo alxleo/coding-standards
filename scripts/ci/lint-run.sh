@@ -16,7 +16,7 @@ rc=${PIPESTATUS[0]}
 echo "::endgroup::"
 
 # Record outcome for summary.sh and report-statuses.sh
-if [ $rc -eq 0 ]; then
+if [ "$rc" -eq 0 ]; then
   echo "success" > "${logdir}/${logkey}.outcome"
 else
   echo "failure" > "${logdir}/${logkey}.outcome"
@@ -48,4 +48,4 @@ else
         fi
       done
 fi
-exit $rc
+exit "$rc"

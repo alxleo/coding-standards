@@ -1,14 +1,16 @@
 {
-  "threshold": 5,
-  "min-lines": 10,
-  "min-tokens": 50,
-  "format": ["yaml", "markup"],
+  "threshold": 10,
+  "minLines": 15,
+  "minTokens": 70,
   "ignore": [
     "**/node_modules/**",
     "**/.terraform/**",
     "**/vendor/**",
     "**/*.lock",
-    "**/package-lock.json"
+    "**/package-lock.json",
+    "**/megalinter-reports/**",
+    "**/test/**",
+    "**/*.baseline.*"
   ],
   "absolute": true,
   "gitignore": true

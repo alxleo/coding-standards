@@ -1,0 +1,21 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "packageRules": [
+    {
+      "description": "Pin Docker image digests and auto-update",
+      "matchDatasources": ["docker"],
+      "pinDigests": true
+    },
+    {
+      "description": "Group all npm tool updates",
+      "matchManagers": ["npm"],
+      "groupName": "npm tools"
+    },
+    {
+      "description": "Trivy: pin to pre-compromise versions only",
+      "matchPackageNames": ["ghcr.io/aquasecurity/trivy"],
+      "allowedVersions": "<=0.69.3"
+    }
+  ]
+}

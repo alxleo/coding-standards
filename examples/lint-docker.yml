@@ -1,0 +1,48 @@
+# Example consumer workflow — MegaLinter Docker image
+# Drop this into .github/workflows/lint.yml or .gitea/workflows/lint.yml
+name: Lint
+
+on:
+  push:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history for gitleaks + commitlint
+
+      - name: Lint
+        run: |
+          docker run --rm \
+            -v "$PWD:/tmp/lint" \
+            ghcr.io/alxleo/coding-standards:latest
+
+      - name: Post commit statuses
+        if: always()
+        env:
+          GITEA_URL: ${{ vars.GITEA_URL || '' }}
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN || '' }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 <(curl -fsSL https://raw.githubusercontent.com/alxleo/coding-standards/main/scripts/report-statuses.py) \
+            megalinter-reports/mega-linter-report.json
+
+      # Optional: auto-fix and push
+      # - name: Lint (auto-fix)
+      #   run: |
+      #     docker run --rm \
+      #       -v "$PWD:/tmp/lint" \
+      #       -e APPLY_FIXES=all \
+      #       ghcr.io/alxleo/coding-standards:latest
+      # - uses: stefanzweifel/git-auto-commit-action@v5
+      #   with:
+      #     commit_message: "style: auto-fix lint issues"

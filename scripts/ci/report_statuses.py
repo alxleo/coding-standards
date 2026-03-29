@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -45,7 +46,7 @@ def get_step_urls() -> dict[str, str]:
     run_id = os.environ["RUN_ID"]
 
     jobs_data = api_request(f"{api_url}/repos/{repo}/actions/runs/{run_id}/jobs")
-    if not jobs_data or not jobs_data.get("jobs"):
+    if not isinstance(jobs_data, dict) or not jobs_data.get("jobs"):
         return {}
 
     # Find the first job whose name contains "Lint"
@@ -104,9 +105,8 @@ def post_status(
     )
 
     status_msg = "OK" if result else "FAILED"
-    print(
-        f"  Posted status: {payload['context']} -> {state} ({description}) [{status_msg}]"
-    )
+    ctx = payload["context"]
+    print(f"  Posted status: {ctx} -> {state} ({description}) [{status_msg}]")
 
 
 def main() -> None:
