@@ -6,7 +6,7 @@ import importlib.util
 import re
 import subprocess
 import sys
-from datetime import date, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 # Import the hyphenated module via importlib
@@ -17,8 +17,10 @@ _spec = importlib.util.spec_from_file_location(
 check_expiry = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(check_expiry)
 
-SCRIPT = str(Path(__file__).resolve().parent.parent / "scripts" / "ci" / "check-expiry.py")
-TODAY = date.today()
+SCRIPT = str(
+    Path(__file__).resolve().parent.parent / "scripts" / "ci" / "check-expiry.py"
+)
+TODAY = datetime.now(tz=UTC).date()
 PAST = TODAY - timedelta(days=30)
 FUTURE = TODAY + timedelta(days=30)
 
@@ -95,6 +97,7 @@ class TestCustomPattern:
             ],
             capture_output=True,
             text=True,
+            check=False,
         )
         assert result.returncode == 1
         assert "expired marker" in result.stdout

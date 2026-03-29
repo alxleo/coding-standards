@@ -22,6 +22,7 @@ def _run(report_path: str, env: dict | None = None) -> subprocess.CompletedProce
         capture_output=True,
         text=True,
         env=env,
+        check=False,
     )
 
 
