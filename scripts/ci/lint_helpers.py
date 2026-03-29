@@ -21,11 +21,11 @@ def parse_groups(
     """Parse groups.conf into (logkey, display, context, step) tuples."""
     groups = []
     with open(conf_path) as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#"):
+        for raw_line in f:
+            stripped = raw_line.strip()
+            if not stripped or stripped.startswith("#"):
                 continue
-            parts = line.split("|")
+            parts = stripped.split("|")
             if len(parts) == 4:
                 groups.append((parts[0], parts[1], parts[2], parts[3]))
     return groups

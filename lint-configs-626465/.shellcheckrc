@@ -8,5 +8,11 @@ enable=check-extra-masked-returns
 # Flag `which` — use `command -v` instead (POSIX, reliable).
 enable=deprecate-which
 
+# Functions in || conditions silently lose set -e, swallowing failures.
+enable=check-set-e-suppressed
+
+# case statements without *) default — silent no-ops are worse than loud failures.
+enable=add-default-case
+
 # Follow source directives so sourced files get checked too.
 external-sources=true

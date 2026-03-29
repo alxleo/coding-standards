@@ -151,6 +151,7 @@ JSON_V8R_ARGUMENTS:
 # auto = server-curated community rules. Local path = shipped in image.
 REPOSITORY_SEMGREP_RULESETS:
   - auto
+  - p/trailofbits
   - /opt/coding-standards/semgrep-rules/
 
 # ── Formatting / style ────────────────────────────────────────

@@ -13,7 +13,7 @@ Output: file:line: marker expired (was YYYY-MM-DD, today is YYYY-MM-DD)
 import argparse
 import re
 import sys
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 DEFAULT_PATTERNS = [
@@ -50,7 +50,7 @@ def main():
     raw_patterns = args.pattern or DEFAULT_PATTERNS
     patterns = [re.compile(p) for p in raw_patterns]
     extensions = set(args.ext.split(","))
-    today = date.today()
+    today = datetime.now(tz=UTC).date()
     findings = []
 
     for d in args.dirs:

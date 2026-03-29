@@ -61,8 +61,7 @@ def main() -> None:
                 f.write("### :x: coding-standards \u2014 failures detected\n\n")
                 f.write("| Status | Check | Detail |\n")
                 f.write("|--------|-------|--------|\n")
-                for row in summary_rows:
-                    f.write(row + "\n")
+                f.writelines(row + "\n" for row in summary_rows)
                 f.write("\n")
 
                 # Write error details per group
