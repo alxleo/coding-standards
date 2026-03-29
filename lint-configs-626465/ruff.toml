@@ -22,14 +22,19 @@ select = [
   "RET",     # return style (unnecessary elif after return)
   "PLW1510", # subprocess.run without check= (unchecked exit codes)
   "PLW2901", # loop variable overwritten inside loop body
+  "T20",     # print statements (use logging in application code)
+  "PLR2004", # magic values (use named constants)
+  "PLC0415", # imports not at top of file
+  "ARG",     # unused function arguments
+  "FBT",     # boolean positional args (use keyword-only)
 ]
 
 [lint.per-file-ignores]
-# Test files: allow assert (S101), /tmp paths (S108), subprocess (S603/S607)
-"test/**" = ["S101", "S108", "S603", "S607"]
-"test_*" = ["S101", "S108", "S603", "S607"]
-# CI scripts: allow /tmp defaults (S108), urllib (S310), subprocess (S603/S607)
-"scripts/**" = ["S108", "S310", "S603", "S607"]
+# Test files: allow assert, /tmp, subprocess, magic values, unused args, imports
+"test/**" = ["S101", "S108", "S603", "S607", "PLR2004", "ARG", "PLC0415", "T20"]
+"test_*" = ["S101", "S108", "S603", "S607", "PLR2004", "ARG", "PLC0415", "T20"]
+# CI scripts: allow /tmp, urllib, subprocess, print (scripts ARE the interface)
+"scripts/**" = ["S108", "S310", "S603", "S607", "T20", "PLC0415"]
 
 [format]
 quote-style = "double"

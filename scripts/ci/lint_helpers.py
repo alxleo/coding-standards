@@ -19,6 +19,7 @@ def parse_groups(
     conf_path: str | Path,
 ) -> list[tuple[str, str, str, str]]:
     """Parse groups.conf into (logkey, display, context, step) tuples."""
+    expected_fields = 4  # logkey|display|context|step
     groups = []
     with open(conf_path) as f:
         for raw_line in f:
@@ -26,7 +27,7 @@ def parse_groups(
             if not stripped or stripped.startswith("#"):
                 continue
             parts = stripped.split("|")
-            if len(parts) == 4:
+            if len(parts) == expected_fields:
                 groups.append((parts[0], parts[1], parts[2], parts[3]))
     return groups
 

@@ -14,5 +14,9 @@ enable=check-set-e-suppressed
 # case statements without *) default — silent no-ops are worse than loud failures.
 enable=add-default-case
 
+# Require [[ ]] instead of [ ] in bash scripts (prevents word splitting bugs).
+# Only fires on #!/bin/bash scripts — #!/bin/sh scripts are unaffected.
+enable=require-double-brackets
+
 # Follow source directives so sourced files get checked too.
 external-sources=true
