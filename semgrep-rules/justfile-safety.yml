@@ -18,7 +18,7 @@ rules:
       Download to a file, verify checksum, then execute.
     languages: [generic]
     severity: ERROR
-    pattern-regex: 'curl\s.*\|\s*(ba)?sh'
+    pattern-regex: '^\s*[^#]*curl\s.*\|\s*(ba)?sh'
     paths:
       include:
         - justfile

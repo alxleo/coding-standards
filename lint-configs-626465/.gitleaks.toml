@@ -6,3 +6,8 @@ title = "coding-standards gitleaks baseline"
 
 [extend]
 useDefault = true
+
+[allowlist]
+paths = [
+  "megalinter-reports/",
+]
