@@ -8,3 +8,4 @@
 
 # npm (bats-core test runner)
 /node_modules/
+megalinter-reports/

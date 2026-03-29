@@ -1,0 +1,3 @@
+# Test fixtures — intentional fake AWS tokens used to validate gitleaks detection
+54dab8651e79aaa25e003538f9e8c12105ec6dd6:tests/fixtures/gitleaks.bad.txt:aws-access-token:1
+de4160a5545affff7e113cd2e7026ff3298dd5c4:tests/fixtures/gitleaks.bad.txt:aws-access-token:1

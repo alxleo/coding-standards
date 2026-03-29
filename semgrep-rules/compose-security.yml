@@ -1,0 +1,26 @@
+rules:
+  - id: no-privileged-containers
+    message: >
+      Do not use privileged: true. Use specific capabilities
+      (cap_add) or security_opt instead.
+    languages: [yaml]
+    severity: ERROR
+    pattern: |
+      privileged: true
+    paths:
+      include:
+        - "**/docker-compose*.yml"
+        - "**/compose*.yml"
+
+  - id: no-env-file-secrets
+    message: >
+      Do not use env_file to inject secrets. Use Docker secrets
+      or SOPS-encrypted environment variables instead.
+    languages: [yaml]
+    severity: WARNING
+    pattern: |
+      env_file: $FILE
+    paths:
+      include:
+        - "**/docker-compose*.yml"
+        - "**/compose*.yml"

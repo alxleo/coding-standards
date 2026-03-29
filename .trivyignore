@@ -1,0 +1,11 @@
+# Trivy ignores for this Dockerfile
+# MegaLinter base image runs as root (needs tool installation permissions)
+DS-0002
+# Linting image runs and exits — no HEALTHCHECK needed
+DS-0026
+# Go dependency CVEs in compiled binaries (conftest, trivy, gitleaks, etc.)
+# We can't rebuild upstream Go binaries — they need to update their Go version.
+# Remove entries as upstream tools release patched versions.
+CVE-2025-68121  # crypto/tls: session resumption (Go stdlib, fixed in 1.24.13+)
+CVE-2026-33186  # gRPC-Go: authorization bypass (fixed in 1.79.3)
+CVE-2024-45337  # golang.org/x/crypto/ssh: misuse (fixed in 0.31.0)

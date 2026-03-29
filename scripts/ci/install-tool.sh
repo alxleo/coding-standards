@@ -28,9 +28,9 @@ if [ -x "$BIN_DIR/$BINARY" ]; then
 fi
 
 # Expand ${VERSION} placeholders
-ARTIFACT=$(echo "$TOOL_ARTIFACT" | sed "s/\${VERSION}/$VERSION/g")
-BASE_URL=$(echo "$TOOL_URL" | sed "s/\${VERSION}/$VERSION/g")
-CHECKSUMS=$(echo "$TOOL_CHECKSUMS" | sed "s/\${VERSION}/$VERSION/g")
+ARTIFACT="${TOOL_ARTIFACT//\$\{VERSION\}/$VERSION}"
+BASE_URL="${TOOL_URL//\$\{VERSION\}/$VERSION}"
+CHECKSUMS="${TOOL_CHECKSUMS//\$\{VERSION\}/$VERSION}"
 
 mkdir -p "$BIN_DIR"
 cd /tmp

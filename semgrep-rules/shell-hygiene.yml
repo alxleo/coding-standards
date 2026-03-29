@@ -1,0 +1,29 @@
+rules:
+  - id: no-bare-python
+    message: >
+      Use 'uv run python3' instead of bare 'python3' to ensure
+      consistent virtual environment and dependency management.
+    languages: [generic]
+    severity: WARNING
+    pattern-regex: '(?:^|[\s;|&])(?:python3?)\s+[^-]'
+    paths:
+      include:
+        - "*.sh"
+      exclude:
+        - scripts/entrypoint.sh
+        - Dockerfile
+
+  - id: pin-npm-versions
+    message: >
+      npx invocations must pin a version (e.g., npx jscpd@4.0.8).
+      Unpinned npx pulls latest, which breaks reproducibility.
+    languages: [generic]
+    severity: WARNING
+    pattern-regex: '^\s*npx\s+(?:--yes\s+)?[a-z][a-z0-9-]+(?!\s*@|\s+--)'
+    paths:
+      include:
+        - "*.sh"
+      exclude:
+        - "*.yml"
+        - "*.yaml"
+        - Dockerfile

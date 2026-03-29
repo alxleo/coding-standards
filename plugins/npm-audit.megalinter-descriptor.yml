@@ -1,0 +1,21 @@
+descriptor_id: REPOSITORY
+descriptor_type: other
+lint_all_files: true
+linters:
+  - linter_name: npm-audit
+    name: REPOSITORY_NPM_AUDIT
+    descriptor_flavors:
+      - cupcake
+    cli_lint_mode: project
+    linter_text: Check for known vulnerabilities in npm dependencies
+    linter_url: https://docs.npmjs.com/cli/v10/commands/npm-audit
+    cli_executable: npm
+    cli_lint_extra_args:
+      - audit
+      - --audit-level=high
+    cli_help_arg_name: help
+    cli_version_arg_name: --version
+    files_sub_directory: ""
+    file_extensions: []
+    active_only_if_file_found:
+      - package-lock.json

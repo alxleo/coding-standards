@@ -1,8 +1,53 @@
 # coding-standards
 
-**Project class: Reusable Workflow** — a reusable GitHub Actions workflow consumed by other repos via `uses: alxleo/coding-standards/.github/workflows/lint.yml@v1`. The product is centralized linting + security scanning that runs in CI, not on developer machines.
+**Project class: Lint Docker Image** — a MegaLinter-based Docker image consumed by repos via `docker run ghcr.io/alxleo/coding-standards`. Centralized linting + security scanning + type checking that runs identically in CI and locally.
 
-This repo contains **no repo lists, no secrets, no private information**. It is a public linting workflow.
+**Migration in progress:** The legacy reusable workflow (`lint.yml@v1`) is being replaced by the Docker image. Both exist during transition. See `docs/megalinter-migration-plan.md` for the full plan and `docs/config-decisions.md` for rationale.
+
+This repo contains **no repo lists, no secrets, no private information**. It is a public linting image.
+
+## Docker image (new architecture)
+
+Consumer repos run the image:
+```bash
+docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest
+docker run --rm -v $PWD:/tmp/lint -e APPLY_FIXES=all ghcr.io/alxleo/coding-standards:latest  # auto-fix
+docker run --rm -v $PWD:/tmp/lint -e ENABLE_LINTERS=PYTHON_RUFF ghcr.io/alxleo/coding-standards:latest  # single linter
+```
+
+The image:
+
+1. Auto-detects which linters apply based on files present
+2. Runs 34 linters (18 cupcake built-in + 12 custom plugins + 4 self-selecting)
+3. Uses allowlist activation (ENABLE_LINTERS) — no surprise linters on upgrades
+4. Two-tier blocking: security/correctness blocks, style/formatting warns
+5. Writes JSON report to `megalinter-reports/mega-linter-report.json`
+6. CI posts per-linter commit statuses from JSON report (works on Gitea + GitHub)
+
+### Key files (new architecture)
+
+- `Dockerfile` — cupcake base + custom tool installs (SHA-pinned)
+- `.mega-linter-default.yml` — complete baseline config (baked into image)
+- `plugins/` — 12 MegaLinter plugin descriptors for custom tools
+- `lint-configs-626465/` — linter config files (baked into image at `/opt/coding-standards/configs/`)
+- `scripts/report-statuses.py` — reads JSON report, posts Gitea/GitHub commit statuses
+- `.github/workflows/docker-build.yml` — builds + pushes image to GHCR
+- `examples/lint-docker.yml` — example consumer workflow
+- `docs/megalinter-migration-plan.md` — full migration plan
+- `docs/config-decisions.md` — every decision with rationale
+- `renovate.json` — automates SHA-pin updates
+
+### Local development
+
+```bash
+just docker-lint              # full suite
+just docker-lint-fix          # with auto-fix
+just docker-lint-only PYTHON_RUFF  # single linter
+just docker-lint-report       # show results from last run (no re-run)
+just docker-lint-errors ruff  # detailed errors for one linter
+```
+
+## Legacy reusable workflow
 
 ## How it works
 

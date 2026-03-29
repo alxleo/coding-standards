@@ -1,0 +1,25 @@
+descriptor_id: REPOSITORY
+descriptor_type: other
+lint_all_files: true
+linters:
+  - linter_name: zizmor
+    name: REPOSITORY_ZIZMOR
+    descriptor_flavors:
+      - cupcake
+    cli_lint_mode: project
+    linter_text: Security scanner for GitHub Actions workflows
+    linter_url: https://github.com/woodruffw/zizmor
+    cli_executable: zizmor
+    cli_lint_extra_args:
+      - .
+    cli_help_arg_name: --help
+    cli_version_arg_name: --version
+    files_sub_directory: ""
+    # Note: directory-based activation doesn't work (os.path.isfile only).
+    # Zizmor activates via ENABLE_LINTERS. It gracefully handles repos without workflows.
+    file_extensions:
+      - .yml
+      - .yaml
+    file_names_regex:
+      - (^|/)\.github/workflows/.*\.ya?ml$
+      - (^|/)\.gitea/workflows/.*\.ya?ml$

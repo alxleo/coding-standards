@@ -61,17 +61,15 @@ def main() -> None:
                 f.write("### :x: coding-standards \u2014 failures detected\n\n")
                 f.write("| Status | Check | Detail |\n")
                 f.write("|--------|-------|--------|\n")
-                for row in summary_rows:
-                    f.write(row + "\n")
+                f.writelines(row + "\n" for row in summary_rows)
                 f.write("\n")
 
                 # Write error details per group
                 for logfile in sorted(LOGDIR.glob("*.log")):
                     errors = extract_errors(logfile)
                     if errors:
-                        f.write(
-                            f"<details><summary><b>{logfile.stem}</b> errors</summary>\n\n"
-                        )
+                        name = logfile.stem
+                        f.write(f"<details><summary><b>{name}</b> errors</summary>\n\n")
                         f.write("```\n")
                         for line in errors:
                             f.write(line + "\n")

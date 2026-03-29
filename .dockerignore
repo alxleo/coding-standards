@@ -1,0 +1,14 @@
+# Build context exclusions — keep the Docker build fast and small
+.git
+.github
+node_modules
+megalinter-reports
+test
+docs
+examples
+*.md
+!CLAUDE.md
+.pre-commit-config.yaml
+.claude
+.coding-standards
+pyrightconfig.json
