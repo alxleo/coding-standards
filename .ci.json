@@ -1,0 +1,17 @@
+{
+  "test_commands": [
+    "trivy --version",
+    "pmd --version",
+    "caddy version",
+    "just --version",
+    "conftest --version",
+    "npx commitlint --version || true",
+    "pyright --version",
+    "zizmor --version",
+    "knip --version",
+    "dclint --version",
+    "tsc --version",
+    "depcruise --version",
+    "license-checker --version || true"
+  ]
+}

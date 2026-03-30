@@ -21,3 +21,4 @@ runs:
   image: docker://ghcr.io/alxleo/coding-standards:latest
   env:
     APPLY_FIXES: ${{ inputs.apply-fixes }}
+    DEFAULT_WORKSPACE: ${{ github.workspace }}

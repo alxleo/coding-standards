@@ -43,6 +43,7 @@ repos:
     rev: v1.22.0
     hooks:
       - id: zizmor
+        args: ["-c", ".zizmor.yml"]
 
   # ── Markdown linting ───────────────────────────────────────
   - repo: https://github.com/DavidAnson/markdownlint-cli2
