@@ -1,12 +1,12 @@
-# coding-standards Docker action — runs the MegaLinter image in CI.
+# coding-standards lint action — runs the MegaLinter image in CI.
 #
-# Works on both GitHub Actions and Gitea Actions without Docker-in-Docker.
-# The runner pulls and runs the container natively.
+# Works on both GitHub Actions and Gitea Actions.
+# Uses composite action with docker run (more portable than using: docker).
 #
 # Usage:
-#   - uses: alxleo/coding-standards/action-docker@main
+#   - uses: alxleo/coding-standards/docker-action@main
 #     with:
-#       apply-fixes: 'false'
+#       apply-fixes: 'all'
 name: coding-standards-lint
 description: Run centralized MegaLinter linting via Docker container
 
@@ -15,10 +15,22 @@ inputs:
     description: "Set to 'all' to auto-fix formatting issues"
     required: false
     default: "none"
+  image:
+    description: "Docker image to use"
+    required: false
+    default: "ghcr.io/alxleo/coding-standards:latest"
 
 runs:
-  using: docker
-  image: docker://ghcr.io/alxleo/coding-standards:latest
-  env:
-    APPLY_FIXES: ${{ inputs.apply-fixes }}
-    DEFAULT_WORKSPACE: ${{ github.workspace }}
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        CS_IMAGE: ${{ inputs.image }}
+        CS_APPLY_FIXES: ${{ inputs.apply-fixes }}
+        CS_WORKSPACE: ${{ github.workspace }}
+      run: |
+        docker run --rm \
+          -v "${CS_WORKSPACE}:/tmp/lint" \
+          -e DEFAULT_WORKSPACE=/tmp/lint \
+          -e APPLY_FIXES="${CS_APPLY_FIXES}" \
+          "${CS_IMAGE}"
