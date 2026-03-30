@@ -1,0 +1,23 @@
+# coding-standards Docker action — runs the MegaLinter image in CI.
+#
+# Works on both GitHub Actions and Gitea Actions without Docker-in-Docker.
+# The runner pulls and runs the container natively.
+#
+# Usage:
+#   - uses: alxleo/coding-standards/action-docker@main
+#     with:
+#       apply-fixes: 'false'
+name: coding-standards-lint
+description: Run centralized MegaLinter linting via Docker container
+
+inputs:
+  apply-fixes:
+    description: "Set to 'all' to auto-fix formatting issues"
+    required: false
+    default: "none"
+
+runs:
+  using: docker
+  image: docker://ghcr.io/alxleo/coding-standards:latest
+  env:
+    APPLY_FIXES: ${{ inputs.apply-fixes }}
