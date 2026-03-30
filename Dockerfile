@@ -113,12 +113,9 @@ RUN chmod +x /opt/coding-standards/scripts/check-drift.sh
 # LINTER_RULES_PATH in .mega-linter.yml points here
 COPY lint-configs-626465/ /opt/coding-standards/configs/
 
-# ── Default config + smart entrypoint ─────────────────────────
-# Entrypoint checks: if workspace has .mega-linter.yml, use it.
-# Otherwise use the baked default. Zero flags for consumers.
+# ── Default config ────────────────────────────────────────────
+# Baked config used when no workspace .mega-linter.yml exists.
+# Consumer repos use EXTENDS with a raw GitHub URL to inherit this:
+#   EXTENDS: https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml
+# No custom entrypoint — MegaLinter's default config discovery handles everything.
 COPY .mega-linter-default.yml /opt/coding-standards/.mega-linter.yml
-COPY scripts/entrypoint.sh /opt/coding-standards/entrypoint.sh
-RUN chmod +x /opt/coding-standards/entrypoint.sh
-# MegaLinter base runs as root (needs tool install permissions at runtime for plugins)
-# nosemgrep: dockerfile.security.missing-user-entrypoint.missing-user-entrypoint
-ENTRYPOINT ["/opt/coding-standards/entrypoint.sh"]
