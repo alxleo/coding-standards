@@ -2,6 +2,8 @@
 
 ## Quick start
 
+### CI workflow (Gitea + GitHub Actions)
+
 ```yaml
 # .github/workflows/lint.yml (or .gitea/workflows/lint.yml)
 name: Lint
@@ -13,10 +15,31 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - run: docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest
+      - uses: alxleo/coding-standards/docker-action@main
 ```
 
-That's it. The image auto-detects which linters apply based on files in your repo.
+### Inherit the baseline config
+
+Add a `.mega-linter.yml` to your repo root:
+
+```yaml
+EXTENDS:
+  - https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml
+
+# Override what you need — your keys win over the baseline
+ENABLE_LINTERS:
+  - BASH_SHELLCHECK
+  - PYTHON_RUFF
+  - YAML_YAMLLINT
+  # ... add what your repo needs
+
+# Use your repo's own linter config
+PYTHON_RUFF_CONFIG_FILE: ruff.toml
+```
+
+Without a `.mega-linter.yml`, the image runs with its baked defaults (all 41 linters, baseline configs).
+
+The image auto-detects which linters apply based on files in your repo.
 
 ## What runs
 
