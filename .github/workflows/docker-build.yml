@@ -108,24 +108,15 @@ jobs:
             --scanners vuln \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ci-test
 
-      # Smoke test — verify all custom tools are installed and working
+      # Smoke test — verify all custom tools from .ci.json
       - name: Smoke test
         run: |
           img="${REGISTRY}/${IMAGE_NAME}:ci-test"
           echo "Testing tool availability..."
-          docker run --rm --entrypoint="" "$img" trivy --version
-          docker run --rm --entrypoint="" "$img" pmd --version
-          docker run --rm --entrypoint="" "$img" caddy version
-          docker run --rm --entrypoint="" "$img" just --version
-          docker run --rm --entrypoint="" "$img" conftest --version
-          docker run --rm --entrypoint="" "$img" npx commitlint --version  # npx inside image (version pinned in Dockerfile)
-          docker run --rm --entrypoint="" "$img" pyright --version
-          docker run --rm --entrypoint="" "$img" zizmor --version
-          docker run --rm --entrypoint="" "$img" knip --version
-          docker run --rm --entrypoint="" "$img" dclint --version
-          docker run --rm --entrypoint="" "$img" tsc --version
-          docker run --rm --entrypoint="" "$img" depcruise --version
-          docker run --rm --entrypoint="" "$img" license-checker --version || true  # exits 1 despite printing version
+          jq -r '.test_commands[]' .ci.json | while IFS= read -r cmd; do
+            echo "  → $cmd"
+            docker run --rm --entrypoint="" "$img" sh -c "$cmd"
+          done
           echo "All tools verified."
 
       # Push only after scan + smoke test pass, and only on non-PR builds
