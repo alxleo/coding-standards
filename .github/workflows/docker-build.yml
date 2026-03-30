@@ -36,7 +36,8 @@ on:
 
 concurrency:
   group: docker-${{ github.ref }}
-  cancel-in-progress: true
+  # Only cancel in-progress on PRs — don't cancel main pushes or tag releases
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -45,6 +46,7 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: alxleo/coding-standards
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
@@ -55,16 +57,23 @@ jobs:
       github.event.pull_request.user.type != 'Bot'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
 
+      # BuildKit image mirrored to GHCR — avoids Docker Hub rate limits entirely.
+      # docker.io mirror via mirror.gcr.io for base image pulls.
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
+        with:
+          driver-opts: image=ghcr.io/alxleo/buildkit:v0.20.2
+          buildkitd-config-inline: |
+            [registry."docker.io"]
+              mirrors = ["mirror.gcr.io"]
 
       - name: Log in to GHCR
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -84,29 +93,27 @@ jobs:
 
       # Build locally first (don't push yet) — scan + test before push
       - name: Build image
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
         with:
           context: .
           load: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ci-test
-          cache-from: type=gha
+          cache-from: type=gha,scope=coding-standards
           # Only export cache on non-PR builds (PR cache export wastes 60-120s)
-          cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,mode=min' || '' }}
+          cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,scope=coding-standards,mode=min' || '' }}
 
-      # Scan the built image for vulnerabilities before pushing
-      # .trivyignore covers Go stdlib CVEs in upstream binaries we can't rebuild
-      - name: Trivy image scan
-        run: |
-          docker run --rm \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            -v "$PWD/.trivyignore:/root/.trivyignore" \
-            ghcr.io/aquasecurity/trivy:0.69.3 image \
-            --severity CRITICAL \
-            --ignore-unfixed \
-            --ignorefile /root/.trivyignore \
-            --exit-code 1 \
-            --scanners vuln \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ci-test
+      # Trivy vulnerability scan — uses the action (installs binary on runner)
+      # instead of docker run (which pulls the 600MB trivy image every time).
+      # .trivyignore covers Go stdlib CVEs in upstream binaries we can't rebuild.
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ci-test
+          exit-code: '1'
+          severity: CRITICAL
+          ignore-unfixed: true
+          scanners: vuln
+          trivyignores: .trivyignore
 
       # Smoke test — verify all custom tools from .ci.json
       - name: Smoke test
@@ -119,13 +126,16 @@ jobs:
           done
           echo "All tools verified."
 
-      # Push only after scan + smoke test pass, and only on non-PR builds
+      # Push via docker tag + push (no second buildx build needed).
+      # The image is already loaded in the daemon from the build step.
       - name: Push image
         if: github.event_name != 'pull_request'
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          LABELS: ${{ steps.meta.outputs.labels }}
+        run: |
+          echo "$TAGS" | while IFS= read -r tag; do
+            [ -z "$tag" ] && continue
+            docker tag "${REGISTRY}/${IMAGE_NAME}:ci-test" "$tag"
+            docker push "$tag"
+          done
