@@ -1,13 +1,14 @@
-name: Gate
+# This workflow exists solely to enable "require branch up-to-date before merge"
+# in GitHub rulesets. GitHub can't enforce that without at least one required
+# status check — this is that check. It does nothing else.
+name: Merge gate
 
 on:
   pull_request:
     branches: [main]
 
-permissions: {}
-
 jobs:
-  gate:
+  branch-up-to-date:
     runs-on: ubuntu-latest
     steps:
       - run: exit 0
