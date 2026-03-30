@@ -66,7 +66,7 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 
 - MegaLinter's EXTENDS mechanism **merges** arrays instead of replacing them.
 - A consumer setting `REPOSITORY_SEMGREP_RULESETS: [auto]` gets `[auto, p/trailofbits, /opt/.../semgrep-rules/, auto]` — duplicated and with corrupted relative paths.
-- Consumer repos should NOT override array-valued keys that contain absolute image paths. Either omit (inherit baseline) or replace completely with only workspace-relative values.
+- Consumer repos should NOT override array-valued keys containing absolute image paths when using EXTENDS. Either omit (inherit baseline as-is) or stop using EXTENDS and copy the baseline config locally.
 
 ### Added from audit
 
