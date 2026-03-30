@@ -104,10 +104,12 @@ jobs:
           # Only export cache on non-PR builds (PR cache export wastes 60-120s)
           cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,scope=coding-standards,mode=min' || '' }}
 
-      # Trivy vulnerability scan — uses the action (installs binary on runner)
-      # instead of docker run (which pulls the 600MB trivy image every time).
-      # .trivyignore covers Go stdlib CVEs in upstream binaries we can't rebuild.
+      # Trivy vulnerability scan — only on schedule and release tags.
+      # Skipped on PRs and branch pushes: CVEs are in the base image (not our
+      # code), upstream fixes require .trivyignore churn, and the scan adds
+      # ~2.5 min. The daily scheduled build catches new CVEs.
       - name: Trivy vulnerability scan
+        if: github.event_name == 'schedule' || github.ref_type == 'tag'
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ci-test
