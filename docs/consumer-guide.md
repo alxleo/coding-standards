@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: alxleo/coding-standards/docker-action@main
+      - uses: alxleo/coding-standards/docker-action@v1
 ```
 
 ### Inherit the baseline config
@@ -24,6 +24,7 @@ Add a `.mega-linter.yml` to your repo root:
 
 ```yaml
 EXTENDS:
+  # Tracks main for automatic updates. Pin to a tag (e.g. /v1/) for strict reproducibility.
   - https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml
 
 # Override what you need — your keys win over the baseline
@@ -54,7 +55,7 @@ Two-tier blocking:
 
 ### Override the config
 
-Drop a `.mega-linter.yml` in your repo root. The image auto-detects it (smart entrypoint).
+Drop a `.mega-linter.yml` in your repo root. MegaLinter natively discovers it.
 
 ```yaml
 # .mega-linter.yml — consumer overrides

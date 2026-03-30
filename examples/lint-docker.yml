@@ -2,7 +2,8 @@
 # Drop this into .github/workflows/lint.yml or .gitea/workflows/lint.yml
 #
 # Prerequisites:
-#   1. Add .mega-linter.yml to your repo root with EXTENDS URL (see consumer-guide.md)
+#   1. Add .mega-linter.yml to your repo root with EXTENDS URL
+#      (see https://github.com/alxleo/coding-standards/blob/main/docs/consumer-guide.md)
 #   2. Optionally add your own ruff.toml, .yamllint, etc. for per-repo overrides
 name: Lint
 
@@ -24,10 +25,10 @@ jobs:
           fetch-depth: 0 # full history for gitleaks + commitlint
 
       # Standard linting — inherits config via EXTENDS URL in .mega-linter.yml
-      - uses: alxleo/coding-standards/docker-action@main
+      - uses: alxleo/coding-standards/docker-action@v1
 
       # Optional: auto-fix and push
-      # - uses: alxleo/coding-standards/docker-action@main
+      # - uses: alxleo/coding-standards/docker-action@v1
       #   with:
       #     apply-fixes: 'all'
       # - uses: stefanzweifel/git-auto-commit-action@v5

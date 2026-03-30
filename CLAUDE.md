@@ -14,7 +14,7 @@ Consumer repos use the composite action:
 # .github/workflows/lint.yml
 steps:
   - uses: actions/checkout@v4
-  - uses: alxleo/coding-standards/docker-action@main
+  - uses: alxleo/coding-standards/docker-action@v1
 ```
 
 Consumer repos inherit the baseline config via EXTENDS URL in their `.mega-linter.yml`:
