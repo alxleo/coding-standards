@@ -1,0 +1,72 @@
+rules:
+  - id: test-over-mocking
+    patterns:
+      - pattern: |
+          @patch(...)
+          @patch(...)
+          @patch(...)
+          @patch(...)
+          def $FUNC(...):
+              ...
+    message: >
+      Test $FUNC uses 4+ @patch decorators. Tests that mock everything
+      verify mocks, not code. Consider testing with fewer mocks or using
+      integration tests.
+    languages: [python]
+    severity: WARNING
+    paths:
+      include:
+        - "test*"
+        - "tests*"
+    metadata:
+      category: test-quality
+      technology: [python]
+
+  - id: test-mock-call-count
+    pattern: assert $MOCK.call_count == $N
+    message: >
+      Asserting exact call count is brittle — breaks on any refactor.
+      Test the behavior (output, side effects) instead of how many
+      times something was called.
+    languages: [python]
+    severity: WARNING
+    paths:
+      include:
+        - "test*"
+        - "tests*"
+    metadata:
+      category: test-quality
+      technology: [python]
+
+  - id: test-mock-assert-called-with-literals
+    pattern: $MOCK.assert_called_with("...", ...)
+    message: >
+      assert_called_with verifies implementation details (exact args).
+      Prefer testing the observable outcome instead of how the code
+      internally calls its dependencies.
+    languages: [python]
+    severity: INFO
+    paths:
+      include:
+        - "test*"
+        - "tests*"
+    metadata:
+      category: test-quality
+      technology: [python]
+
+  - id: test-hardcoded-dict-assertion
+    patterns:
+      - pattern: |
+          assert $X == {$K1: $V1, $K2: $V2, $K3: $V3, $K4: $V4, $K5: $V5, ...}
+    message: >
+      Large hardcoded dict assertion is likely tautological — copied from
+      a single run. Test specific properties or use snapshot testing.
+    languages: [python]
+    severity: WARNING
+    paths:
+      include:
+        - "test*"
+        - "tests*"
+    metadata:
+      category: test-quality
+      technology: [python]
