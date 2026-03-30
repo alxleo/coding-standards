@@ -38,7 +38,7 @@ concurrency:
   group: docker-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
+permissions: # zizmor: ignore[excessive-permissions] — single-job workflow, packages:write needed for push step
   contents: read
   packages: write
 
