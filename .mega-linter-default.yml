@@ -32,6 +32,8 @@ ENABLE_LINTERS:
   - EDITORCONFIG_EDITORCONFIG_CHECKER
   # Copy-paste (PMD-CPD replaces jscpd — 50x faster)
   - COPYPASTE_PMD_CPD
+  # Spelling
+  - SPELL_CODESPELL
   # Links
   - SPELL_LYCHEE
   # Secrets
@@ -89,6 +91,7 @@ DISABLE_ERRORS_LINTERS:
   - EDITORCONFIG_EDITORCONFIG_CHECKER
   - CSS_STYLELINT
   - SPELL_LYCHEE
+  - SPELL_CODESPELL
   - JSON_V8R
   - YAML_V8R
   - DOCKERFILE_DCLINT
@@ -149,6 +152,12 @@ YAML_V8R_ARGUMENTS:
 JSON_V8R_ARGUMENTS:
   - "--config"
   - "/opt/coding-standards/configs/.v8rrc.yml"
+
+# Codespell: spell checking for code comments, strings, identifiers
+SPELL_CODESPELL_CONFIG_FILE: /opt/coding-standards/configs/.codespellrc
+SPELL_CODESPELL_ARGUMENTS:
+  - "--config"
+  - "/opt/coding-standards/configs/.codespellrc"
 
 # Semgrep: auto ruleset + centralized custom rules
 # auto = server-curated community rules. Local path = shipped in image.
