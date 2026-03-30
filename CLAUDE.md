@@ -95,11 +95,7 @@ just docker-lint-report       # show results from last run (no re-run)
 just docker-lint-errors ruff  # detailed errors for one linter
 ```
 
-## Legacy reusable workflow (being replaced)
-
 ## Legacy reusable workflow
-
-## How it works
 
 Consumer repos add a short workflow stub. The reusable workflow:
 
