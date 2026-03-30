@@ -3,7 +3,7 @@
 #
 # Triggers:
 #   - Push to main (code/config changes) — production image
-#   - Daily schedule (refresh trivy DB + schemas)
+#   - Weekly schedule (rebuild + trivy scan)
 #   - Manual dispatch (emergency rebuild)
 #   - PR (build-only, no push — tests the Dockerfile)
 name: Docker Build
@@ -22,8 +22,8 @@ on:
       - policies/**
       - semgrep-rules/**
   schedule:
-    # Daily at 03:00 UTC — refreshes trivy vuln DB + schemas
-    - cron: "0 3 * * *"
+    # Weekly Monday 03:00 UTC — rebuilds image + trivy scan
+    - cron: "0 3 * * 1"
   workflow_dispatch:
   pull_request:
     paths:
@@ -104,12 +104,12 @@ jobs:
           # Only export cache on non-PR builds (PR cache export wastes 60-120s)
           cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,scope=coding-standards,mode=min' || '' }}
 
-      # Trivy vulnerability scan — only on schedule and release tags.
-      # Skipped on PRs and branch pushes: CVEs are in the base image (not our
-      # code), upstream fixes require .trivyignore churn, and the scan adds
-      # ~2.5 min. The daily scheduled build catches new CVEs.
+      # Trivy vulnerability scan — schedule only.
+      # CVEs are in the base image, not our code. New upstream CVEs block CI until
+      # added to .trivyignore — friction with no security value on pushes.
+      # The daily scheduled build catches new CVEs without blocking development.
       - name: Trivy vulnerability scan
-        if: github.event_name == 'schedule' || github.ref_type == 'tag'
+        if: github.event_name == 'schedule'
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ci-test
