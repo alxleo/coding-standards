@@ -73,12 +73,13 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 - Default: APPLY_FIXES=none (check only).
 - `-e APPLY_FIXES=all` to auto-fix. Explicit, no surprises.
 
-### Config paths: explicit for every linter
+### Config paths: `_CONFIG_FILE` only, never `_ARGUMENTS`
 
-- Every linter with a config file gets `_CONFIG_FILE` AND `_ARGUMENTS` pointing to baked path.
-- No reliance on auto-discovery — behavior is deterministic.
-- Consumer repos override specific linters via `<LINTER>_CONFIG_FILE` in their `.mega-linter.yml`.
-- Configs that don't have auto-discovery issues still get explicit paths for consistency.
+- Every linter with a config file gets `_CONFIG_FILE` pointing to baked path.
+- MegaLinter auto-passes `_CONFIG_FILE` as the correct CLI flag via `cli_config_arg_name` in each descriptor.
+- `_ARGUMENTS` with config paths is harmful: it short-circuits consumer `_CONFIG_FILE` overrides (MegaLinter sees the flag already in cmd and skips injection).
+- Consumer repos override via `<LINTER>_CONFIG_FILE: myconfig.toml` — one line, works correctly.
+- Exception: v8r uses cosmiconfig, not CLI flags. `_CONFIG_FILE` tells MegaLinter; v8r auto-discovers.
 
 ### Config distribution: baked + override
 
