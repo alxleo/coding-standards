@@ -47,6 +47,27 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 - Warn tier: false positives on domain terms (tool names, acronyms) would unfairly gate builds. Consumer repos promote to error if desired.
 - Already in cupcake base image — zero install cost.
 
+### Ruff categories: PIE, ISC, A, PGH, RSE
+
+- PIE: unnecessary spread, reimported names, no-op pass statements.
+- ISC: implicit string concatenation — catches accidental tuple-in-list. ISC001 excluded (conflicts with ruff formatter).
+- A: builtin shadowing (list, dict, type, id). LLMs do `id = container["Id"]` constantly.
+- PGH: blanket `# type: ignore` / `# noqa` without codes. Prevents suppression creep.
+- RSE: unnecessary parens in raise.
+- ANN not added: redundant with pyright. pyright infers+validates types; ANN only checks annotations exist.
+
+### Semgrep: bare-dict parameter/return rule
+
+- No existing tool flags `def foo(config: dict)`. Custom semgrep rule catches bare `dict` params and returns.
+- Prevents new instances of anonymous-dict patterns that lose all type information.
+- WARNING severity (doesn't block, guides toward TypedDict or dict[K, V]).
+
+### EXTENDS merges arrays (consumer gotcha)
+
+- MegaLinter's EXTENDS mechanism **merges** arrays instead of replacing them.
+- A consumer setting `REPOSITORY_SEMGREP_RULESETS: [auto]` gets `[auto, p/trailofbits, /opt/.../semgrep-rules/, auto]` — duplicated and with corrupted relative paths.
+- Consumer repos should NOT override array-valued keys that contain absolute image paths. Either omit (inherit baseline) or replace completely with only workspace-relative values.
+
 ### Added from audit
 
 - stylelint (CSS), sqlfluff (SQL), ansible-lint, kubeconform (K8s). All self-selecting.
