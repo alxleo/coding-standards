@@ -1,5 +1,10 @@
-# Example consumer workflow — MegaLinter Docker image
+# Example consumer workflow — coding-standards Docker image
 # Drop this into .github/workflows/lint.yml or .gitea/workflows/lint.yml
+#
+# Prerequisites:
+#   1. Add .mega-linter.yml to your repo root with EXTENDS URL
+#      (see https://github.com/alxleo/coding-standards/blob/main/docs/consumer-guide.md)
+#   2. Optionally add your own ruff.toml, .yamllint, etc. for per-repo overrides
 name: Lint
 
 on:
@@ -9,41 +14,23 @@ on:
 
 permissions:
   contents: read
-  statuses: write
 
 jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # full history for gitleaks + commitlint
 
-      - name: Lint
-        run: |
-          docker run --rm \
-            -v "$PWD:/tmp/lint" \
-            ghcr.io/alxleo/coding-standards:latest
-
-      - name: Post commit statuses
-        if: always()
-        env:
-          GITEA_URL: ${{ vars.GITEA_URL || '' }}
-          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN || '' }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Pin to a specific commit SHA — update when upgrading coding-standards
-          python3 <(curl -fsSL https://raw.githubusercontent.com/alxleo/coding-standards/651d42e6936cff71b1f76918526a67fccb0f6422/scripts/report-statuses.py) \
-            megalinter-reports/mega-linter-report.json
+      # Standard linting — inherits config via EXTENDS URL in .mega-linter.yml
+      - uses: alxleo/coding-standards/docker-action@v1
 
       # Optional: auto-fix and push
-      # - name: Lint (auto-fix)
-      #   run: |
-      #     docker run --rm \
-      #       -v "$PWD:/tmp/lint" \
-      #       -e APPLY_FIXES=all \
-      #       ghcr.io/alxleo/coding-standards:latest
+      # - uses: alxleo/coding-standards/docker-action@v1
+      #   with:
+      #     apply-fixes: 'all'
       # - uses: stefanzweifel/git-auto-commit-action@v5
       #   with:
       #     commit_message: "style: auto-fix lint issues"

@@ -7,8 +7,11 @@ on:
   pull_request:
     branches: [main]
 
+permissions: {}
+
 jobs:
   branch-up-to-date:
     runs-on: ubuntu-latest
+    permissions: {}
     steps:
       - run: exit 0

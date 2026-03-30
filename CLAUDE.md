@@ -1,45 +1,93 @@
 # coding-standards
 
-**Project class: Lint Docker Image** — a MegaLinter-based Docker image consumed by repos via `docker run ghcr.io/alxleo/coding-standards`. Centralized linting + security scanning + type checking that runs identically in CI and locally.
-
-**Migration in progress:** The legacy reusable workflow (`lint.yml@v1`) is being replaced by the Docker image. Both exist during transition. See `docs/megalinter-migration-plan.md` for the full plan and `docs/config-decisions.md` for rationale.
+**Project class: Lint Docker Image** — a MegaLinter-based Docker image (`ghcr.io/alxleo/coding-standards`) providing centralized linting + security scanning + type checking across all repos. Runs identically in CI (Gitea + GitHub) and locally.
 
 This repo contains **no repo lists, no secrets, no private information**. It is a public linting image.
 
-## Docker image (new architecture)
+## How it works
 
-Consumer repos run the image:
-```bash
-docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest
-docker run --rm -v $PWD:/tmp/lint -e APPLY_FIXES=all ghcr.io/alxleo/coding-standards:latest  # auto-fix
-docker run --rm -v $PWD:/tmp/lint -e ENABLE_LINTERS=PYTHON_RUFF ghcr.io/alxleo/coding-standards:latest  # single linter
+### For CI (Gitea + GitHub Actions)
+
+Consumer repos use the composite action:
+
+```yaml
+# .github/workflows/lint.yml
+steps:
+  - uses: actions/checkout@v4
+  - uses: alxleo/coding-standards/docker-action@v1
 ```
 
-The image:
+Consumer repos inherit the baseline config via EXTENDS URL in their `.mega-linter.yml`:
 
-1. Auto-detects which linters apply based on files present
-2. Runs 34 linters (18 cupcake built-in + 12 custom plugins + 4 self-selecting)
-3. Uses allowlist activation (ENABLE_LINTERS) — no surprise linters on upgrades
-4. Two-tier blocking: security/correctness blocks, style/formatting warns
-5. Writes JSON report to `megalinter-reports/mega-linter-report.json`
-6. CI posts per-linter commit statuses from JSON report (works on Gitea + GitHub)
+```yaml
+# .mega-linter.yml (in consumer repo root)
+EXTENDS:
+  - https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml
 
-### Key files (new architecture)
+# Override what you need — consumer keys win over the baseline
+ENABLE_LINTERS:
+  - BASH_SHELLCHECK
+  - PYTHON_RUFF
+  # ... (full list replaces, not merges)
 
-- `Dockerfile` — cupcake base + custom tool installs (SHA-pinned)
-- `.mega-linter-default.yml` — complete baseline config (baked into image)
-- `plugins/` — 12 MegaLinter plugin descriptors for custom tools
-- `lint-configs-626465/` — linter config files (baked into image at `/opt/coding-standards/configs/`)
-- `scripts/report-statuses.py` — reads JSON report, posts Gitea/GitHub commit statuses
-- `.github/workflows/docker-build.yml` — builds + pushes image to GHCR
-- `examples/lint-docker.yml` — example consumer workflow
-- `docs/megalinter-migration-plan.md` — full migration plan
-- `docs/config-decisions.md` — every decision with rationale
-- `renovate.json` — automates SHA-pin updates
+# Use repo's own linter config instead of baked baseline
+PYTHON_RUFF_CONFIG_FILE: ruff.toml
+```
 
-### Local development
+### For local development
 
 ```bash
+# Full suite via Docker
+docker run --rm -v $PWD:/tmp/lint -e DEFAULT_WORKSPACE=/tmp/lint ghcr.io/alxleo/coding-standards:latest
+
+# Or test individual tools without Docker (faster iteration)
+uvx ruff check --config lint-configs-626465/ruff.toml .
+uvx semgrep scan --config semgrep-rules/ .
+shellcheck scripts/*.sh
+```
+
+### Image details
+
+- 41 linters (28 cupcake built-in + 13 custom plugins)
+- Allowlist activation (ENABLE_LINTERS) — no surprise linters on upgrades
+- Two-tier blocking: security/correctness blocks, style/formatting warns
+- JSON report at `megalinter-reports/mega-linter-report.json`
+- Semver-tagged: `:latest`, `:v1`, `:v1.2.3`, `:sha-xxx`
+- Daily rebuilt for trivy DB freshness
+
+### Key files
+
+- `Dockerfile` — cupcake base + custom tool installs (SHA-pinned)
+- `.mega-linter-default.yml` — complete baseline config (inherited by consumers via EXTENDS URL)
+- `docker-action/action.yml` — composite action for CI (uses `docker run` — works on Gitea + GitHub)
+- `plugins/` — 13 MegaLinter plugin descriptors for custom tools
+- `lint-configs-626465/` — linter config files (baked into image at `/opt/coding-standards/configs/`)
+- `semgrep-rules/` — centralized semgrep rules (shell hygiene, compose security, justfile safety)
+- `policies/` — shared Conftest Rego policies (compose resource limits, healthchecks, image tags)
+- `scripts/ci/check-drift.sh` — generated file drift checker
+- `scripts/ci/check-expiry.py` — expiry/TTL enforcement
+- `scripts/report-statuses.py` — reads JSON report, posts Gitea/GitHub commit statuses
+- `.github/workflows/docker-build.yml` — builds + pushes image to GHCR (semver tags on release)
+- `.ci.json` — data-driven smoke tests (adopted from docker-images-public)
+- `docs/consumer-guide.md` — single consumer getting-started doc
+- `docs/config-decisions.md` — every decision with rationale
+- `renovate.json` — automates SHA-pin updates
+- `.zizmor.yml` — suppress false positives on action definitions
+
+### Developing the image
+
+```bash
+# Build locally (amd64 for matching CI)
+docker build --platform linux/amd64 -t coding-standards:test .
+
+# Test rules without rebuilding
+uvx ruff check --config lint-configs-626465/ruff.toml .
+uvx semgrep scan --config semgrep-rules/ .
+
+# Test against a consumer repo
+docker run --rm --platform linux/amd64 -v ~/personal/home-network:/tmp/lint -e DEFAULT_WORKSPACE=/tmp/lint coding-standards:test
+
+# Just recipes
 just docker-lint              # full suite
 just docker-lint-fix          # with auto-fix
 just docker-lint-only PYTHON_RUFF  # single linter
@@ -48,8 +96,6 @@ just docker-lint-errors ruff  # detailed errors for one linter
 ```
 
 ## Legacy reusable workflow
-
-## How it works
 
 Consumer repos add a short workflow stub. The reusable workflow:
 

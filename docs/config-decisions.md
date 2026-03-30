@@ -40,6 +40,13 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 - markdown-table-formatter: cosmetic, conflicts with LLM tables.
 - markdownlint-cli vs cli2: MegaLinter ships cli1. Verify config compat.
 
+### Spelling: codespell (warn tier)
+
+- codespell over typos-cli: 29 findings vs 139 on same codebase (typos flags regex substrings, product names, base64).
+- codespell over cspell: far less configuration needed. cspell requires comprehensive dictionary setup.
+- Warn tier: false positives on domain terms (tool names, acronyms) would unfairly gate builds. Consumer repos promote to error if desired.
+- Already in cupcake base image — zero install cost.
+
 ### Added from audit
 
 - stylelint (CSS), sqlfluff (SQL), ansible-lint, kubeconform (K8s). All self-selecting.
