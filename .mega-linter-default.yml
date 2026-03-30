@@ -101,9 +101,10 @@ DISABLE_ERRORS_LINTERS:
 
 # ── Per-linter configuration ──────────────────────────────────
 # _CONFIG_FILE is sufficient — MegaLinter auto-passes it as the correct CLI
-# flag via cli_config_arg_name in each linter's descriptor. DO NOT add
-# _ARGUMENTS with config paths — it short-circuits consumer overrides.
-# (Verified: all linters below have cli_config_arg_name defined.)
+# flag via cli_config_arg_name in each descriptor. DO NOT add _ARGUMENTS with
+# config paths — it short-circuits consumer overrides.
+# (Verified: all CLI-based linters below have cli_config_arg_name defined.
+# v8r is the exception — it uses cosmiconfig discovery, not a CLI flag.)
 #
 # Consumer repos override by setting <LINTER>_CONFIG_FILE in their .mega-linter.yml.
 PYTHON_PYRIGHT_CONFIG_FILE: /opt/coding-standards/configs/pyrightconfig.json

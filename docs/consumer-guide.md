@@ -63,8 +63,8 @@ DISABLE_LINTERS:
   - TERRAFORM_TFLINT      # no terraform here
   - REPOSITORY_KNIP       # no JS/TS
 
-# Point any linter at your repo's own config — just set _CONFIG_FILE.
-# MegaLinter auto-passes it as the correct CLI flag.
+# Use your repo's own linter config — just set _CONFIG_FILE.
+# MegaLinter passes it via the appropriate mechanism (CLI flag or native discovery).
 ANSIBLE_ANSIBLE_LINT_CONFIG_FILE: .ansible-lint
 PYTHON_RUFF_CONFIG_FILE: ruff.toml
 REPOSITORY_GITLEAKS_CONFIG_FILE: .gitleaks.toml
