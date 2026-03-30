@@ -1,8 +1,11 @@
 rules:
   - id: no-bare-dict-params
-    patterns:
+    pattern-either:
       - pattern: |
           def $FUNC(..., $PARAM: dict, ...):
+              ...
+      - pattern: |
+          async def $FUNC(..., $PARAM: dict, ...):
               ...
     message: >
       Use a TypedDict or specific dict[K, V] instead of bare `dict`.
@@ -15,9 +18,12 @@ rules:
       technology: [python]
 
   - id: no-bare-dict-return
-    patterns:
+    pattern-either:
       - pattern: |
           def $FUNC(...) -> dict:
+              ...
+      - pattern: |
+          async def $FUNC(...) -> dict:
               ...
     message: >
       Use a TypedDict or specific dict[K, V] instead of bare `dict` return.
