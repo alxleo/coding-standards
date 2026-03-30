@@ -70,6 +70,21 @@ PYTHON_RUFF_CONFIG_FILE: ruff.toml
 REPOSITORY_GITLEAKS_CONFIG_FILE: .gitleaks.toml
 ```
 
+### Suppress specific semgrep rules
+
+The baseline ships `auto` + `p/trailofbits` + custom rules. To suppress specific rules without touching the rulesets array (which breaks due to EXTENDS array merge):
+
+```yaml
+# .mega-linter.yml — suppress individual semgrep rules
+REPOSITORY_SEMGREP_ARGUMENTS: >-
+  --exclude-rule=trailofbits.python.some-noisy-rule
+  --exclude-rule=generic.secrets.false-positive
+```
+
+Or inline in code: `# nosemgrep: rule-id`
+
+Do NOT override `REPOSITORY_SEMGREP_RULESETS` — it contains absolute image paths that break when merged with consumer values.
+
 ### Auto-fix
 
 ```bash

@@ -1,0 +1,29 @@
+rules:
+  - id: no-bare-dict-params
+    patterns:
+      - pattern: |
+          def $FUNC(..., $PARAM: dict, ...):
+              ...
+    message: >
+      Use a TypedDict or specific dict[K, V] instead of bare `dict`.
+      Bare dict parameters lose all type information — callers can pass
+      anything, and the function body has no contract to enforce.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: maintainability
+      technology: [python]
+
+  - id: no-bare-dict-return
+    patterns:
+      - pattern: |
+          def $FUNC(...) -> dict:
+              ...
+    message: >
+      Use a TypedDict or specific dict[K, V] instead of bare `dict` return.
+      Callers get no type information about the returned structure.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: maintainability
+      technology: [python]
