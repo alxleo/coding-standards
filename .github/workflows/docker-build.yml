@@ -11,7 +11,7 @@ name: Docker Build
 on:
   push:
     branches: [main]
-    tags: ["v*"]
+    tags: ["v*.*.*"]
     paths:
       - Dockerfile
       - .mega-linter-default.yml
@@ -79,8 +79,8 @@ jobs:
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.event_name == 'schedule' }}
             type=raw,value={{date 'YYYY-MM-DD'}},enable=${{ github.event_name == 'schedule' }}
             type=sha,prefix=sha-
-            type=semver,pattern=v{{version}}
-            type=semver,pattern=v{{major}}
+            type=semver,pattern=v{{version}},enable=${{ github.ref_type == 'tag' }}
+            type=semver,pattern=v{{major}},enable=${{ github.ref_type == 'tag' }}
 
       # Build locally first (don't push yet) — scan + test before push
       - name: Build image
