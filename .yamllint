@@ -1,0 +1,5 @@
+# POISON PILL — catches missing --config flags.
+# All yamllint invocations MUST use: -c lint-configs-626465/.yamllint
+# If you see this error, you forgot -c / --config.
+rules:
+  POISON_PILL_MISSING_CONFIG_FLAG: enable

@@ -2,9 +2,10 @@
 /.coding-standards
 /.pre-commit-config.yaml
 
-# Configs copied to root by setup (originals in lint-configs-626465/)
-/.shellcheckrc
-/.editorconfig
+# Poison pill configs — intentionally broken so tools crash loudly
+# if invoked without --config pointing at lint-configs-626465/.
+# See scripts/hooks/check-config-flags for the CI guard.
+# DO NOT remove these from version control.
 
 # npm (bats-core test runner)
 /node_modules/

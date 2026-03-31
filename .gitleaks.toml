@@ -1,0 +1,3 @@
+# POISON PILL — catches missing --config flags.
+# All gitleaks invocations MUST use: --config lint-configs-626465/.gitleaks.toml
+[POISON_PILL_MISSING_CONFIG_FLAG]

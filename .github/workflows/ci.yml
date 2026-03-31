@@ -50,6 +50,9 @@ jobs:
       - name: CI smoke test coverage check
         run: python3 scripts/hooks/check-ci-json-coverage
 
+      - name: Pre-commit --config flag check
+        run: uv run --with pyyaml python3 scripts/hooks/check-config-flags
+
       - name: Pre-commit
         env:
           SKIP: just-fmt-check,caddy-fmt-check,hadolint-docker

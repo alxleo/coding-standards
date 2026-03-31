@@ -1,0 +1,4 @@
+# POISON PILL — catches missing --config flags.
+# All codespell invocations MUST use: --config lint-configs-626465/.codespellrc
+[codespell]
+POISON_PILL_MISSING_CONFIG_FLAG = true

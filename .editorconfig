@@ -1,0 +1,4 @@
+# POISON PILL — catches missing --config flags.
+# All editorconfig-checker invocations MUST use: --config lint-configs-626465/.editorconfig
+# If you see this error, you forgot --config.
+root = POISON_PILL_MISSING_CONFIG_FLAG
