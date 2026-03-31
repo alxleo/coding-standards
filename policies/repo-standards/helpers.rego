@@ -7,17 +7,23 @@ docs_url := "https://github.com/alxleo/coding-standards/blob/main/docs/consumer-
 
 # Check if a specific standard has been acknowledged by the consumer.
 #
-# Two formats in .repo-standards.yml:
-#   repo-wide:  acknowledged: { check_id: "reason string" }
+# Three formats in .repo-standards.yml:
+#   permanent:  acknowledged: { check_id: "reason string" }
+#   temporary:  acknowledged: { check_id: {reason: "...", expires: "YYYY-MM-DD"} }
 #   per-file:   acknowledged: { check_id: [{path: "...", reason: "..."}] }
 #
-# For repo-wide (string value): this helper returns true → policy skips entirely.
-# For per-file (list value): the manifest generator already excluded those files
-# from counts, so the policy sees reduced numbers. The raw list is preserved in
-# the manifest for auditability.
+# Permanent (string) and temporary (object with reason) both suppress.
+# Expired temporaries are stripped by the manifest generator before Rego sees them.
+# Per-file (list) entries are resolved during manifest generation (excluded from counts).
 acknowledged(check_id) if {
 	value := input.acknowledged[check_id]
 	is_string(value)
+}
+
+acknowledged(check_id) if {
+	value := input.acknowledged[check_id]
+	is_object(value)
+	value.reason
 }
 
 # True when the repo has workflow files in either GitHub or Gitea location.

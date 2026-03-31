@@ -210,7 +210,8 @@ def load_acknowledged(root: Path) -> dict:
     """Load .repo-standards.yml acknowledged entries.
 
     Values can be:
-      - string: repo-wide acknowledgment ("we don't use pydantic")
+      - string: permanent ("not applicable — no boundaries")
+      - {reason, expires, tracking}: temporary — stripped when expired
       - list of {path, reason}: per-file exceptions
     """
     rs = root / ".repo-standards.yml"
@@ -218,10 +219,28 @@ def load_acknowledged(root: Path) -> dict:
         return {}
     try:
         import yaml
+        from datetime import date
 
         with open(rs) as f:
             data = yaml.safe_load(f) or {}
-        return data.get("acknowledged", {}) or {}
+        ack = data.get("acknowledged", {}) or {}
+
+        # Strip expired temporary acknowledgments
+        today = date.today()
+        result = {}
+        for key, value in ack.items():
+            if isinstance(value, dict) and "expires" in value:
+                try:
+                    expires = date.fromisoformat(str(value["expires"]))
+                    if expires < today:
+                        print(
+                            f"repo-standards: acknowledged '{key}' expired on {expires}"
+                        )
+                        continue
+                except (ValueError, TypeError):
+                    pass
+            result[key] = value
+        return result
     except Exception:
         return {}
 
@@ -234,6 +253,41 @@ def _acknowledged_paths(acknowledged: dict, check_id: str) -> set[str]:
     return {
         entry["path"] for entry in value if isinstance(entry, dict) and "path" in entry
     }
+
+
+def _count_suppressions(root: Path) -> dict[str, int]:
+    """Count inline suppression comments across the codebase."""
+    patterns = {
+        "noqa": r"#\s*noqa",
+        "type_ignore": r"#\s*type:\s*ignore",
+        "nosemgrep": r"#\s*nosemgrep",
+        "shellcheck_disable": r"#\s*shellcheck\s+disable",
+    }
+    counts: dict[str, int] = {k: 0 for k in patterns}
+    for f in root.rglob("*"):
+        if f.is_dir() or _is_excluded(f.relative_to(root)):
+            continue
+        if f.suffix not in (".py", ".sh", ".bash", ".js", ".ts", ".tsx", ".jsx"):
+            continue
+        try:
+            text = f.read_text(errors="replace")
+        except OSError:
+            continue
+        for name, pattern in patterns.items():
+            counts[name] += len(re.findall(pattern, text))
+    # File-level suppressions
+    counts["trivyignore"] = (
+        len((root / ".trivyignore").read_text().splitlines())
+        if (root / ".trivyignore").exists()
+        else 0
+    )
+    counts["gitleaksignore"] = (
+        len((root / ".gitleaksignore").read_text().splitlines())
+        if (root / ".gitleaksignore").exists()
+        else 0
+    )
+    counts["total"] = sum(counts.values())
+    return counts
 
 
 def generate(root: Path) -> dict:
@@ -339,6 +393,7 @@ def generate(root: Path) -> dict:
             and check_actions_pinned(root),
         },
         "acknowledged": ack,
+        "suppressions": _count_suppressions(root),
     }
 
 

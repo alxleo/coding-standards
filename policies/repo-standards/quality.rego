@@ -39,6 +39,16 @@ warn contains msg if {
 }
 
 warn contains msg if {
+	input.suppressions.total > 20
+	not helpers.acknowledged("suppression_count")
+	msg := sprintf(concat("\n", [
+		"%d suppression comments found across codebase",
+		"  Each suppression is a TODO or a design question being avoided.",
+		"  Run: docker run ... coding-standards:latest standards — see suppressions breakdown",
+	]), [input.suppressions.total])
+}
+
+warn contains msg if {
 	not input.files.makefile
 	not helpers.acknowledged("makefile")
 	msg := concat("\n", [
