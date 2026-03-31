@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-# Import from hyphenated filename
+# Import via spec loader (script lives in scripts/, not a package)
 _script = (
     Path(__file__).resolve().parent.parent / "scripts" / "generate_repo_manifest.py"
 )

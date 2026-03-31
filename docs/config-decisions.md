@@ -83,7 +83,7 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 
 ### Filename conventions: Python snake_case enforced
 
-- Hyphens in Python filenames prevent importing (`generate_repo_manifest.py` can't be imported).
+- Hyphens in Python filenames prevent importing (old `generate-repo-manifest.py` couldn't be imported — renamed to snake_case).
 - JS/TS: eslint-plugin-unicorn enforces kebab-case or PascalCase.
 - Python: no existing linter checks filenames. Added as repo-standard manifest check.
 - Shell: no enforcement (not imported, convention only).
