@@ -16,8 +16,6 @@ precommit_cfg := "lint-configs-626465/.pre-commit-config.yaml"
 [doc('Fast local checks — pre-commit runs all hooks including ruff, pytest, catalog drift')]
 [group('workflow')]
 check:
-    #!/usr/bin/env bash
-    [ -L .coding-standards ] || ln -s . .coding-standards
     SKIP=just-fmt-check,caddy-fmt-check,hadolint-docker uvx pre-commit run --all-files -c {{ precommit_cfg }}
 
 [doc('Full MegaLinter suite via Docker image')]

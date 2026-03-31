@@ -11,5 +11,4 @@ examples
 !CLAUDE.md
 .pre-commit-config.yaml
 .claude
-.coding-standards
 pyrightconfig.json

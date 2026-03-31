@@ -1,5 +1,4 @@
-# Local dev symlinks (justfile creates these so config paths resolve)
-/.coding-standards
+# Root .pre-commit-config.yaml is a poison pill (see scripts/hooks/check-config-flags)
 /.pre-commit-config.yaml
 
 # Poison pill configs — intentionally broken so tools crash loudly

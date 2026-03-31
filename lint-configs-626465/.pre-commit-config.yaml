@@ -24,14 +24,14 @@ repos:
     rev: v1.38.0
     hooks:
       - id: yamllint
-        args: [--strict, -c, .coding-standards/lint-configs-626465/.yamllint]
+        args: [--strict, -c, lint-configs-626465/.yamllint]
 
   # ── Secret scanning ──────────────────────────────────────────
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.24.0
     hooks:
       - id: gitleaks
-        args: [--config, .coding-standards/lint-configs-626465/.gitleaks.toml]
+        args: [--config, lint-configs-626465/.gitleaks.toml]
 
   # ── GitHub Actions linting ─────────────────────────────────
   - repo: https://github.com/rhysd/actionlint
@@ -50,11 +50,7 @@ repos:
     rev: v0.21.0
     hooks:
       - id: markdownlint-cli2
-        args:
-          [
-            --config,
-            .coding-standards/lint-configs-626465/.markdownlint-cli2.yaml,
-          ]
+        args: [--config, lint-configs-626465/.markdownlint-cli2.yaml]
 
   # ── Commit message linting ─────────────────────────────────
   - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
@@ -62,11 +58,7 @@ repos:
     hooks:
       - id: commitlint
         stages: [commit-msg]
-        args:
-          [
-            --config,
-            .coding-standards/lint-configs-626465/commitlint.config.mjs,
-          ]
+        args: [--config, lint-configs-626465/commitlint.config.mjs]
 
   # ── Python linting + formatting ────────────────────────────
   - repo: https://github.com/astral-sh/ruff-pre-commit
@@ -104,14 +96,14 @@ repos:
     rev: v2.12.0
     hooks:
       - id: hadolint-docker
-        args: [--config, .coding-standards/lint-configs-626465/.hadolint.yaml]
+        args: [--config, lint-configs-626465/.hadolint.yaml]
 
   # ── Shell hygiene ──────────────────────────────────────────
   - repo: local
     hooks:
       - id: shell-hygiene
         name: Shell hygiene (python, mktemp, npx)
-        entry: .coding-standards/scripts/hooks/shell-hygiene
+        entry: scripts/hooks/shell-hygiene
         language: system
         types_or: [shell, yaml]
         exclude: '(\.bats$|scripts/entrypoint\.sh|semgrep-rules/)'
@@ -132,7 +124,7 @@ repos:
     hooks:
       - id: prettier
         entry: prettier --check
-        args: [--config, .coding-standards/lint-configs-626465/.prettierrc]
+        args: [--config, lint-configs-626465/.prettierrc]
         exclude: '\.md$'
 
   # ── Fast checks (pytest + catalog drift) ───────────────────

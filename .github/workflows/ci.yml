@@ -39,10 +39,7 @@ jobs:
       - name: Pre-commit (all checks)
         env:
           SKIP: just-fmt-check,caddy-fmt-check,hadolint-docker
-        run: |
-          # Self-test: this repo IS coding-standards, so .coding-standards → .
-          [ -L .coding-standards ] || ln -s . .coding-standards
-          uvx pre-commit run --all-files -c lint-configs-626465/.pre-commit-config.yaml
+        run: uvx pre-commit run --all-files -c lint-configs-626465/.pre-commit-config.yaml
 
   # Image self-lint — runs the published image against this repo.
   # Uses :latest from GHCR (tests the shipped image, not local changes).
