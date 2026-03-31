@@ -108,21 +108,9 @@ def extract_rego_rules(policy_dir: Path, _kind: str) -> list[dict]:
     return rules
 
 
-def _find_lint_configs(root: Path) -> Path:
-    """Find lint-configs directory (different name locally vs in container)."""
-    tried: list[Path] = []
-    for name in ("lint-configs-626465", "configs"):
-        p = root / name
-        if p.is_dir():
-            return p
-        tried.append(p)
-    msg = f"Cannot find lint configs directory under {root}; tried: {', '.join(str(p) for p in tried)}"
-    raise FileNotFoundError(msg)
-
-
 def extract_ruff_categories(root: Path) -> list[str]:
     """Extract selected ruff rule categories from ruff.toml."""
-    ruff = _find_lint_configs(root) / "ruff.toml"
+    ruff = root / "lint-configs-626465" / "ruff.toml"
     categories = []
     in_select = False
     for line in ruff.read_text().splitlines():
