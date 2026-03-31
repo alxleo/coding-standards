@@ -1,11 +1,33 @@
 # coding-standards — dev tasks for this repo.
-# Image commands: use the entrypoint (lint, fix, standards, catalog, warnings, help)
-# Local checks: fast feedback without Docker
+#
+# Three layers of verification:
+#   just check    — fast local checks via pre-commit (~15s)
+#   just lint     — full MegaLinter suite via Docker image
+#   just verify   — both: check + lint + rego tests
 
 set unstable := true
 
 image := "coding-standards:test"
 docker_args := '-v "$PWD:/tmp/lint" -e DEFAULT_WORKSPACE=/tmp/lint'
+precommit_cfg := "lint-configs-626465/.pre-commit-config.yaml"
+
+# ── Dev workflow (use these) ───────────────────────────────
+
+[doc('Fast local checks — pre-commit runs all hooks including ruff, pytest, catalog drift')]
+[group('workflow')]
+check:
+    #!/usr/bin/env bash
+    [ -L .coding-standards ] || ln -s . .coding-standards
+    SKIP=just-fmt-check,caddy-fmt-check,hadolint-docker uvx pre-commit run --all-files -c {{ precommit_cfg }}
+
+[doc('Full MegaLinter suite via Docker image')]
+[group('workflow')]
+lint *LINTER:
+    docker run --rm --platform linux/amd64 {{ docker_args }} {{ image }} lint {{ LINTER }}
+
+[doc('Both: fast checks + full image lint + rego tests')]
+[group('workflow')]
+verify: check lint test-rego
 
 # ── Image commands (via entrypoint) ──────────────────────────
 
@@ -13,11 +35,6 @@ docker_args := '-v "$PWD:/tmp/lint" -e DEFAULT_WORKSPACE=/tmp/lint'
 [group('image')]
 build:
     docker build --platform linux/amd64 -t {{ image }} .
-
-[doc('Full MegaLinter suite')]
-[group('image')]
-lint *LINTER:
-    docker run --rm --platform linux/amd64 {{ docker_args }} {{ image }} lint {{ LINTER }}
 
 [doc('Auto-fix all fixable issues')]
 [group('image')]
@@ -39,16 +56,9 @@ warnings:
 catalog:
     docker run --rm --platform linux/amd64 {{ docker_args }} {{ image }} catalog
 
-# ── Fast local checks (no Docker) ───────────────────────────
+# ── Individual checks ──────────────────────────────────────
 
-[doc('Run fast checks locally (~15s)')]
-[group('check')]
-check:
-    uvx ruff check --config lint-configs-626465/ruff.toml .
-    uvx ruff format --check --config lint-configs-626465/ruff.toml .
-    uvx pre-commit run --all-files
-
-[doc('Run pytest')]
+[doc('Run pytest only')]
 [group('check')]
 test:
     uv run --with pydantic --with pyyaml --with pytest pytest test/ -v
@@ -68,7 +78,3 @@ test-semgrep:
 [group('check')]
 catalog-gen:
     uv run --with pydantic --with pyyaml python3 scripts/generate_catalog.py
-
-[doc('Run all checks (fast + rego + semgrep + pytest)')]
-[group('check')]
-check-all: check test test-semgrep catalog-gen
