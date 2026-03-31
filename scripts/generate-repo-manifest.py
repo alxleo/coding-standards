@@ -404,6 +404,6 @@ if __name__ == "__main__":
     manifest = generate(root)
     output = root / "repo-manifest.json"
     output.write_text(json.dumps(manifest, indent=2) + "\n")
-    print(
-        f"repo-manifest.json generated ({sum(manifest['content'].values())} source files scanned)"
-    )
+    lang_keys = ("python_files", "typescript_files", "javascript_files", "shell_files")
+    source_count = sum(manifest["content"].get(k, 0) for k in lang_keys)
+    print(f"repo-manifest.json generated ({source_count} source files scanned)")

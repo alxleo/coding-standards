@@ -80,17 +80,18 @@ def extract_rego_rules(policy_dir: Path, kind: str) -> list[dict]:
         if "_test" in f.name or f.name == "helpers.rego":
             continue
         text = f.read_text()
-        # Match msg := concat(..., ["first line", ...]) or msg := sprintf("...", ...)  or msg := "..."
+        # Match msg := concat/sprintf/string patterns, extract first quoted string
         for match in re.finditer(
             r"(warn|deny)\s+contains\s+msg\s+if\s*\{.*?msg\s*:=\s*"
-            r'(?:concat\([^[]*\[\s*"([^"]+)"'
+            r'(?:sprintf\(concat\([^[]*\[\s*"([^"]+)"'
+            r'|concat\([^[]*\[\s*"([^"]+)"'
             r'|sprintf\(\s*"([^"]+)"'
             r'|"([^"]+)")',
             text,
             re.DOTALL,
         ):
             level = match.group(1)
-            msg = match.group(2) or match.group(3) or match.group(4)
+            msg = match.group(2) or match.group(3) or match.group(4) or match.group(5)
             rules.append(
                 {
                     "file": f.name,

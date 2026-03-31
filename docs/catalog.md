@@ -118,7 +118,7 @@ Generated from config files — this IS the source of truth.
 - **deny**: service '%s' missing container_name (resources.rego)
 - **deny**: service '%s' missing memory limit (deploy.resources.limits.memory or mem_limit) (resources.rego)
 
-## Repo standards (35)
+## Repo standards (37)
 
 - **warn**: .mega-linter.yml not found (ci.rego)
 - **warn**: .mega-linter.yml exists but has no EXTENDS URL (ci.rego)
@@ -149,8 +149,10 @@ Generated from config files — this IS the source of truth.
 - **warn**: .pre-commit-config.yaml not found (quality.rego)
 - **warn**: No commitlint config found — conventional commits make history readable (quality.rego)
 - **warn**: .envrc not found (quality.rego)
+- **warn**: %d suppression comments found across codebase (quality.rego)
 - **warn**: No Makefile or justfile found (quality.rego)
 - **warn**: No tests/ directory but Python scripts present (quality.rego)
+- **warn**: %d shell script(s) exceed 50 lines (quality.rego)
 - **warn**: .gitleaks.toml not found (security.rego)
 - **warn**: trivy.yaml not found (security.rego)
 - **warn**: .sops.yaml not found (security.rego)
