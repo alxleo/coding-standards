@@ -291,8 +291,10 @@ def _count_suppressions(root: Path) -> dict[str, int]:
 
 
 def generate(root: Path) -> dict:
+    from manifest_schema import Manifest
+
     ack = load_acknowledged(root)
-    return {
+    data = {
         "files": {
             "pyrightconfig": (root / "pyrightconfig.json").exists(),
             "ruff": (root / "ruff.toml").exists(),
@@ -397,6 +399,8 @@ def generate(root: Path) -> dict:
         "acknowledged": ack,
         "suppressions": _count_suppressions(root),
     }
+    # Validate against typed schema — catches wrong field names/types at generation time
+    return Manifest(**data).model_dump()
 
 
 if __name__ == "__main__":
