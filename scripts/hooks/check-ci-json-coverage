@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+"""Verify .ci.json has smoke tests for every CLI tool installed in Dockerfile.
+
+Parses Dockerfile for npm/pip install lines, checks each CLI tool has a
+corresponding entry in .ci.json. Libraries (eslint-plugin-*, config-*) skipped.
+"""
+
+import json
+import re
+import sys
+from pathlib import Path
+
+# Libraries, not CLIs — no --version to test
+SKIP = re.compile(r"eslint-plugin-|@commitlint/config-|typescript$")
+
+# Package name → CLI binary name (when they differ)
+ALIASES = {
+    "dependency-cruiser": "depcruise",
+    "import-linter": "lint-imports",
+    "@commitlint/cli": "commitlint",
+}
+
+root = Path(__file__).resolve().parent.parent.parent
+dockerfile = root / "Dockerfile"
+ci_json = root / ".ci.json"
+
+# Parse tools from Dockerfile
+tools: list[str] = []
+for line in dockerfile.read_text().splitlines():
+    for match in re.findall(r"(\S+)@[\d.]+", line):  # npm: pkg@version
+        tools.append(match)
+    for match in re.findall(r"(\S+)==[\d.]+", line):  # pip: pkg==version
+        tools.append(match)
+
+ci_text = ci_json.read_text().lower()
+
+missing = []
+for tool in tools:
+    if SKIP.search(tool):
+        continue
+    short = tool.rsplit("/", 1)[-1]  # @commitlint/cli → cli
+    alias = ALIASES.get(tool, "")
+    if short not in ci_text and tool not in ci_text and alias not in ci_text:
+        missing.append(tool)
+
+if missing:
+    for tool in missing:
+        print(f".ci.json missing smoke test for: {tool}")
+    sys.exit(1)
