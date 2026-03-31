@@ -5,7 +5,6 @@ Parses Dockerfile for npm/pip install lines, checks each CLI tool has a
 corresponding entry in .ci.json. Libraries (eslint-plugin-*, config-*) skipped.
 """
 
-import json
 import re
 import sys
 from pathlib import Path

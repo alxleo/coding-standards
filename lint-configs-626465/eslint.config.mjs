@@ -16,6 +16,7 @@ import sonarjs from "eslint-plugin-sonarjs";
 import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
 import jsxA11y from "eslint-plugin-jsx-a11y";
+import importPlugin from "eslint-plugin-import";
 
 export default [
   {
@@ -23,6 +24,7 @@ export default [
       unicorn,
       security,
       sonarjs,
+      import: importPlugin,
     },
     rules: {
       // ── Filename conventions ──────────────────────────────
@@ -46,6 +48,12 @@ export default [
       "unicorn/no-useless-undefined": "warn",
       "unicorn/prefer-string-replace-all": "warn",
       "unicorn/prefer-at": "warn",
+
+      // ── Import hygiene (already in cupcake) ─────────────────
+      "import/no-cycle": ["warn", { maxDepth: 4 }],
+      "import/no-self-import": "error",
+      "import/no-mutable-exports": "error",
+      "import/no-extraneous-dependencies": "warn",
 
       // ── Code smells (sonarjs) ─────────────────────────────
       "sonarjs/no-duplicate-string": ["warn", { threshold: 4 }],
