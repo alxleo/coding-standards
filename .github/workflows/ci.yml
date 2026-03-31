@@ -65,3 +65,11 @@ jobs:
           persist-credentials: false
 
       - uses: alxleo/coding-standards/docker-action@18575725c90d63324c462c560543ee40fd353258 # v1
+
+      - name: Upload MegaLinter report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6db9e3cadd3d7e5005872b6e1e435 # v4
+        with:
+          name: megalinter-report
+          path: megalinter-reports/
+          retention-days: 7
