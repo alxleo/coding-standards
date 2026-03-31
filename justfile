@@ -62,6 +62,11 @@ standards:
 warnings:
     docker run --rm --platform linux/amd64 {{ docker_args }} {{ config_mounts }} {{ image }} warnings
 
+[doc('Show linter config sources + local overrides')]
+[group('image')]
+show-config:
+    docker run --rm --platform linux/amd64 {{ docker_args }} {{ config_mounts }} {{ image }} show-config
+
 [doc('Show full catalog')]
 [group('image')]
 catalog:
