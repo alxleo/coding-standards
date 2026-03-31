@@ -9,6 +9,8 @@ set unstable := true
 
 image := "coding-standards:test"
 docker_args := '-v "$PWD:/tmp/lint" -e DEFAULT_WORKSPACE=/tmp/lint'
+# Mount branch configs over baked configs — always test current code, not stale image
+config_mounts := '-v "$PWD/lint-configs-626465:/opt/coding-standards/configs" -v "$PWD/semgrep-rules:/opt/coding-standards/semgrep-rules" -v "$PWD/policies:/opt/coding-standards/policies" -v "$PWD/plugins:/mega-linter-plugin-custom" -v "$PWD/scripts:/opt/coding-standards/scripts" -v "$PWD/.mega-linter-default.yml:/opt/coding-standards/.mega-linter-default.yml"'
 precommit_cfg := "lint-configs-626465/.pre-commit-config.yaml"
 
 # ── Dev workflow (use these) ───────────────────────────────
@@ -27,10 +29,10 @@ check:
     fi
     SKIP=just-fmt-check,caddy-fmt-check,hadolint-docker uvx pre-commit run --all-files -c {{ precommit_cfg }}
 
-[doc('Full MegaLinter suite via Docker image')]
+[doc('Full MegaLinter suite via Docker image (mounts branch configs)')]
 [group('workflow')]
 lint *LINTER:
-    docker run --rm --platform linux/amd64 {{ docker_args }} {{ image }} lint {{ LINTER }}
+    docker run --rm --platform linux/amd64 {{ docker_args }} {{ config_mounts }} {{ image }} lint {{ LINTER }}
 
 [doc('Both: fast checks + full image lint + rego tests')]
 [group('workflow')]
@@ -46,17 +48,17 @@ build:
 [doc('Auto-fix all fixable issues')]
 [group('image')]
 fix:
-    docker run --rm --platform linux/amd64 {{ docker_args }} {{ image }} fix
+    docker run --rm --platform linux/amd64 {{ docker_args }} {{ config_mounts }} {{ image }} fix
 
 [doc('Repo-standards checks only')]
 [group('image')]
 standards:
-    docker run --rm --platform linux/amd64 {{ docker_args }} {{ image }} standards
+    docker run --rm --platform linux/amd64 {{ docker_args }} {{ config_mounts }} {{ image }} standards
 
 [doc('Show warnings from last run')]
 [group('image')]
 warnings:
-    docker run --rm --platform linux/amd64 {{ docker_args }} {{ image }} warnings
+    docker run --rm --platform linux/amd64 {{ docker_args }} {{ config_mounts }} {{ image }} warnings
 
 [doc('Show full catalog')]
 [group('image')]

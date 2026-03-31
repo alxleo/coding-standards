@@ -50,7 +50,21 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: alxleo/coding-standards/docker-action@18575725c90d63324c462c560543ee40fd353258 # v1
+      # Run image with branch configs mounted over baked configs.
+      # This eliminates the chicken-and-egg: :latest image may be old,
+      # but it gets current configs from the branch.
+      - name: Self-lint (image + branch configs)
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/tmp/lint" \
+            -v "${{ github.workspace }}/lint-configs-626465:/opt/coding-standards/configs" \
+            -v "${{ github.workspace }}/semgrep-rules:/opt/coding-standards/semgrep-rules" \
+            -v "${{ github.workspace }}/policies:/opt/coding-standards/policies" \
+            -v "${{ github.workspace }}/plugins:/mega-linter-plugin-custom" \
+            -v "${{ github.workspace }}/scripts:/opt/coding-standards/scripts" \
+            -v "${{ github.workspace }}/.mega-linter-default.yml:/opt/coding-standards/.mega-linter-default.yml" \
+            -e DEFAULT_WORKSPACE=/tmp/lint \
+            ghcr.io/alxleo/coding-standards:latest
 
       - name: Upload MegaLinter report
         if: always()
