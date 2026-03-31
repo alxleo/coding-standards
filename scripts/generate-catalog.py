@@ -73,7 +73,7 @@ def extract_semgrep_rules(root: Path) -> list[dict]:
     return rules
 
 
-def extract_rego_rules(policy_dir: Path, kind: str) -> list[dict]:
+def extract_rego_rules(policy_dir: Path, _kind: str) -> list[dict]:
     """Extract warn/deny rules from Rego files."""
     rules = []
     for f in sorted(policy_dir.glob("*.rego")):
@@ -138,21 +138,18 @@ def generate(root: Path) -> str:
     lines.append("")
     lines.append(f"### Error tier ({len(error_tier)} — blocks build)")
     lines.append("")
-    for name in error_tier:
-        lines.append(f"- {name}")
+    lines.extend(f"- {name}" for name in error_tier)
     lines.append("")
     lines.append(f"### Warn tier ({len(warn_tier)} — reports only)")
     lines.append("")
-    for name in warn_tier:
-        lines.append(f"- {name}")
+    lines.extend(f"- {name}" for name in warn_tier)
     lines.append("")
 
     # Ruff categories
     categories = extract_ruff_categories(root)
     lines.append(f"## Ruff rule categories ({len(categories)})")
     lines.append("")
-    for c in categories:
-        lines.append(f"- {c}")
+    lines.extend(f"- {c}" for c in categories)
     lines.append("")
 
     # Semgrep rules
@@ -161,16 +158,17 @@ def generate(root: Path) -> str:
     lines.append("")
     lines.append("| Rule | Severity | Source | Description |")
     lines.append("|------|----------|--------|-------------|")
-    for r in semgrep:
-        lines.append(f"| {r['id']} | {r['severity']} | {r['file']} | {r['message']} |")
+    lines.extend(
+        f"| {r['id']} | {r['severity']} | {r['file']} | {r['message']} |"
+        for r in semgrep
+    )
     lines.append("")
 
     # Compose policies
     compose = extract_rego_rules(root / "policies" / "compose", "compose")
     lines.append(f"## Compose policies ({len(compose)})")
     lines.append("")
-    for r in compose:
-        lines.append(f"- **{r['level']}**: {r['message']} ({r['file']})")
+    lines.extend(f"- **{r['level']}**: {r['message']} ({r['file']})" for r in compose)
     lines.append("")
 
     # Repo standards
@@ -179,8 +177,7 @@ def generate(root: Path) -> str:
     )
     lines.append(f"## Repo standards ({len(standards)})")
     lines.append("")
-    for r in standards:
-        lines.append(f"- **{r['level']}**: {r['message']} ({r['file']})")
+    lines.extend(f"- **{r['level']}**: {r['message']} ({r['file']})" for r in standards)
 
     return "\n".join(lines) + "\n"
 
@@ -197,7 +194,8 @@ if __name__ == "__main__":
         existing = catalog.read_text()
         if existing != content:
             print(
-                "docs/catalog.md is out of date — regenerate with: python3 scripts/generate-catalog.py"
+                "docs/catalog.md is out of date"
+                " — regenerate with: python3 scripts/generate-catalog.py"
             )
             sys.exit(1)
         print("docs/catalog.md is up to date")

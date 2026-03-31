@@ -80,17 +80,18 @@ def check_pyproject_dep(root: Path, dep_name: str) -> bool:
         return False
     try:
         data = _load_toml(pyproject)
-    except Exception:
+    except (OSError, ValueError):
         return False
-    # Collect all dependency lists: [project.dependencies], [project.optional-dependencies.*],
-    # [dependency-groups.*]
+    # Collect all dependency lists: [project.dependencies],
+    # [project.optional-dependencies.*], [dependency-groups.*]
     dep_lists: list[list[str]] = []
     project = data.get("project", {})
     dep_lists.append(project.get("dependencies", []))
-    for group in (project.get("optional-dependencies") or {}).values():
-        dep_lists.append(group)
-    for group in (data.get("dependency-groups") or {}).values():
-        dep_lists.append([e for e in group if isinstance(e, str)])
+    dep_lists.extend((project.get("optional-dependencies") or {}).values())
+    dep_lists.extend(
+        [e for e in group if isinstance(e, str)]
+        for group in (data.get("dependency-groups") or {}).values()
+    )
     # Check each dependency spec for an exact package name match
     dep_re = re.compile(rf"^{re.escape(dep_name)}(\s*[\[><=!~;@]|$)", re.IGNORECASE)
     return any(dep_re.match(dep) for deps in dep_lists for dep in deps)
@@ -127,7 +128,7 @@ def _has_toml_section(path: Path, *keys: str) -> bool:
                 return False
             data = data[key]
         return True
-    except Exception:
+    except (OSError, ValueError):
         return False
 
 
@@ -197,7 +198,7 @@ def check_actions_pinned(root: Path) -> bool:
     for wf in _workflow_files(root):
         for line in wf.read_text(errors="replace").splitlines():
             stripped = line.strip()
-            if stripped.startswith("- uses:") or stripped.startswith("uses:"):
+            if stripped.startswith(("- uses:", "uses:")):
                 found_any = True
                 ref = stripped.split("@")[-1] if "@" in stripped else ""
                 # SHA pins are 40 hex chars
@@ -218,15 +219,16 @@ def load_acknowledged(root: Path) -> dict:
     if not rs.exists():
         return {}
     try:
+        from datetime import UTC, date, datetime
+
         import yaml
-        from datetime import date
 
         with open(rs) as f:
             data = yaml.safe_load(f) or {}
         ack = data.get("acknowledged", {}) or {}
 
         # Strip expired temporary acknowledgments
-        today = date.today()
+        today = datetime.now(tz=UTC).date()
         result = {}
         for key, value in ack.items():
             if isinstance(value, dict) and "expires" in value:
@@ -241,7 +243,7 @@ def load_acknowledged(root: Path) -> dict:
                     pass
             result[key] = value
         return result
-    except Exception:
+    except (OSError, ValueError, yaml.YAMLError):
         return {}
 
 
@@ -263,7 +265,7 @@ def _count_suppressions(root: Path) -> dict[str, int]:
         "nosemgrep": r"#\s*nosemgrep",
         "shellcheck_disable": r"#\s*shellcheck\s+disable",
     }
-    counts: dict[str, int] = {k: 0 for k in patterns}
+    counts: dict[str, int] = dict.fromkeys(patterns, 0)
     for f in root.rglob("*"):
         if f.is_dir() or _is_excluded(f.relative_to(root)):
             continue

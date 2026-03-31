@@ -39,7 +39,10 @@ def python_repo(tmp_path: Path) -> Path:
     (tmp_path / "tests").mkdir()
     (tmp_path / "tests" / "test_app.py").write_text("def test_it(): pass\n")
     (tmp_path / "pyproject.toml").write_text(
-        '[project]\nname = "test"\n[project.optional-dependencies]\ntest = ["pytest", "pytest-randomly"]\n'
+        "[project]\n"
+        'name = "test"\n'
+        "[project.optional-dependencies]\n"
+        'test = ["pytest", "pytest-randomly"]\n'
     )
     (tmp_path / "pyrightconfig.json").write_text("{}\n")
     (tmp_path / "ruff.toml").write_text("[lint]\nselect = []\n")
@@ -91,7 +94,10 @@ def test_acknowledged_string_passes_through(tmp_path: Path) -> None:
 
 def test_acknowledged_expired_stripped(tmp_path: Path) -> None:
     (tmp_path / ".repo-standards.yml").write_text(
-        "acknowledged:\n  pydantic:\n    reason: 'will fix'\n    expires: '2020-01-01'\n"
+        "acknowledged:\n"
+        "  pydantic:\n"
+        "    reason: 'will fix'\n"
+        "    expires: '2020-01-01'\n"
     )
     manifest = generate(tmp_path)
     assert "pydantic" not in manifest["acknowledged"]
@@ -99,7 +105,10 @@ def test_acknowledged_expired_stripped(tmp_path: Path) -> None:
 
 def test_acknowledged_not_expired_kept(tmp_path: Path) -> None:
     (tmp_path / ".repo-standards.yml").write_text(
-        "acknowledged:\n  pydantic:\n    reason: 'will fix'\n    expires: '2099-01-01'\n"
+        "acknowledged:\n"
+        "  pydantic:\n"
+        "    reason: 'will fix'\n"
+        "    expires: '2099-01-01'\n"
     )
     manifest = generate(tmp_path)
     assert "pydantic" in manifest["acknowledged"]
@@ -115,7 +124,10 @@ def test_large_shell_scripts_counted(tmp_path: Path) -> None:
 def test_large_shell_per_file_acknowledged(tmp_path: Path) -> None:
     (tmp_path / "big.sh").write_text("#!/bin/bash\n" + "echo hi\n" * 60)
     (tmp_path / ".repo-standards.yml").write_text(
-        "acknowledged:\n  large_shell_scripts:\n    - path: big.sh\n      reason: intentional\n"
+        "acknowledged:\n"
+        "  large_shell_scripts:\n"
+        "    - path: big.sh\n"
+        "      reason: intentional\n"
     )
     manifest = generate(tmp_path)
     assert manifest["content"]["shell_scripts_over_50_lines"] == 0
