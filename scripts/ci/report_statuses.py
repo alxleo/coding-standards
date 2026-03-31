@@ -20,9 +20,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 LOGDIR = Path(os.environ.get("LINT_LOG_DIR", "/tmp/lint-results"))
 
 
-def api_request(
-    url: str, *, method: str = "GET", data: dict | None = None
-) -> dict | list | None:
+def api_request(url: str, *, method: str = "GET", data: dict | None = None) -> dict | list | None:
     """Make an authenticated API request. Returns parsed JSON or None on failure."""
     headers = {
         "Authorization": f"token {os.environ['GH_TOKEN']}",
@@ -47,9 +45,7 @@ def get_step_urls() -> dict[str, str]:
 
     jobs_data = api_request(f"{api_url}/repos/{repo}/actions/runs/{run_id}/jobs")
     # API may return non-dict on error, or dict without jobs key
-    if not isinstance(jobs_data, dict) or not jobs_data.get(
-        "jobs"
-    ):  # nosemgrep: python-silent-fallback-or
+    if not isinstance(jobs_data, dict) or not jobs_data.get("jobs"):  # nosemgrep: python-silent-fallback-or
         return {}
 
     # Find the first job whose name contains "Lint"
@@ -83,12 +79,8 @@ def post_status(
         return
 
     state = outcome
-    if outcome == "success":
-        description = "Passed"
-    else:
-        description = (
-            extract_hint(LOGDIR / f"{logkey}.log") or "Failed"
-        )  # nosemgrep: python-silent-fallback-or
+    # nosemgrep: python-silent-fallback-or
+    description = "Passed" if outcome == "success" else (extract_hint(LOGDIR / f"{logkey}.log") or "Failed")
 
     target_url = step_urls.get(step_name, os.environ["RUN_URL"])
 

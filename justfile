@@ -1,11 +1,44 @@
 # coding-standards — dev tasks for this repo.
-# Image commands: use the entrypoint (lint, fix, standards, catalog, warnings, help)
-# Local checks: fast feedback without Docker
+#
+# Three layers of verification:
+#   just check    — fast local checks via pre-commit (~15s)
+#   just lint     — full MegaLinter suite via Docker image
+#   just verify   — both: check + lint + rego tests
 
 set unstable := true
 
 image := "coding-standards:test"
 docker_args := '-v "$PWD:/tmp/lint" -e DEFAULT_WORKSPACE=/tmp/lint'
+
+# Mount branch configs over baked configs — always test current code, not stale image
+
+config_mounts := '-v "$PWD/lint-configs-626465:/opt/coding-standards/configs" -v "$PWD/semgrep-rules:/opt/coding-standards/semgrep-rules" -v "$PWD/policies:/opt/coding-standards/policies" -v "$PWD/plugins:/mega-linter-plugin-custom" -v "$PWD/scripts:/opt/coding-standards/scripts" -v "$PWD/.mega-linter-default.yml:/opt/coding-standards/.mega-linter-default.yml"'
+precommit_cfg := "lint-configs-626465/.pre-commit-config.yaml"
+
+# ── Dev workflow (use these) ───────────────────────────────
+
+[doc('All checks — identical to CI. Pre-commit runs ruff, pytest, semgrep, catalog, etc.')]
+[group('workflow')]
+check:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Warn if branch is behind main (CI merges main, so stale branches can fail)
+    if git rev-parse --git-dir > /dev/null 2>&1; then
+        git fetch origin main --quiet 2>/dev/null || true
+        if ! git merge-base --is-ancestor origin/main HEAD 2>/dev/null; then
+            echo "⚠ Branch is behind main — merge before pushing: git merge origin/main"
+        fi
+    fi
+    SKIP=caddy-fmt-check,hadolint-docker uvx pre-commit run --all-files -c {{ precommit_cfg }}
+
+[doc('Full MegaLinter suite via Docker image (mounts branch configs)')]
+[group('workflow')]
+lint *LINTER:
+    docker run --rm --platform linux/amd64 {{ docker_args }} {{ config_mounts }} {{ image }} lint {{ LINTER }}
+
+[doc('Both: fast checks + full image lint + rego tests')]
+[group('workflow')]
+verify: check lint test-rego
 
 # ── Image commands (via entrypoint) ──────────────────────────
 
@@ -14,41 +47,29 @@ docker_args := '-v "$PWD:/tmp/lint" -e DEFAULT_WORKSPACE=/tmp/lint'
 build:
     docker build --platform linux/amd64 -t {{ image }} .
 
-[doc('Full MegaLinter suite')]
-[group('image')]
-lint *LINTER:
-    docker run --rm --platform linux/amd64 {{ docker_args }} {{ image }} lint {{ LINTER }}
-
 [doc('Auto-fix all fixable issues')]
 [group('image')]
 fix:
-    docker run --rm --platform linux/amd64 {{ docker_args }} {{ image }} fix
+    docker run --rm --platform linux/amd64 {{ docker_args }} {{ config_mounts }} {{ image }} fix
 
 [doc('Repo-standards checks only')]
 [group('image')]
 standards:
-    docker run --rm --platform linux/amd64 {{ docker_args }} {{ image }} standards
+    docker run --rm --platform linux/amd64 {{ docker_args }} {{ config_mounts }} {{ image }} standards
 
 [doc('Show warnings from last run')]
 [group('image')]
 warnings:
-    docker run --rm --platform linux/amd64 {{ docker_args }} {{ image }} warnings
+    docker run --rm --platform linux/amd64 {{ docker_args }} {{ config_mounts }} {{ image }} warnings
 
 [doc('Show full catalog')]
 [group('image')]
 catalog:
     docker run --rm --platform linux/amd64 {{ docker_args }} {{ image }} catalog
 
-# ── Fast local checks (no Docker) ───────────────────────────
+# ── Individual checks ──────────────────────────────────────
 
-[doc('Run fast checks locally (~15s)')]
-[group('check')]
-check:
-    uvx ruff check --config lint-configs-626465/ruff.toml .
-    uvx ruff format --check --config lint-configs-626465/ruff.toml .
-    uvx pre-commit run --all-files
-
-[doc('Run pytest')]
+[doc('Run pytest only')]
 [group('check')]
 test:
     uv run --with pydantic --with pyyaml --with pytest pytest test/ -v
@@ -69,6 +90,7 @@ test-semgrep:
 catalog-gen:
     uv run --with pydantic --with pyyaml python3 scripts/generate_catalog.py
 
-[doc('Run all checks (fast + rego + semgrep + pytest)')]
+[doc('Change impact analysis (blast radius, coupling, criticality)')]
 [group('check')]
-check-all: check test test-semgrep catalog-gen
+measure *ARGS:
+    uv run --with networkx python3 scripts/blast_radius.py {{ ARGS }}

@@ -24,6 +24,26 @@ test_warn_no_pre_commit if {
 	any_contains(result, "pre-commit")
 }
 
+test_warn_pre_commit_missing_gitleaks if {
+	result := quality.warn with input as {"files": {"pre_commit_config": true}, "content": {"pre_commit_hooks": ["detect-private-key", "commitlint"]}}
+	any_contains(result, "gitleaks")
+}
+
+test_no_warn_pre_commit_has_gitleaks if {
+	result := quality.warn with input as {"files": {"pre_commit_config": true}, "content": {"pre_commit_hooks": ["gitleaks", "detect-private-key"]}}
+	not any_contains(result, "gitleaks")
+}
+
+test_warn_pre_commit_missing_detect_private_key if {
+	result := quality.warn with input as {"files": {"pre_commit_config": true}, "content": {"pre_commit_hooks": ["gitleaks", "commitlint"]}}
+	any_contains(result, "detect-private-key")
+}
+
+test_no_warn_pre_commit_has_detect_private_key if {
+	result := quality.warn with input as {"files": {"pre_commit_config": true}, "content": {"pre_commit_hooks": ["gitleaks", "detect-private-key"]}}
+	not any_contains(result, "detect-private-key")
+}
+
 any_contains(set, substring) if {
 	some msg in set
 	contains(msg, substring)

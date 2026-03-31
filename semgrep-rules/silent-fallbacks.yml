@@ -1,16 +1,29 @@
 rules:
   - id: python-silent-fallback-or
-    pattern: $X or $DEFAULT
+    patterns:
+      - pattern: $X or $DEFAULT
+      # Exclude boolean logic — two comparisons joined by or
+      - pattern-not: $A == $B or $C == $D
+      - pattern-not: $A != $B or $C != $D
+      - pattern-not: $A < $B or $C < $D
+      - pattern-not: $A > $B or $C > $D
+      - pattern-not: $A in $B or $C in $D
+      - pattern-not: $A is $B or $C is $D
+      # Exclude any() which is the idiomatic replacement
+      - pattern-not: any(...)
     message: >
-      Silent fallback: `or $DEFAULT` may hide a bug. If the empty/falsy
-      case is expected, add `# nosemgrep: python-silent-fallback-or`
-      to acknowledge the intent.
+      Silent fallback: `or $DEFAULT` may hide a bug.
+      Idiomatic fixes (don't suppress — refactor instead):
+        - dict.get(key) or [] → dict.get(key, [])
+        - x or default_value → if/else or any()
+        - check_a() or check_b() → any((check_a(), check_b()))
+      Last resort: `# nosemgrep: python-silent-fallback-or`
     languages: [python]
     severity: INFO
     paths:
       exclude:
-        - "test*"
-        - "tests*"
+        - "**/test*"
+        - "**/tests*"
     metadata:
       category: maintainability
       technology: [python]

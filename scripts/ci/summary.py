@@ -75,9 +75,7 @@ def main() -> None:
                             f.write(line + "\n")
                         f.write("```\n</details>\n\n")
             else:
-                f.write(
-                    "### :white_check_mark: coding-standards \u2014 all checks passed\n"
-                )
+                f.write("### :white_check_mark: coding-standards \u2014 all checks passed\n")
 
     if failed:
         print("One or more linter groups failed. See details above.")

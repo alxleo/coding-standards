@@ -123,20 +123,13 @@ class TestPostStatus:
 
         with (
             patch.dict("os.environ", env),
-            patch.object(
-                report_statuses, "api_request", side_effect=make_mock_api(captured)
-            ),
+            patch.object(report_statuses, "api_request", side_effect=make_mock_api(captured)),
             patch.object(report_statuses, "LOGDIR", tmp_path),
         ):
-            report_statuses.post_status(
-                "python", "success", "python", "Lint: Python (ruff)", {}
-            )
+            report_statuses.post_status("python", "success", "python", "Lint: Python (ruff)", {})
 
         assert len(captured) == 1
-        assert (
-            captured[0]["url"]
-            == "https://api.example.com/repos/test/repo/statuses/abc123"
-        )
+        assert captured[0]["url"] == "https://api.example.com/repos/test/repo/statuses/abc123"
         assert captured[0]["data"]["state"] == "success"
         assert captured[0]["data"]["context"] == "coding-standards: python"
         assert captured[0]["data"]["description"] == "Passed"
@@ -148,14 +141,10 @@ class TestPostStatus:
 
         with (
             patch.dict("os.environ", env),
-            patch.object(
-                report_statuses, "api_request", side_effect=make_mock_api(captured)
-            ),
+            patch.object(report_statuses, "api_request", side_effect=make_mock_api(captured)),
             patch.object(report_statuses, "LOGDIR", tmp_path),
         ):
-            report_statuses.post_status(
-                "yaml", "failure", "yaml", "Lint: YAML (yamllint)", {}
-            )
+            report_statuses.post_status("yaml", "failure", "yaml", "Lint: YAML (yamllint)", {})
 
         assert captured[0]["data"]["state"] == "failure"
         assert "bad indentation" in captured[0]["data"]["description"]
@@ -166,14 +155,10 @@ class TestPostStatus:
 
         with (
             patch.dict("os.environ", env),
-            patch.object(
-                report_statuses, "api_request", side_effect=make_mock_api(captured)
-            ),
+            patch.object(report_statuses, "api_request", side_effect=make_mock_api(captured)),
             patch.object(report_statuses, "LOGDIR", tmp_path),
         ):
-            report_statuses.post_status(
-                "trivy", "failure", "trivy", "Security: Trivy", {}
-            )
+            report_statuses.post_status("trivy", "failure", "trivy", "Security: Trivy", {})
 
         assert captured[0]["data"]["description"] == "Failed"
 
@@ -183,14 +168,10 @@ class TestPostStatus:
 
         with (
             patch.dict("os.environ", env),
-            patch.object(
-                report_statuses, "api_request", side_effect=make_mock_api(captured)
-            ),
+            patch.object(report_statuses, "api_request", side_effect=make_mock_api(captured)),
             patch.object(report_statuses, "LOGDIR", tmp_path),
         ):
-            report_statuses.post_status(
-                "python", "skipped", "python", "Lint: Python", {}
-            )
+            report_statuses.post_status("python", "skipped", "python", "Lint: Python", {})
 
         assert len(captured) == 0
 
@@ -201,14 +182,10 @@ class TestPostStatus:
 
         with (
             patch.dict("os.environ", env),
-            patch.object(
-                report_statuses, "api_request", side_effect=make_mock_api(captured)
-            ),
+            patch.object(report_statuses, "api_request", side_effect=make_mock_api(captured)),
             patch.object(report_statuses, "LOGDIR", tmp_path),
         ):
-            report_statuses.post_status(
-                "python", "success", "python", "Lint: Python (ruff)", step_urls
-            )
+            report_statuses.post_status("python", "success", "python", "Lint: Python (ruff)", step_urls)
 
         assert captured[0]["data"]["target_url"] == "https://example.com/job#step:5:1"
 
@@ -218,14 +195,10 @@ class TestPostStatus:
 
         with (
             patch.dict("os.environ", env),
-            patch.object(
-                report_statuses, "api_request", side_effect=make_mock_api(captured)
-            ),
+            patch.object(report_statuses, "api_request", side_effect=make_mock_api(captured)),
             patch.object(report_statuses, "LOGDIR", tmp_path),
         ):
-            report_statuses.post_status(
-                "python", "success", "python", "Lint: Python (ruff)", {}
-            )
+            report_statuses.post_status("python", "success", "python", "Lint: Python (ruff)", {})
 
         assert captured[0]["data"]["target_url"] == "https://example.com/run/1"
 
@@ -296,9 +269,7 @@ class TestMain:
 
         with (
             patch.dict("os.environ", env),
-            patch.object(
-                report_statuses, "api_request", side_effect=make_mock_api(captured)
-            ),
+            patch.object(report_statuses, "api_request", side_effect=make_mock_api(captured)),
             patch.object(report_statuses, "LOGDIR", tmp_path),
         ):
             report_statuses.main()

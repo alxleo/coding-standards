@@ -25,9 +25,7 @@ def parse_groups(
         for raw_line in f:
             stripped = raw_line.strip()
             # Skip blank lines and comments in groups.conf
-            if not stripped or stripped.startswith(
-                "#"
-            ):  # nosemgrep: python-silent-fallback-or
+            if not stripped or stripped.startswith("#"):  # nosemgrep: python-silent-fallback-or
                 continue
             parts = stripped.split("|")
             if len(parts) == expected_fields:
@@ -43,9 +41,7 @@ def extract_errors(logfile: str | Path, limit: int = 5) -> list[str]:
 
     lines = path.read_text().splitlines()
     errors = []
-    error_re = re.compile(
-        r"(ERROR|Error:|error:|CRITICAL|warning:|^\S+:[0-9]+:|reported issue)"
-    )
+    error_re = re.compile(r"(ERROR|Error:|error:|CRITICAL|warning:|^\S+:[0-9]+:|reported issue)")
 
     for line in lines:
         if NOISE_RE.search(line):
@@ -86,9 +82,7 @@ def extract_hint(logfile: str | Path, max_len: int = 140) -> str:
     meaningful = [
         line
         for line in lines
-        if not NOISE_RE.search(line)
-        and not BANNER_RE.search(line)
-        and not re.match(r"^- hook id:|^- exit code:", line)
+        if not NOISE_RE.search(line) and not BANNER_RE.search(line) and not re.match(r"^- hook id:|^- exit code:", line)
     ]
     if meaningful:
         return meaningful[-1].strip()[:max_len]

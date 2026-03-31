@@ -2,6 +2,7 @@
 # Consumer repos override by placing ruff.toml in their root.
 
 target-version = "py311"
+line-length = 120
 
 [lint]
 select = [
@@ -38,7 +39,11 @@ select = [
 # ISC001 (single-line implicit concat) conflicts with ruff formatter —
 # formatter can produce code that ISC001 flags, creating a loop.
 # Ruff docs recommend this exclusion when using the formatter.
-extend-per-file-ignores = { "**" = ["ISC001"] }
+# ISC001: conflicts with ruff formatter (produces code that ISC001 flags).
+# FURB110: "use or instead of ternary" conflicts with our semgrep
+#   python-silent-fallback-or rule which correctly flags or-fallbacks.
+#   The ternary is the idiomatic fix semgrep recommends.
+extend-per-file-ignores = { "**" = ["ISC001", "FURB110"] }
 
 [lint.per-file-ignores]
 # Test files: allow assert, /tmp, subprocess, magic values, unused args, imports

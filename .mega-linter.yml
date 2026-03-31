@@ -1,42 +1,5 @@
-# Temporary: uses the OLD image's linter list (no new plugins).
-# After image rebuild with PR #35 changes, replace with:
-#   EXTENDS:
-#     - https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml
-ENABLE_LINTERS:
-  - BASH_SHELLCHECK
-  - BASH_SHFMT
-  - PYTHON_RUFF
-  - PYTHON_PYRIGHT
-  - YAML_YAMLLINT
-  - YAML_PRETTIER
-  - YAML_V8R
-  - JSON_PRETTIER
-  - JSON_V8R
-  - MARKDOWN_MARKDOWNLINT
-  - DOCKERFILE_HADOLINT
-  - ACTION_ACTIONLINT
-  - EDITORCONFIG_EDITORCONFIG_CHECKER
-  - COPYPASTE_PMD_CPD
-  - SPELL_LYCHEE
-  - REPOSITORY_GITLEAKS
-  - REPOSITORY_SEMGREP
-  - REPOSITORY_TRIVY_CUSTOM
-  - REPOSITORY_CONFTEST
-  - REPOSITORY_ZIZMOR
-  - REPOSITORY_COMMITLINT
-  - REPOSITORY_GIT_DIFF
-
-DISABLE_ERRORS_LINTERS:
-  - BASH_SHFMT
-  - YAML_YAMLLINT
-  - YAML_PRETTIER
-  - YAML_V8R
-  - JSON_PRETTIER
-  - JSON_V8R
-  - MARKDOWN_MARKDOWNLINT
-  - EDITORCONFIG_EDITORCONFIG_CHECKER
-  - COPYPASTE_PMD_CPD
-  - SPELL_LYCHEE
+EXTENDS:
+  - https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml
 
 PYTHON_PYRIGHT_ARGUMENTS:
   - "--level"

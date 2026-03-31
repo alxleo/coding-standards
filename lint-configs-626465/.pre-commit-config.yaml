@@ -24,14 +24,14 @@ repos:
     rev: v1.38.0
     hooks:
       - id: yamllint
-        args: [--strict, -c, .coding-standards/lint-configs-626465/.yamllint]
+        args: [--strict, -c, lint-configs-626465/.yamllint]
 
   # ── Secret scanning ──────────────────────────────────────────
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.24.0
     hooks:
       - id: gitleaks
-        args: [--config, .coding-standards/lint-configs-626465/.gitleaks.toml]
+        args: [--config, lint-configs-626465/.gitleaks.toml]
 
   # ── GitHub Actions linting ─────────────────────────────────
   - repo: https://github.com/rhysd/actionlint
@@ -50,11 +50,7 @@ repos:
     rev: v0.21.0
     hooks:
       - id: markdownlint-cli2
-        args:
-          [
-            --config,
-            .coding-standards/lint-configs-626465/.markdownlint-cli2.yaml,
-          ]
+        args: [--config, lint-configs-626465/.markdownlint-cli2.yaml]
 
   # ── Commit message linting ─────────────────────────────────
   - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
@@ -62,19 +58,16 @@ repos:
     hooks:
       - id: commitlint
         stages: [commit-msg]
-        args:
-          [
-            --config,
-            .coding-standards/lint-configs-626465/commitlint.config.mjs,
-          ]
+        args: [--config, lint-configs-626465/commitlint.config.mjs]
 
   # ── Python linting + formatting ────────────────────────────
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.4
     hooks:
       - id: ruff
-        args: [--fix]
+        args: [--fix, --config, lint-configs-626465/ruff.toml]
       - id: ruff-format
+        args: [--config, lint-configs-626465/ruff.toml]
 
   # ── Cruft & secrets blocking ─────────────────────────────────
   - repo: local
@@ -103,14 +96,14 @@ repos:
     rev: v2.12.0
     hooks:
       - id: hadolint-docker
-        args: [--config, .coding-standards/lint-configs-626465/.hadolint.yaml]
+        args: [--config, lint-configs-626465/.hadolint.yaml]
 
   # ── Shell hygiene ──────────────────────────────────────────
   - repo: local
     hooks:
       - id: shell-hygiene
         name: Shell hygiene (python, mktemp, npx)
-        entry: .coding-standards/scripts/hooks/shell-hygiene
+        entry: scripts/hooks/shell-hygiene
         language: system
         types_or: [shell, yaml]
         exclude: '(\.bats$|scripts/entrypoint\.sh|semgrep-rules/)'
@@ -131,5 +124,65 @@ repos:
     hooks:
       - id: prettier
         entry: prettier --check
-        args: [--config, .coding-standards/lint-configs-626465/.prettierrc]
+        args: [--config, lint-configs-626465/.prettierrc]
         exclude: '\.md$'
+
+  # ── Fast checks (pytest + catalog drift) ───────────────────
+  - repo: local
+    hooks:
+      - id: pytest
+        name: Run tests
+        entry: python -m pytest test/ -q --tb=short
+        language: python
+        additional_dependencies:
+          [pytest, pydantic, pyyaml, pytest-randomly, networkx, scipy]
+        pass_filenames: false
+        always_run: true
+
+      - id: catalog-drift
+        name: Check catalog is up to date
+        entry: python scripts/generate_catalog.py --check
+        language: python
+        additional_dependencies: [pyyaml]
+        pass_filenames: false
+        files: '(\.mega-linter-default\.yml|semgrep-rules/|policies/|lint-configs-626465/ruff\.toml)'
+
+  # ── CI validation hooks ────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: semgrep-validate
+        name: Validate semgrep rules
+        entry: uvx semgrep scan --config semgrep-rules/ --validate
+        language: system
+        pass_filenames: false
+        files: "semgrep-rules/"
+
+      - id: semgrep-scan
+        name: Semgrep scan (custom rules)
+        entry: uvx semgrep scan --config semgrep-rules/ --error --quiet
+        language: system
+        pass_filenames: false
+        types_or: [python, javascript, ts, yaml, bash]
+
+      - id: check-ci-json-coverage
+        name: CI smoke test coverage
+        entry: python3 scripts/hooks/check-ci-json-coverage
+        language: system
+        pass_filenames: false
+        files: '(Dockerfile|\.ci\.json)'
+
+      - id: check-config-flags
+        name: Pre-commit --config flag check
+        entry: python scripts/hooks/check-config-flags
+        language: python
+        additional_dependencies: [pyyaml]
+        pass_filenames: false
+        files: '\.pre-commit-config\.yaml$'
+
+      - id: check-hook-deps
+        name: Pre-commit hook dependency coverage
+        entry: python scripts/hooks/check-hook-deps
+        language: python
+        additional_dependencies: [pyyaml]
+        pass_filenames: false
+        files: '(\.pre-commit-config\.yaml$|test/|scripts/)'

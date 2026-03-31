@@ -114,7 +114,7 @@ Generated from config files — this IS the source of truth.
 | shell-json-parsing | INFO | shell-complexity.yml | JSON parsing in shell with jq pipeline. Consider Python instead — shell + jq is brittle, hard to test, and lacks error handling. Python's json module does the same with types and try/except. |
 | no-bare-python | WARNING | shell-hygiene.yml | Use 'uv run python3' instead of bare 'python3' to ensure consistent virtual environment and dependency management. |
 | pin-npm-versions | WARNING | shell-hygiene.yml | npx invocations must pin a version (e.g., npx jscpd@4.0.8). Unpinned npx pulls latest, which breaks reproducibility. |
-| python-silent-fallback-or | INFO | silent-fallbacks.yml | Silent fallback: `or $DEFAULT` may hide a bug. If the empty/falsy case is expected, add `# nosemgrep: python-silent-fallback-or` to acknowledge the intent. |
+| python-silent-fallback-or | INFO | silent-fallbacks.yml | Silent fallback: `or $DEFAULT` may hide a bug. Idiomatic fixes (don't suppress — refactor instead): |
 | python-bare-except-pass | WARNING | silent-fallbacks.yml | Bare except with pass swallows all errors including KeyboardInterrupt. Catch a specific exception, or at minimum log the error. |
 | javascript-silent-catch | WARNING | silent-fallbacks.yml | Empty catch block silently swallows errors. Either handle the error, re-throw, or add a comment explaining why it's safe to ignore. |
 | python-sql-string-interpolation | ERROR | sql-safety.yml | SQL query uses string interpolation — use parameterized queries instead. String interpolation in SQL enables injection attacks, even for "trusted" internal data. Use ? placeholders or a query builder. |
@@ -144,7 +144,7 @@ Generated from config files — this IS the source of truth.
 - **warn**: service '%s' exposes port %s to all interfaces — bind to 127.0.0.1 unless intentionally public (security.rego)
 - **deny**: service '%s' mounts sensitive host path '%s' (security.rego)
 
-## Repo standards (45)
+## Repo standards (49)
 
 - **warn**: .mega-linter.yml not found (ci.rego)
 - **warn**: .mega-linter.yml exists but has no EXTENDS URL (ci.rego)
@@ -152,6 +152,8 @@ Generated from config files — this IS the source of truth.
 - **warn**: No workflow uses fetch-depth: 0 (ci.rego)
 - **warn**: persist-credentials: false not set in checkout — security best practice (ci.rego)
 - **warn**: Not all GitHub Actions are SHA-pinned (ci.rego)
+- **warn**: CI has inline linting commands instead of delegating to a task runner (ci.rego)
+- **warn**: CI workflow mixes schedule triggers with push/PR triggers (ci.rego)
 - **warn**: coding-standards repo-standards checks active (guide.rego)
 - **warn**: conftest.toml not found (infrastructure.rego)
 - **warn**: .editorconfig not found — ensures consistent formatting across editors (infrastructure.rego)
@@ -181,6 +183,8 @@ Generated from config files — this IS the source of truth.
 - **warn**: hypothesis not in dependencies (python.rego)
 - **warn**: No CI workflow directory found (.github/workflows/ or .gitea/workflows/) (quality.rego)
 - **warn**: .pre-commit-config.yaml not found (quality.rego)
+- **warn**: pre-commit config missing gitleaks hook (quality.rego)
+- **warn**: pre-commit config missing detect-private-key hook (quality.rego)
 - **warn**: No commitlint config found — conventional commits make history readable (quality.rego)
 - **warn**: .envrc not found (quality.rego)
 - **warn**: %d suppression comments found across codebase (quality.rego)

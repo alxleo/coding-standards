@@ -64,3 +64,30 @@ warn contains msg if {
 		"  Zizmor will also flag this as unpinned-uses.",
 	])
 }
+
+warn contains msg if {
+	helpers.has_ci_workflows
+	not input.ci.ci_delegates_to_runner
+	not helpers.acknowledged("ci_delegates")
+	msg := concat("\n", [
+		"CI has inline linting commands instead of delegating to a task runner",
+		"  Inline ruff/pytest/semgrep in CI drifts from local dev, causing",
+		"  'passes locally, fails CI' pain. CI should call `just check` or",
+		"  `make check` — one command that runs identically everywhere.",
+		"  Fix: move linting commands into a justfile/Makefile recipe,",
+		"  add that recipe to pre-commit, and have CI call the recipe.",
+	])
+}
+
+warn contains msg if {
+	helpers.has_ci_workflows
+	input.ci.ci_mixes_schedule_and_push
+	not helpers.acknowledged("ci_schedule_separation")
+	msg := concat("\n", [
+		"CI workflow mixes schedule triggers with push/PR triggers",
+		"  Scheduled jobs (trivy, dependency updates) are operational.",
+		"  PR/push jobs are CI. Mixing them adds conditional complexity",
+		"  (if: github.event_name != 'schedule') that obscures the pipeline.",
+		"  Fix: separate into ci.yml (PR + push) and scheduled.yml (cron).",
+	])
+}

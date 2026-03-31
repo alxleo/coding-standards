@@ -52,6 +52,7 @@ class ManifestContent(BaseModel):
     shell_scripts_over_50_lines: int
     dockerfile_files: int
     python_files_with_hyphens: int
+    pre_commit_hooks: list[str]
 
 
 class ManifestDependencies(BaseModel):
@@ -76,6 +77,8 @@ class ManifestCI(BaseModel):
     workflow_persist_credentials_false: bool
     workflow_actions_sha_pinned: bool
     has_sha_pins: bool
+    ci_delegates_to_runner: bool
+    ci_mixes_schedule_and_push: bool
 
 
 class ManifestSuppressions(BaseModel):

@@ -111,7 +111,8 @@ lint-configs-626465/                # Baked linter configs (ruff, shellcheck, ya
 scripts/
   generate_repo_manifest.py         # Manifest generator for repo standards
   generate_catalog.py               # Auto-generates docs/catalog.md
-  megalinter_report_statuses.py                # Posts per-linter commit statuses (Gitea + GitHub)
+  megalinter_report_statuses.py     # Posts per-linter commit statuses (Gitea + GitHub)
+  blast_radius.py                   # Change impact analysis (blast radius, coupling, CIRank)
   ci/check-drift.sh                 # Generic generated-file drift checker
   ci/check-expiry.py                # Expiry/TTL enforcement for date markers
 
@@ -123,8 +124,7 @@ docs/
 
 .ci.json                            # Data-driven smoke tests (tool --version + policy tests)
 .github/workflows/
-  docker-build.yml                  # Build + push image to GHCR (weekly trivy scan)
-  ci.yml                            # Self-test via legacy lint workflow
+  ci.yml                            # Single pipeline: fast-checks → self-lint + build → push
   lint.yml                          # Legacy reusable workflow (being replaced by Docker image)
 ```
 
