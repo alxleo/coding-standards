@@ -18,6 +18,8 @@
     "lint-imports --version",
     "oxlint --version",
     "type-coverage --version",
+    "publint --help",
+    "attw --version",
     "conftest verify -p /opt/coding-standards/policies/repo-standards/",
     "conftest verify -p /opt/coding-standards/policies/compose/",
     "semgrep scan --config /opt/coding-standards/semgrep-rules/ --validate",

@@ -49,7 +49,9 @@ RUN npm install -g \
   eslint-plugin-testing-library@7.4.0 \
   oxlint@1.39.0 \
   type-coverage@2.29.7 \
-  typescript-coverage-report@1.0.0
+  typescript-coverage-report@1.0.0 \
+  publint@0.3.2 \
+  @arethetypeswrong/cli@0.17.3
 
 # zizmor — GitHub Actions security scanner
 RUN pip install --no-cache-dir zizmor==1.23.1

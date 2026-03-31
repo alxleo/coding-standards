@@ -51,7 +51,7 @@ export default [
       "unicorn/prefer-at": "warn",
 
       // ── Import hygiene (already in cupcake) ─────────────────
-      "import/no-cycle": ["warn", { maxDepth: 4 }],
+      "import/no-cycle": ["warn", { maxDepth: 2 }], // depth 2 balances coverage vs performance on large codebases
       "import/no-self-import": "error",
       "import/no-mutable-exports": "error",
       "import/no-extraneous-dependencies": "warn",

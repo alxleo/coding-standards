@@ -68,6 +68,8 @@ ENABLE_LINTERS:
   - REPOSITORY_DEPENDENCY_CRUISER
   - REPOSITORY_NPM_AUDIT
   - REPOSITORY_LICENSE_CHECKER
+  - REPOSITORY_PUBLINT
+  - REPOSITORY_ATTW
   # Python project analyzers
   - REPOSITORY_DEPTRY
   - REPOSITORY_IMPORT_LINTER
@@ -119,6 +121,8 @@ DISABLE_ERRORS_LINTERS:
   - PYTHON_VULTURE
   - REPOSITORY_DEPTRY
   - REPOSITORY_IMPORT_LINTER
+  - REPOSITORY_PUBLINT
+  - REPOSITORY_ATTW
   - SQL_SQLFLUFF
   - ANSIBLE_ANSIBLE_LINT
   - KUBERNETES_KUBECONFORM
@@ -276,3 +280,5 @@ PLUGINS:
   - "file:///mega-linter-plugin-custom/import-linter.megalinter-descriptor.yml"
   - "file:///mega-linter-plugin-custom/oxlint.megalinter-descriptor.yml"
   - "file:///mega-linter-plugin-custom/type-coverage.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/publint.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/attw.megalinter-descriptor.yml"

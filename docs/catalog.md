@@ -4,7 +4,7 @@
 Complete inventory of what the coding-standards image checks.
 Generated from config files — this IS the source of truth.
 
-## Linters (51 total)
+## Linters (53 total)
 
 ### Error tier (24 — blocks build)
 
@@ -33,7 +33,7 @@ Generated from config files — this IS the source of truth.
 - REPOSITORY_JUST_FMT
 - REPOSITORY_GIT_DIFF
 
-### Warn tier (27 — reports only)
+### Warn tier (29 — reports only)
 
 - BASH_SHFMT
 - PYTHON_VULTURE
@@ -53,6 +53,8 @@ Generated from config files — this IS the source of truth.
 - TYPESCRIPT_PRETTIER
 - REPOSITORY_TYPE_COVERAGE
 - REPOSITORY_OXLINT
+- REPOSITORY_PUBLINT
+- REPOSITORY_ATTW
 - REPOSITORY_DEPTRY
 - REPOSITORY_IMPORT_LINTER
 - CSS_STYLELINT

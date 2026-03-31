@@ -119,6 +119,14 @@ jobs:
           scanners: vuln
           trivyignores: .trivyignore
 
+      # Image efficiency check — catch wasted space in layers
+      - name: Dive layer analysis
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            wagoodman/dive:latest \
+            --ci --lowestEfficiency=0.9 \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ci-test || true
+
       # Smoke test — verify all custom tools from .ci.json
       - name: Smoke test
         run: |
