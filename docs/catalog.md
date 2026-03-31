@@ -114,7 +114,7 @@ Generated from config files — this IS the source of truth.
 | shell-json-parsing | INFO | shell-complexity.yml | JSON parsing in shell with jq pipeline. Consider Python instead — shell + jq is brittle, hard to test, and lacks error handling. Python's json module does the same with types and try/except. |
 | no-bare-python | WARNING | shell-hygiene.yml | Use 'uv run python3' instead of bare 'python3' to ensure consistent virtual environment and dependency management. |
 | pin-npm-versions | WARNING | shell-hygiene.yml | npx invocations must pin a version (e.g., npx jscpd@4.0.8). Unpinned npx pulls latest, which breaks reproducibility. |
-| python-silent-fallback-or | INFO | silent-fallbacks.yml | Silent fallback: `or $DEFAULT` may hide a bug. If the empty/falsy case is expected, add `# nosemgrep: python-silent-fallback-or` to acknowledge the intent. |
+| python-silent-fallback-or | INFO | silent-fallbacks.yml | Silent fallback: `or $DEFAULT` may hide a bug. Idiomatic fixes (don't suppress — refactor instead): |
 | python-bare-except-pass | WARNING | silent-fallbacks.yml | Bare except with pass swallows all errors including KeyboardInterrupt. Catch a specific exception, or at minimum log the error. |
 | javascript-silent-catch | WARNING | silent-fallbacks.yml | Empty catch block silently swallows errors. Either handle the error, re-throw, or add a comment explaining why it's safe to ignore. |
 | python-sql-string-interpolation | ERROR | sql-safety.yml | SQL query uses string interpolation — use parameterized queries instead. String interpolation in SQL enables injection attacks, even for "trusted" internal data. Use ? placeholders or a query builder. |
