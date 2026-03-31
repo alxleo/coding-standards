@@ -67,6 +67,11 @@ jobs:
           persist-credentials: false
 
       - uses: alxleo/coding-standards/docker-action@18575725c90d63324c462c560543ee40fd353258 # v1
+        env:
+          # Use baked image config, not workspace .mega-linter.yml.
+          # The workspace EXTENDS points at main which may not have latest plugins.
+          # TODO: remove this env after first image rebuild with PR #35 changes.
+          MEGALINTER_CONFIG: /opt/coding-standards/.mega-linter.yml
 
       - name: Upload MegaLinter report
         if: always()
