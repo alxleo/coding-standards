@@ -49,3 +49,25 @@ warn contains msg if {
 	])
 }
 
+warn contains msg if {
+	input.content.python_files > 5
+	not input.directories.tests
+	not helpers.acknowledged("no_tests")
+	msg := concat("\n", [
+		"No tests/ directory but Python scripts present",
+		"  Scripts without tests are untestable assumptions.",
+		"  Fix: create tests/ with pytest tests for your scripts",
+	])
+}
+
+warn contains msg if {
+	input.content.shell_scripts_over_50_lines > 0
+	not helpers.acknowledged("large_shell_scripts")
+	msg := sprintf(concat("\n", [
+		"%d shell script(s) exceed 50 lines",
+		"  Shell is for glue (wiring commands together). When scripts need loops",
+		"  with conditionals, data parsing, or error handling, rewrite in Python.",
+		"  Shell scripts are hard to test; Python scripts get pytest for free.",
+	]), [input.content.shell_scripts_over_50_lines])
+}
+

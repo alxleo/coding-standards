@@ -253,3 +253,65 @@ for l in r['linters']:
     print(f'{s} {l[\"name\"]:40s} {l.get(\"total_number_errors\",0)} errors')
 "
 ```
+
+## Repo standards (setup validation)
+
+The image checks whether your repo is set up to benefit from the enforcement layer. These are warnings, not blockers — they tell you what's missing and how to fix it.
+
+Checks auto-detect your stack: Python-only repos won't get JS/TS warnings.
+
+See `docs/catalog.md` for the full list of checks (generated, always current).
+
+### Acknowledge warnings
+
+If a check doesn't apply, silence it with a reason in `.repo-standards.yml`:
+
+```yaml
+# .repo-standards.yml
+acknowledged:
+  commitlint_config: "uses baked commitlint from coding-standards image"
+  eslint_config: "vendored JS files, not application code"
+  pydantic: "scripts only, no boundary-crossing data"
+```
+
+The acknowledgment IS the documentation — versioned, reviewable, lives next to the code.
+
+### Promote to blocking
+
+Add a `.rego` file in your `policy/repo-standards/` that uses `deny` instead of `warn`:
+
+```rego
+package repo_standards.local
+
+import data.repo_standards.python
+
+deny := python.warn
+```
+
+## Full catalog
+
+See `docs/catalog.md` — auto-generated inventory of all linters, semgrep rules, conftest policies, and repo-standards checks. Run `python3 scripts/generate-catalog.py` to regenerate.
+
+## Contributing new checks
+
+Adding a check to the coding-standards image:
+
+1. **Decide where it lives:**
+   - File/config presence → repo-standards Rego policy + manifest field
+   - Code pattern → semgrep rule
+   - Config content → conftest compose policy
+   - Code quality → ruff rule category
+
+2. **For repo-standards checks:**
+   - Add manifest field in `scripts/generate-repo-manifest.py`
+   - Add `warn contains msg` rule in `policies/repo-standards/<category>.rego`
+   - Add unit test in `policies/repo-standards/<category>_test.rego`
+   - Run `conftest verify -p policies/repo-standards/`
+
+3. **For semgrep rules:**
+   - Add rule to existing or new file in `semgrep-rules/`
+   - Run `semgrep scan --config semgrep-rules/<file>.yml --validate`
+
+4. **Regenerate catalog:** `python3 scripts/generate-catalog.py`
+
+5. **Test against a real repo:** `python3 scripts/generate-repo-manifest.py ~/path/to/repo`

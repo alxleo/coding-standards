@@ -96,6 +96,21 @@ def check_pyproject_dep(root: Path, dep_name: str) -> bool:
     return any(dep_re.match(dep) for deps in dep_lists for dep in deps)
 
 
+def _count_large_shell(root: Path, threshold: int) -> int:
+    """Count shell scripts exceeding threshold lines."""
+    count = 0
+    for f in root.rglob("*.sh"):
+        if _is_excluded(f.relative_to(root)):
+            continue
+        try:
+            lines = len(f.read_text(errors="replace").splitlines())
+            if lines > threshold:
+                count += 1
+        except OSError:
+            pass
+    return count
+
+
 def _has_toml_section(path: Path, *keys: str) -> bool:
     """Check if a nested section exists in a TOML file."""
     if not path.exists():
@@ -268,6 +283,7 @@ def generate(root: Path) -> dict:
                     "compose*.yaml",
                 ]
             ),
+            "shell_scripts_over_50_lines": _count_large_shell(root, 50),
             "dockerfile_files": sum(
                 1
                 for _ in root.rglob("Dockerfile*")
