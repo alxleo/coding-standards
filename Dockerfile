@@ -10,28 +10,19 @@
 #
 # All images SHA-pinned. Renovate automates digest updates.
 
-# renovate: datasource=docker depName=ghcr.io/aquasecurity/trivy
-FROM ghcr.io/aquasecurity/trivy:0.69.3@sha256:bcc376de8d77cfe086a917230e818dc9f8528e3c852f7b1aff648949b6258d1c AS trivy
-
 # renovate: datasource=docker depName=oxsecurity/megalinter-cupcake
 FROM oxsecurity/megalinter-cupcake:v9@sha256:e4ac6e253ef839c448cfe36a4659c8a56c7244d93c41124801511ba2ef5e08b9 AS base
 
 LABEL org.opencontainers.image.source="https://github.com/alxleo/coding-standards"
 LABEL org.opencontainers.image.description="Centralized linting image — MegaLinter cupcake + custom tools"
 
-# Patch base image CVEs (MegaLinter may lag behind Alpine security updates)
-# glibc-bin trigger may fail in MegaLinter's custom Alpine — allow partial success
-# hadolint ignore=DL3018,DL3059
-RUN apk upgrade --no-cache; exit 0
-
 # ── Custom tool installs ──────────────────────────────────────
 # Tools MegaLinter doesn't include natively.
 # Each gets a plugin descriptor in plugins/ for MegaLinter orchestration.
-
-# trivy — vulnerability + IaC scanner (pinned, pre-compromise)
-COPY --from=trivy /usr/local/bin/trivy /usr/local/bin/trivy
-# Pre-cache trivy vulnerability DB (saves ~10s per run)
-RUN trivy fs --download-db-only --no-progress --cache-dir /root/.cache/trivy
+#
+# NOTE: cupcake base already ships trivy + pre-cached vuln DB.
+# Do NOT add a trivy multi-stage or apk upgrade — both duplicate
+# base layer binaries (~1.8 GB wasted). See dive analysis 2026-03-31.
 
 # npm-based tools (single layer to reduce image size)
 # hadolint ignore=DL3059
@@ -148,4 +139,4 @@ COPY docs/catalog.md /opt/coding-standards/docs/catalog.md
 # ── Default config ────────────────────────────────────────────
 # Consumer repos use EXTENDS with a raw GitHub URL to inherit this:
 #   EXTENDS: https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml
-COPY .mega-linter-default.yml /opt/coding-standards/.mega-linter.yml
+COPY .mega-linter-default.yml /opt/coding-standards/.mega-linter-default.yml
