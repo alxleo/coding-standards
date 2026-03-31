@@ -85,20 +85,26 @@ Or inline in code: `# nosemgrep: rule-id`
 
 Do NOT override `REPOSITORY_SEMGREP_RULESETS` — it contains absolute image paths that break when merged with consumer values.
 
-### Ergonomic commands (justfile)
+### Built-in commands
 
-Copy `examples/justfile` into your repo root for quick commands:
+The image has a command router — no setup needed:
 
 ```bash
-just lint              # full suite
-just lint ruff         # single linter
-just fix               # auto-fix all formatting issues
-just standards         # repo-standards checks only
-just catalog           # show what the image checks
-just check             # pre-commit (catches what CI catches)
+docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest              # full lint
+docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest lint ruff     # single linter
+docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest fix           # auto-fix all
+docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest standards     # repo-standards only
+docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest catalog       # show what's checked
+docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest help          # list commands
 ```
 
-Or use Docker directly:
+For shorter commands, copy `examples/justfile` into your repo root:
+
+```bash
+just cs-lint ruff      # same as the docker run above
+just cs-fix            # auto-fix
+just cs-standards      # repo-standards
+```
 
 ### Auto-fix
 

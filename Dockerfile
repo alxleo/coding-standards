@@ -105,7 +105,7 @@ COPY semgrep-rules/ /opt/coding-standards/semgrep-rules/
 COPY policies/ /opt/coding-standards/policies/
 
 # ── Mechanism scripts + reporting ─────────────────────────────
-COPY scripts/ci/check-drift.sh scripts/ci/check-expiry.py scripts/report-statuses.py scripts/generate-repo-manifest.py /opt/coding-standards/scripts/
+COPY scripts/ci/check-drift.sh scripts/ci/check-expiry.py scripts/report-statuses.py scripts/generate-repo-manifest.py scripts/generate-catalog.py /opt/coding-standards/scripts/
 RUN chmod +x /opt/coding-standards/scripts/check-drift.sh /opt/coding-standards/scripts/generate-repo-manifest.py
 
 # ── Linter config files ──────────────────────────────────────
@@ -117,5 +117,17 @@ COPY lint-configs-626465/ /opt/coding-standards/configs/
 # Baked config used when no workspace .mega-linter.yml exists.
 # Consumer repos use EXTENDS with a raw GitHub URL to inherit this:
 #   EXTENDS: https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml
-# No custom entrypoint — MegaLinter's default config discovery handles everything.
+# ── Entrypoint (command router) ──────────────────────────────
+# Routes: lint [linter], fix, standards, catalog, help
+# No args → falls through to MegaLinter's /entrypoint.sh
+COPY scripts/entrypoint.sh /opt/coding-standards/entrypoint.sh
+RUN chmod +x /opt/coding-standards/entrypoint.sh
+ENTRYPOINT ["/bin/bash", "/opt/coding-standards/entrypoint.sh"]
+
+# ── Generated catalog ────────────────────────────────────────
+COPY docs/catalog.md /opt/coding-standards/docs/catalog.md
+
+# ── Default config ────────────────────────────────────────────
+# Consumer repos use EXTENDS with a raw GitHub URL to inherit this:
+#   EXTENDS: https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml
 COPY .mega-linter-default.yml /opt/coding-standards/.mega-linter.yml

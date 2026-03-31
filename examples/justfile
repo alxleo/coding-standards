@@ -1,52 +1,42 @@
 # coding-standards consumer justfile
 # Drop this into your repo root for ergonomic lint commands.
 #
+# The image has a built-in command router — these recipes just
+# handle the Docker volume mount. All logic is in the image.
+#
 # Usage:
-#   just lint              # full suite
-#   just lint ruff         # single linter
-#   just fix               # auto-fix all
-#   just standards         # repo-standards only
-#   just catalog           # show what's checked
+#   just cs-lint              # full suite
+#   just cs-lint ruff         # single linter
+#   just cs-fix               # auto-fix all
+#   just cs-standards         # repo-standards only
+#   just cs-catalog           # show what's checked
+#   just cs-help              # list available commands
 
 image := "ghcr.io/alxleo/coding-standards:latest"
 workspace := justfile_directory()
+docker_args := "-v " + workspace + ":/tmp/lint -e DEFAULT_WORKSPACE=/tmp/lint"
 
-# Run full lint suite
-[doc('Run all linters')]
-lint *LINTER:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    args=(-v "{{workspace}}:/tmp/lint" -e DEFAULT_WORKSPACE=/tmp/lint)
-    if [ -n "{{LINTER}}" ]; then
-        args+=(-e "ENABLE_LINTERS={{uppercase(LINTER)}}")
-    fi
-    docker run --rm "${args[@]}" {{image}}
+# Run linters (all or single)
+[doc('Run coding-standards linters')]
+cs-lint *LINTER:
+    docker run --rm {{docker_args}} {{image}} lint {{LINTER}}
 
 # Auto-fix formatting issues
 [doc('Auto-fix all fixable issues')]
-fix:
-    docker run --rm \
-        -v "{{workspace}}:/tmp/lint" \
-        -e DEFAULT_WORKSPACE=/tmp/lint \
-        -e APPLY_FIXES=all \
-        {{image}}
+cs-fix:
+    docker run --rm {{docker_args}} {{image}} fix
 
 # Run repo-standards checks only
 [doc('Check repo setup against standards')]
-standards:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    docker run --rm --entrypoint="" \
-        -v "{{workspace}}:/tmp/lint" \
-        {{image}} \
-        sh -c "cd /tmp/lint && python3 /opt/coding-standards/scripts/generate-repo-manifest.py && conftest test repo-manifest.json --all-namespaces --no-color -p /opt/coding-standards/policies/repo-standards/ && rm -f repo-manifest.json"
+cs-standards:
+    docker run --rm {{docker_args}} {{image}} standards
 
 # Show what the image checks
 [doc('Show full catalog of checks')]
-catalog:
-    docker run --rm --entrypoint="" {{image}} cat /opt/coding-standards/docs/catalog.md
+cs-catalog:
+    docker run --rm {{docker_args}} {{image}} catalog
 
-# Pre-commit: run before committing (catches what CI would catch)
+# Pre-commit: run before committing (catches what CI catches)
 [doc('Run pre-commit checks locally')]
 check:
     uvx pre-commit run --all-files

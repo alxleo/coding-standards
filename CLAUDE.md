@@ -75,6 +75,15 @@ EXTENDS:
   - https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml
 ```
 
+Local commands (no setup — the image is the CLI):
+
+```bash
+docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest lint ruff
+docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest fix
+docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest standards
+docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest help
+```
+
 Full consumer guide: [docs/consumer-guide.md](https://github.com/alxleo/coding-standards/blob/main/docs/consumer-guide.md)
 Decision rationale: [docs/config-decisions.md](https://github.com/alxleo/coding-standards/blob/main/docs/config-decisions.md)
 
