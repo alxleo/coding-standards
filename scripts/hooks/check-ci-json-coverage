@@ -46,3 +46,22 @@ if missing:
     for tool in missing:
         print(f".ci.json missing smoke test for: {tool}")
     sys.exit(1)
+
+# Verify script paths in .ci.json actually exist
+import json
+
+ci_data = json.loads(ci_json.read_text())
+stale = []
+for cmd in ci_data.get("test_commands", []):
+    # Extract paths like /opt/coding-standards/scripts/foo.py or scripts/foo.py
+    for path_match in re.findall(r"(?:scripts/\S+\.(?:py|sh))", cmd):
+        # Strip /opt/coding-standards/ prefix if present
+        local_path = root / path_match.replace("/opt/coding-standards/", "")
+        if not local_path.exists():
+            stale.append(f"{path_match} (in command: {cmd[:60]}...)")
+
+if stale:
+    print("Stale script paths in .ci.json:")
+    for s in stale:
+        print(f"  ✗ {s}")
+    sys.exit(1)
