@@ -413,6 +413,24 @@ def generate(root: Path) -> dict[str, Any]:
             ),
             "hypothesis": check_pyproject_dep(root, "hypothesis"),
             "stryker": check_package_json_dep(root, "@stryker-mutator/core"),
+            "i18n_framework": (
+                check_package_json_dep(root, "i18next")
+                or check_package_json_dep(root, "react-intl")
+                or check_package_json_dep(root, "next-intl")
+            ),
+            "structured_logging_js": (
+                check_package_json_dep(root, "pino")
+                or check_package_json_dep(root, "winston")
+                or check_package_json_dep(root, "bunyan")
+            ),
+            "structured_logging_py": (
+                check_pyproject_dep(root, "structlog")
+                or check_pyproject_dep(root, "python-json-logger")
+            ),
+            "opentelemetry": (
+                check_package_json_dep(root, "@opentelemetry/sdk-node")
+                or check_pyproject_dep(root, "opentelemetry-sdk")
+            ),
         },
         "ci": {
             "workflow_uses_composite_action": check_workflow_field(

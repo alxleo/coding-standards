@@ -62,6 +62,18 @@ warn contains msg if {
 }
 
 warn contains msg if {
+	input.content.python_files > 20
+	not input.dependencies.structured_logging_py
+	not helpers.acknowledged("structured_logging")
+	msg := concat("\n", [
+		"No structured logging library (structlog, python-json-logger)",
+		"  print() and basic logging produce unstructured output.",
+		"  Structured logs are searchable, parseable, and essential for debugging.",
+		"  Fix: add structlog to dependencies",
+	])
+}
+
+warn contains msg if {
 	input.content.python_files > 0
 	not input.dependencies.pydantic
 	not helpers.acknowledged("pydantic")

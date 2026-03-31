@@ -39,6 +39,28 @@ warn contains msg if {
 
 warn contains msg if {
 	(input.content.typescript_files + input.content.javascript_files) > 0
+	not input.dependencies.i18n_framework
+	not helpers.acknowledged("i18n")
+	msg := concat("\n", [
+		"No i18n framework detected (i18next, react-intl, next-intl)",
+		"  Hardcoded strings in JSX are painful to retrofit for translations.",
+		"  Fix: npm install i18next react-i18next",
+	])
+}
+
+warn contains msg if {
+	(input.content.typescript_files + input.content.javascript_files) > 0
+	not input.dependencies.structured_logging_js
+	not helpers.acknowledged("structured_logging")
+	msg := concat("\n", [
+		"No structured logging library (pino, winston, bunyan)",
+		"  console.log in production is unstructured and unsearchable.",
+		"  Fix: npm install pino (fastest) or winston (most configurable)",
+	])
+}
+
+warn contains msg if {
+	(input.content.typescript_files + input.content.javascript_files) > 0
 	not input.dependencies.zod
 	not helpers.acknowledged("zod")
 	msg := concat("\n", [

@@ -4,7 +4,7 @@
 Complete inventory of what the coding-standards image checks.
 Generated from config files — this IS the source of truth.
 
-## Linters (53 total)
+## Linters (54 total)
 
 ### Error tier (24 — blocks build)
 
@@ -33,7 +33,7 @@ Generated from config files — this IS the source of truth.
 - REPOSITORY_JUST_FMT
 - REPOSITORY_GIT_DIFF
 
-### Warn tier (29 — reports only)
+### Warn tier (30 — reports only)
 
 - BASH_SHFMT
 - PYTHON_VULTURE
@@ -59,6 +59,7 @@ Generated from config files — this IS the source of truth.
 - REPOSITORY_IMPORT_LINTER
 - CSS_STYLELINT
 - SQL_SQLFLUFF
+- API_SPECTRAL
 - ANSIBLE_ANSIBLE_LINT
 - KUBERNETES_KUBECONFORM
 - REPOSITORY_LS_LINT
@@ -111,7 +112,7 @@ Generated from config files — this IS the source of truth.
 | shell-json-parsing | INFO | shell-complexity.yml | JSON parsing in shell with jq pipeline. Consider Python instead — shell + jq is brittle, hard to test, and lacks error handling. Python's json module does the same with types and try/except. |
 | no-bare-python | WARNING | shell-hygiene.yml | Use 'uv run python3' instead of bare 'python3' to ensure consistent virtual environment and dependency management. |
 | pin-npm-versions | WARNING | shell-hygiene.yml | npx invocations must pin a version (e.g., npx jscpd@4.0.8). Unpinned npx pulls latest, which breaks reproducibility. |
-| python-silent-fallback-or | INFO | silent-fallbacks.yml | Silent fallback: `or $DEFAULT` may hide a bug. If the empty/falsy case is expected, add a comment explaining why the fallback is safe. |
+| python-silent-fallback-or | INFO | silent-fallbacks.yml | Silent fallback: `or $DEFAULT` may hide a bug. If the empty/falsy case is expected, add `# nosemgrep: python-silent-fallback-or` to acknowledge the intent. |
 | python-bare-except-pass | WARNING | silent-fallbacks.yml | Bare except with pass swallows all errors including KeyboardInterrupt. Catch a specific exception, or at minimum log the error. |
 | javascript-silent-catch | WARNING | silent-fallbacks.yml | Empty catch block silently swallows errors. Either handle the error, re-throw, or add a comment explaining why it's safe to ignore. |
 | python-sql-string-interpolation | ERROR | sql-safety.yml | SQL query uses string interpolation — use parameterized queries instead. String interpolation in SQL enables injection attacks, even for "trusted" internal data. Use ? placeholders or a query builder. |
@@ -141,7 +142,7 @@ Generated from config files — this IS the source of truth.
 - **warn**: service '%s' exposes port %s to all interfaces — bind to 127.0.0.1 unless intentionally public (security.rego)
 - **deny**: service '%s' mounts sensitive host path '%s' (security.rego)
 
-## Repo standards (38)
+## Repo standards (41)
 
 - **warn**: .mega-linter.yml not found (ci.rego)
 - **warn**: .mega-linter.yml exists but has no EXTENDS URL (ci.rego)
@@ -158,6 +159,8 @@ Generated from config files — this IS the source of truth.
 - **warn**: No ESLint config found — linting config needed for JS/TS code (javascript.rego)
 - **warn**: eslint-plugin-jest not in dependencies (javascript.rego)
 - **warn**: .nvmrc not found — pin Node version for consistent builds across machines (javascript.rego)
+- **warn**: No i18n framework detected (i18next, react-intl, next-intl) (javascript.rego)
+- **warn**: No structured logging library (pino, winston, bunyan) (javascript.rego)
 - **warn**: zod not in dependencies (javascript.rego)
 - **warn**: @stryker-mutator/core not in dependencies (javascript.rego)
 - **warn**: pyrightconfig.json not found (python.rego)
@@ -165,6 +168,7 @@ Generated from config files — this IS the source of truth.
 - **warn**: pytest-randomly not in dependencies (python.rego)
 - **warn**: tests/ directory exists but no test framework in pyproject.toml (python.rego)
 - **warn**: %d Python file(s) have hyphens in their names (python.rego)
+- **warn**: No structured logging library (structlog, python-json-logger) (python.rego)
 - **warn**: pydantic not in dependencies (python.rego)
 - **warn**: import-linter not in dependencies (python.rego)
 - **warn**: import-linter installed but no contracts defined (python.rego)

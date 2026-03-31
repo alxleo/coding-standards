@@ -77,6 +77,8 @@ ENABLE_LINTERS:
   - CSS_STYLELINT
   # SQL
   - SQL_SQLFLUFF
+  # API contract validation
+  - API_SPECTRAL
   # Ansible
   - ANSIBLE_ANSIBLE_LINT
   # Kubernetes
@@ -123,6 +125,7 @@ DISABLE_ERRORS_LINTERS:
   - REPOSITORY_IMPORT_LINTER
   - REPOSITORY_PUBLINT
   - REPOSITORY_ATTW
+  - API_SPECTRAL
   - SQL_SQLFLUFF
   - ANSIBLE_ANSIBLE_LINT
   - KUBERNETES_KUBECONFORM
@@ -145,6 +148,7 @@ PYTHON_PYRIGHT_ARGUMENTS:
   - "error"
 PYTHON_RUFF_CONFIG_FILE: /opt/coding-standards/configs/ruff.toml
 REPOSITORY_LS_LINT_CONFIG_FILE: /opt/coding-standards/configs/.ls-lint.yml
+API_SPECTRAL_CONFIG_FILE: /opt/coding-standards/configs/.spectral.yaml
 JAVASCRIPT_ES_CONFIG_FILE: /opt/coding-standards/configs/eslint.config.mjs
 TYPESCRIPT_ES_CONFIG_FILE: /opt/coding-standards/configs/eslint.config.mjs
 JSX_ESLINT_CONFIG_FILE: /opt/coding-standards/configs/eslint.config.mjs

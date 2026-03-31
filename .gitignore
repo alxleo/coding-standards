@@ -9,3 +9,8 @@
 # npm (bats-core test runner)
 /node_modules/
 megalinter-reports/
+
+# Generated at runtime
+repo-manifest.json
+uv.lock
+.venv/

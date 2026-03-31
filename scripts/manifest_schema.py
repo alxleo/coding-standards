@@ -64,6 +64,10 @@ class ManifestDependencies(BaseModel):
     import_linter_configured: bool
     hypothesis: bool
     stryker: bool
+    i18n_framework: bool
+    structured_logging_js: bool
+    structured_logging_py: bool
+    opentelemetry: bool
 
 
 class ManifestCI(BaseModel):

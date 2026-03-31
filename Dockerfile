@@ -52,7 +52,8 @@ RUN npm install -g \
   type-coverage@2.29.7 \
   typescript-coverage-report@1.0.0 \
   publint@0.3.2 \
-  @arethetypeswrong/cli@0.17.3
+  @arethetypeswrong/cli@0.17.3 \
+  eslint-plugin-i18next@7.4.0
 
 # Python tools — zizmor (Actions security), vulture, deptry, import-linter
 # hadolint ignore=DL3059

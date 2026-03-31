@@ -9,6 +9,7 @@
 //   - react-hooks: hooks rules (exhaustive-deps)
 //   - jsx-a11y:    accessibility for JSX
 //   - jest:        test quality
+//   - i18next:     internationalization (hardcoded strings in JSX)
 
 import unicorn from "eslint-plugin-unicorn";
 import security from "eslint-plugin-security";
@@ -18,6 +19,7 @@ import reactHooks from "eslint-plugin-react-hooks";
 import jsxA11y from "eslint-plugin-jsx-a11y";
 import importPlugin from "eslint-plugin-import";
 import testingLibrary from "eslint-plugin-testing-library";
+import i18next from "eslint-plugin-i18next";
 
 export default [
   {
@@ -71,6 +73,7 @@ export default [
       react,
       "react-hooks": reactHooks,
       "jsx-a11y": jsxA11y,
+      i18next,
     },
     settings: {
       react: { version: "detect" },
@@ -84,6 +87,9 @@ export default [
       "react/jsx-no-target-blank": "error",
       "react/no-danger": "warn",
       "react/self-closing-comp": "warn",
+
+      // i18n — catch hardcoded strings early (painful to retrofit)
+      "i18next/no-literal-string": "warn",
 
       // Accessibility
       "jsx-a11y/alt-text": "warn",
