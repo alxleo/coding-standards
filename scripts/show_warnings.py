@@ -51,5 +51,9 @@ def show_warnings(report_path: Path) -> int:
 
 
 if __name__ == "__main__":
-    path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("megalinter-reports/mega-linter-report.json")
+    path = (
+        Path(sys.argv[1])
+        if len(sys.argv) > 1
+        else Path("megalinter-reports/mega-linter-report.json")
+    )
     sys.exit(show_warnings(path))

@@ -1,0 +1,4 @@
+# coding-standards eats its own dog food.
+# EXTENDS the baseline we ship to consumers.
+EXTENDS:
+  - https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml
