@@ -695,6 +695,15 @@ def main() -> None:
 
     root = Path(__file__).resolve().parent.parent
 
+    if args.pr:
+        review = pr_review(root, args.pr)
+        if args.json:
+            json.dump(review, sys.stdout, indent=2)
+            print()
+        else:
+            print_pr_review(review)
+        return
+
     if args.json:
         data = {
             "blast_radius": compute_blast_radius(root),
@@ -708,14 +717,6 @@ def main() -> None:
         }
         json.dump(data, sys.stdout, indent=2)
         print()
-        return
-
-    if args.pr:
-        review = pr_review(root, args.pr)
-        if "--json" in sys.argv:
-            json.dump(review, sys.stdout, indent=2)
-        else:
-            print_pr_review(review)
         return
 
     if args.file:

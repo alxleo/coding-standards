@@ -57,7 +57,7 @@ Each entry records: what it does, the source paper/tool, implementation status, 
 **Source:** Standard static analysis. Tree-sitter and Depwire do this for multiple languages.
 **Implementation:** `scripts/blast_radius.py` → `_extract_python_imports()`, edges fed into `_build_dependency_graph()`
 **Strengths:** More precise than grep for .py files. Resolves `import manifest_schema` to `scripts/manifest_schema.py`.
-**Weaknesses:** Python only. Doesn't handle dynamic imports (`importlib.import_module`). Relative imports not yet handled.
+**Weaknesses:** Python only. Doesn't handle dynamic imports (`importlib.import_module`). Ambiguous stems (two files with same name) safely unresolved.
 **Evaluation:** Does the AST graph catch import-chain dependencies that grep misses?
 
 ## Planned — To Implement and Evaluate

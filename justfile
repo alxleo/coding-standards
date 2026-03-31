@@ -93,4 +93,4 @@ catalog-gen:
 [doc('Change impact analysis (blast radius, coupling, criticality)')]
 [group('check')]
 measure *ARGS:
-    uv run --with networkx --with scipy python3 scripts/blast_radius.py {{ ARGS }}
+    uv run --with networkx python3 scripts/blast_radius.py {{ ARGS }}
