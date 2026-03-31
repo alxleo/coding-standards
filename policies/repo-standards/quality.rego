@@ -48,3 +48,4 @@ warn contains msg if {
 		"  Fix: create justfile or Makefile with check/test/lint recipes",
 	])
 }
+

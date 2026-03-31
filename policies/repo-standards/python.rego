@@ -74,3 +74,28 @@ warn contains msg if {
 		"  Fix: add import-linter to dev deps, define contracts in pyproject.toml",
 	])
 }
+
+warn contains msg if {
+	input.dependencies.import_linter
+	not input.dependencies.import_linter_configured
+	not helpers.acknowledged("import_linter_configured")
+	msg := concat("\n", [
+		"import-linter installed but no contracts defined",
+		"  [tool.importlinter] section missing from pyproject.toml.",
+		"  Without contracts, import-linter does nothing.",
+		"  Fix: add [tool.importlinter] with contract_* sections defining layer rules",
+	])
+}
+
+warn contains msg if {
+	input.directories.tests
+	input.content.python_files > 0
+	not input.dependencies.hypothesis
+	not helpers.acknowledged("hypothesis")
+	msg := concat("\n", [
+		"hypothesis not in dependencies",
+		"  Property-based testing finds edge cases that example-based tests miss.",
+		"  Especially valuable for parsing, serialization, and data transformation.",
+		"  Fix: add hypothesis to test dependencies",
+	])
+}

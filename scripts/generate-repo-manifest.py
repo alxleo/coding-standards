@@ -96,6 +96,21 @@ def check_pyproject_dep(root: Path, dep_name: str) -> bool:
     return any(dep_re.match(dep) for deps in dep_lists for dep in deps)
 
 
+def _has_toml_section(path: Path, *keys: str) -> bool:
+    """Check if a nested section exists in a TOML file."""
+    if not path.exists():
+        return False
+    try:
+        data = _load_toml(path)
+        for key in keys:
+            if not isinstance(data, dict) or key not in data:
+                return False
+            data = data[key]
+        return True
+    except Exception:
+        return False
+
+
 def check_package_json_dep(root: Path, dep_name: str) -> bool:
     pkg = root / "package.json"
     if not pkg.exists():
@@ -266,6 +281,9 @@ def generate(root: Path) -> dict:
             "zod": check_package_json_dep(root, "zod"),
             "pydantic": check_pyproject_dep(root, "pydantic"),
             "import_linter": check_pyproject_dep(root, "import-linter"),
+            "import_linter_configured": _has_toml_section(root / "pyproject.toml", "tool", "importlinter"),
+            "hypothesis": check_pyproject_dep(root, "hypothesis"),
+            "stryker": check_package_json_dep(root, "@stryker-mutator/core"),
         },
         "ci": {
             "workflow_uses_composite_action": check_workflow_field(

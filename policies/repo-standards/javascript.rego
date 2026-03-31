@@ -48,3 +48,16 @@ warn contains msg if {
 		"  Fix: npm install zod",
 	])
 }
+
+warn contains msg if {
+	input.directories.tests
+	(input.content.typescript_files + input.content.javascript_files) > 0
+	not input.dependencies.stryker
+	not helpers.acknowledged("stryker")
+	msg := concat("\n", [
+		"@stryker-mutator/core not in dependencies",
+		"  Mutation testing verifies tests actually catch bugs, not just exist.",
+		"  Incremental mode runs in seconds on PRs (only mutates changed code).",
+		"  Fix: npx stryker init",
+	])
+}
