@@ -44,16 +44,16 @@ RUN npm install -g \
   knip@6.1.0 \
   dependency-cruiser@17.3.10 \
   license-checker@25.0.1 \
-  eslint-plugin-unicorn@62.0.0 \
-  eslint-plugin-security@3.0.1 \
-  eslint-plugin-sonarjs@3.0.2 \
-  eslint-plugin-testing-library@7.4.0 \
-  oxlint@1.39.0 \
+  eslint-plugin-unicorn@64.0.0 \
+  eslint-plugin-security@4.0.0 \
+  eslint-plugin-sonarjs@4.0.2 \
+  eslint-plugin-testing-library@7.16.2 \
+  oxlint@1.57.0 \
   type-coverage@2.29.7 \
-  typescript-coverage-report@1.0.0 \
-  publint@0.3.2 \
-  @arethetypeswrong/cli@0.17.3 \
-  eslint-plugin-i18next@7.4.0
+  typescript-coverage-report@1.1.1 \
+  publint@0.3.18 \
+  @arethetypeswrong/cli@0.18.2 \
+  eslint-plugin-i18next@6.1.3
 
 # Python tools — zizmor (Actions security), vulture, deptry, import-linter
 # hadolint ignore=DL3059
