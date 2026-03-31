@@ -157,20 +157,23 @@ docs/
 5. Pre-commit runs `generate_catalog.py` automatically
 6. Test: `docker build` + entrypoint commands
 
-## Developing the image
+## Dev workflow — three commands
 
 ```bash
-docker build --platform linux/amd64 -t coding-standards:test .
-uvx ruff check --config lint-configs-626465/ruff.toml .
-uvx semgrep scan --config semgrep-rules/ .
-just docker-lint              # full suite
-just docker-lint-only PYTHON_RUFF  # single linter
+just check     # fast local checks via pre-commit (ruff, pytest, semgrep, catalog drift, etc)
+just lint      # full MegaLinter suite via Docker image
+just verify    # both + rego policy tests
 ```
 
-## Running tests
+`just check` is the single command. CI runs the same pre-commit config.
+`just lint` runs the shipped Docker image — verifies what consumers will get.
+`just verify` runs everything — use before creating a PR.
+
+Individual checks: `just test` (pytest only), `just test-rego` (Rego unit tests), `just test-semgrep` (rule validation).
+
+## Building the image
 
 ```bash
-just test                     # pytest + bats
-conftest verify -p policies/repo-standards/   # Rego unit tests (needs conftest or Docker)
-python3 scripts/generate_catalog.py --check   # catalog drift
+just build                    # docker build
+just lint PYTHON_RUFF         # single linter via image
 ```
