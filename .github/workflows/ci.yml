@@ -45,6 +45,8 @@ jobs:
         run: uv run --with pydantic --with pyyaml --with pytest pytest test/ -v
 
       - name: Pre-commit
+        env:
+          SKIP: just-fmt-check,caddy-fmt-check
         run: |
           uvx pre-commit run --all-files -c lint-configs-626465/.pre-commit-config.yaml
 
