@@ -1,7 +1,10 @@
 ---
 # CI — two-tier feedback.
-#   1. Fast checks (~15s): ruff, conftest, semgrep, pytest, pre-commit, drift checks
+#   1. Fast checks: pre-commit runs ALL hooks (ruff, pytest, semgrep, catalog, etc)
 #   2. Image self-lint (via composite action): runs the published image
+#
+# Single source of truth: lint-configs-626465/.pre-commit-config.yaml
+# Same command locally: just check
 name: CI
 
 on:
@@ -17,7 +20,7 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  # Fast feedback — no Docker, no image pull. Tests configs and policies directly.
+  # Fast feedback — no Docker, no image pull. Pre-commit runs everything.
   fast-checks:
     if: >-
       github.event_name == 'push' ||
@@ -33,32 +36,12 @@ jobs:
         with:
           enable-cache: false
 
-      - name: Ruff lint + format check
-        run: |
-          uvx ruff check --config lint-configs-626465/ruff.toml .
-          uvx ruff format --check --config lint-configs-626465/ruff.toml .
-
-      - name: Semgrep rule validation
-        run: uvx semgrep scan --config semgrep-rules/ --validate
-
-      - name: Pytest
-        run: uv run --with pydantic --with pyyaml --with pytest pytest test/ -v
-
-      - name: Catalog drift check
-        run: uv run --with pydantic --with pyyaml python3 scripts/generate_catalog.py --check
-
-      - name: CI smoke test coverage check
-        run: python3 scripts/hooks/check-ci-json-coverage
-
-      - name: Pre-commit --config flag check
-        run: uv run --with pyyaml python3 scripts/hooks/check-config-flags
-
-      - name: Pre-commit
+      - name: Pre-commit (all checks)
         env:
           SKIP: just-fmt-check,caddy-fmt-check,hadolint-docker
         run: |
           # Self-test: this repo IS coding-standards, so .coding-standards → .
-          ln -sf . .coding-standards
+          [ -L .coding-standards ] || ln -s . .coding-standards
           uvx pre-commit run --all-files -c lint-configs-626465/.pre-commit-config.yaml
 
   # Image self-lint — runs the published image against this repo.

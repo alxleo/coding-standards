@@ -153,3 +153,28 @@ repos:
         additional_dependencies: [pyyaml]
         pass_filenames: false
         files: '(\.mega-linter-default\.yml|semgrep-rules/|policies/|lint-configs-626465/ruff\.toml)'
+
+  # ── CI validation hooks ────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: semgrep-validate
+        name: Validate semgrep rules
+        entry: semgrep scan --config semgrep-rules/ --validate
+        language: system
+        pass_filenames: false
+        files: "semgrep-rules/"
+
+      - id: check-ci-json-coverage
+        name: CI smoke test coverage
+        entry: python3 scripts/hooks/check-ci-json-coverage
+        language: system
+        pass_filenames: false
+        files: '(Dockerfile|\.ci\.json)'
+
+      - id: check-config-flags
+        name: Pre-commit --config flag check
+        entry: python scripts/hooks/check-config-flags
+        language: python
+        additional_dependencies: [pyyaml]
+        pass_filenames: false
+        files: '\.pre-commit-config\.yaml$'
