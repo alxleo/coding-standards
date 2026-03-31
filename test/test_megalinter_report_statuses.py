@@ -1,4 +1,4 @@
-"""Tests for scripts/megalinter_megalinter_report_statuses.py (MegaLinter commit status posting)."""
+"""Tests for megalinter_report_statuses.py (commit status posting)."""
 
 from __future__ import annotations
 

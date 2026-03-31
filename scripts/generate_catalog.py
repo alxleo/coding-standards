@@ -116,7 +116,8 @@ def _find_lint_configs(root: Path) -> Path:
         if p.is_dir():
             return p
         tried.append(p)
-    msg = f"Cannot find lint configs directory under {root}; tried: {', '.join(str(p) for p in tried)}"
+    tried_str = ", ".join(str(p) for p in tried)
+    msg = f"Cannot find lint configs directory under {root}; tried: {tried_str}"
     raise FileNotFoundError(msg)
 
 

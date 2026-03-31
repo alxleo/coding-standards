@@ -136,7 +136,7 @@ Add a second CI step:
             -e GITHUB_RUN_ID=${{ github.run_id }} \
             -e GITHUB_SERVER_URL=${{ github.server_url }} \
             ghcr.io/alxleo/coding-standards:latest \
-            /opt/coding-standards/scripts/megalinter_megalinter_report_statuses.py \
+            /opt/coding-standards/scripts/megalinter_report_statuses.py \
             megalinter-reports/mega-linter-report.json
 ```
 
@@ -145,7 +145,7 @@ Or add as an opt-in POST_COMMAND in your `.mega-linter.yml`:
 ```yaml
 POST_COMMANDS:
   - command: >-
-      python3 /opt/coding-standards/scripts/megalinter_megalinter_report_statuses.py
+      python3 /opt/coding-standards/scripts/megalinter_report_statuses.py
       megalinter-reports/mega-linter-report.json
     cwd: workspace
     secured_env: false
