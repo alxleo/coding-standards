@@ -78,6 +78,7 @@ class ManifestCI(BaseModel):
     workflow_actions_sha_pinned: bool
     has_sha_pins: bool
     ci_delegates_to_runner: bool
+    ci_mixes_schedule_and_push: bool
 
 
 class ManifestSuppressions(BaseModel):

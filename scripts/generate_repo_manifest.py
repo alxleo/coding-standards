@@ -237,6 +237,17 @@ def check_ci_delegates_to_runner(root: Path) -> bool:
     return True
 
 
+def check_ci_mixes_schedule(root: Path) -> bool:
+    """Check if any workflow mixes schedule triggers with push/PR triggers."""
+    for wf in _workflow_files(root):
+        text = wf.read_text(errors="replace")
+        has_schedule = "schedule:" in text
+        has_push_or_pr = "push:" in text or "pull_request:" in text
+        if has_schedule and has_push_or_pr:
+            return True
+    return False
+
+
 def check_actions_pinned(root: Path) -> bool:
     """Check if all 'uses:' in workflows reference SHA pins (contain @sha)."""
     found_any = False
@@ -448,6 +459,7 @@ def generate(root: Path) -> dict[str, Any]:
             "workflow_persist_credentials_false": check_workflow_field(root, "persist-credentials: false"),
             "workflow_actions_sha_pinned": check_actions_pinned(root),
             "ci_delegates_to_runner": check_ci_delegates_to_runner(root),
+            "ci_mixes_schedule_and_push": check_ci_mixes_schedule(root),
             "has_sha_pins": check_workflow_field(root, "@") and check_actions_pinned(root),
         },
         "observability": {

@@ -78,3 +78,16 @@ warn contains msg if {
 		"  add that recipe to pre-commit, and have CI call the recipe.",
 	])
 }
+
+warn contains msg if {
+	helpers.has_ci_workflows
+	input.ci.ci_mixes_schedule_and_push
+	not helpers.acknowledged("ci_schedule_separation")
+	msg := concat("\n", [
+		"CI workflow mixes schedule triggers with push/PR triggers",
+		"  Scheduled jobs (trivy, dependency updates) are operational.",
+		"  PR/push jobs are CI. Mixing them adds conditional complexity",
+		"  (if: github.event_name != 'schedule') that obscures the pipeline.",
+		"  Fix: separate into ci.yml (PR + push) and scheduled.yml (cron).",
+	])
+}
