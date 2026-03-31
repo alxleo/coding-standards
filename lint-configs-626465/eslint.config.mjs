@@ -17,6 +17,7 @@ import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
 import jsxA11y from "eslint-plugin-jsx-a11y";
 import importPlugin from "eslint-plugin-import";
+import testingLibrary from "eslint-plugin-testing-library";
 
 export default [
   {
@@ -92,9 +93,19 @@ export default [
       "jsx-a11y/label-has-associated-control": "warn",
     },
   },
-  // ── Test files ────────────────────────────────────────────
+  // ── Test files: testing-library + jest rules ───────────────
   {
     files: ["**/*.test.*", "**/*.spec.*", "**/test/**", "**/tests/**"],
-    rules: {},
+    plugins: {
+      "testing-library": testingLibrary,
+    },
+    rules: {
+      // Testing Library — catches flaky async test bugs
+      "testing-library/await-async-queries": "error",
+      "testing-library/no-await-sync-queries": "error",
+      "testing-library/no-wait-for-multiple-assertions": "warn",
+      "testing-library/prefer-screen-queries": "warn",
+      "testing-library/no-unnecessary-act": "warn",
+    },
   },
 ];

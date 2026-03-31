@@ -1,0 +1,22 @@
+descriptor_id: REPOSITORY
+descriptor_type: other
+lint_all_files: true
+linters:
+  - linter_name: oxlint
+    name: REPOSITORY_OXLINT
+    descriptor_flavors:
+      - cupcake
+    cli_lint_mode: project
+    linter_text: Fast Rust-based JS/TS linter (correctness + suspicious categories)
+    linter_url: https://oxc.rs/docs/guide/usage/linter.html
+    cli_executable: oxlint
+    cli_lint_extra_args:
+      - "--deny-warnings"
+      - "--import-plugin"
+      - "."
+    cli_help_arg_name: --help
+    cli_version_arg_name: --version
+    files_sub_directory: ""
+    file_extensions: []
+    active_only_if_file_found:
+      - package.json

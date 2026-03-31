@@ -58,8 +58,11 @@ ENABLE_LINTERS:
   - TSX_ESLINT
   - JAVASCRIPT_PRETTIER
   - TYPESCRIPT_PRETTIER
-  # JS/TS type checking
+  # JS/TS type checking + coverage
   - TYPESCRIPT_TSC
+  - REPOSITORY_TYPE_COVERAGE
+  # JS/TS fast pre-pass (correctness + suspicious)
+  - REPOSITORY_OXLINT
   # JS/TS project analyzers
   - REPOSITORY_KNIP
   - REPOSITORY_DEPENDENCY_CRUISER
@@ -109,6 +112,8 @@ DISABLE_ERRORS_LINTERS:
   - DOCKERFILE_DCLINT
   - REPOSITORY_REPO_STANDARDS
   - REPOSITORY_LS_LINT
+  - REPOSITORY_OXLINT
+  - REPOSITORY_TYPE_COVERAGE
   - ENV_DOTENV_LINTER
   - MAKEFILE_CHECKMAKE
   - PYTHON_VULTURE
@@ -269,3 +274,5 @@ PLUGINS:
   - "file:///mega-linter-plugin-custom/vulture.megalinter-descriptor.yml"
   - "file:///mega-linter-plugin-custom/deptry.megalinter-descriptor.yml"
   - "file:///mega-linter-plugin-custom/import-linter.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/oxlint.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/type-coverage.megalinter-descriptor.yml"

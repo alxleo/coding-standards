@@ -4,7 +4,7 @@
 Complete inventory of what the coding-standards image checks.
 Generated from config files — this IS the source of truth.
 
-## Linters (49 total)
+## Linters (51 total)
 
 ### Error tier (24 — blocks build)
 
@@ -33,7 +33,7 @@ Generated from config files — this IS the source of truth.
 - REPOSITORY_JUST_FMT
 - REPOSITORY_GIT_DIFF
 
-### Warn tier (25 — reports only)
+### Warn tier (27 — reports only)
 
 - BASH_SHFMT
 - PYTHON_VULTURE
@@ -51,6 +51,8 @@ Generated from config files — this IS the source of truth.
 - REPOSITORY_REPO_STANDARDS
 - JAVASCRIPT_PRETTIER
 - TYPESCRIPT_PRETTIER
+- REPOSITORY_TYPE_COVERAGE
+- REPOSITORY_OXLINT
 - REPOSITORY_DEPTRY
 - REPOSITORY_IMPORT_LINTER
 - CSS_STYLELINT
@@ -93,10 +95,11 @@ Generated from config files — this IS the source of truth.
 - PT011 — pytest.raises() without match= (overly broad exception catch in tests)
 - N — pep8-naming (N999 catches hyphenated/non-importable module filenames)
 
-## Semgrep rules (19)
+## Semgrep rules (20)
 
 | Rule | Severity | Source | Description |
 |------|----------|--------|-------------|
+| python-deep-nesting | WARNING | complexity.yml | Function $FUNC has 4+ levels of nesting. Extract inner logic into helper functions or use early returns to flatten the structure. |
 | no-privileged-containers | ERROR | compose-security.yml | Do not use privileged: true. Use specific capabilities (cap_add) or security_opt instead. |
 | no-env-file-secrets | WARNING | compose-security.yml | Do not use env_file to inject secrets. Use Docker secrets or SOPS-encrypted environment variables instead. |
 | justfile-eval-usage | WARNING | justfile-safety.yml | Avoid eval in justfile recipes. Use direct command invocation or just's built-in variable interpolation. |
