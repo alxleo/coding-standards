@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -54,7 +55,7 @@ _SHADOW_NAMES: dict[str, list[str]] = {
 }
 
 
-def _parse_yml(yml_path: Path) -> dict:
+def _parse_yml(yml_path: Path) -> dict[str, Any]:
     """Parse MegaLinter YAML config with None guard."""
     data = yaml.safe_load(yml_path.read_text())
     if not isinstance(data, dict):
@@ -62,7 +63,7 @@ def _parse_yml(yml_path: Path) -> dict:
     return data
 
 
-def _extract_config_entries(data: dict) -> list[dict[str, str]]:
+def _extract_config_entries(data: dict[str, Any]) -> list[dict[str, str]]:
     """Extract _CONFIG_FILE entries from parsed MegaLinter config.
 
     Returns a list of dicts with keys: linter, config_path, config_basename.
