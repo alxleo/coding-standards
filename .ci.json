@@ -15,6 +15,7 @@
     "license-checker --version || true",
     "vulture --version",
     "deptry --version",
+    "lint-imports --version",
     "conftest verify -p /opt/coding-standards/policies/repo-standards/",
     "conftest verify -p /opt/coding-standards/policies/compose/",
     "semgrep scan --config /opt/coding-standards/semgrep-rules/ --validate",

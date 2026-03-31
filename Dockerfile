@@ -51,7 +51,7 @@ RUN npm install -g \
 RUN pip install --no-cache-dir zizmor==1.23.1
 
 # Python project analysis tools
-RUN pip install --no-cache-dir vulture==2.14 deptry==0.22.0
+RUN pip install --no-cache-dir vulture==2.14 deptry==0.22.0 import-linter==2.4
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 

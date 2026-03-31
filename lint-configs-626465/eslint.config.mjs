@@ -1,15 +1,21 @@
 // coding-standards baseline ESLint config (flat config format).
 // Consumer repos override by placing their own eslint.config.mjs at root.
 //
-// Plugins baked into the Docker image:
-//   - unicorn:  best practices, filename conventions, modernization
-//   - security: injection, unsafe eval, prototype pollution
-//   - sonarjs:  complexity, duplication, code smells
-//   - jest:     test quality (already in MegaLinter cupcake)
+// Plugins baked into the Docker image (cupcake + our installs):
+//   - unicorn:     best practices, filename conventions, modernization
+//   - security:    injection, unsafe eval, prototype pollution
+//   - sonarjs:     complexity, duplication, code smells
+//   - react:       React-specific rules
+//   - react-hooks: hooks rules (exhaustive-deps)
+//   - jsx-a11y:    accessibility for JSX
+//   - jest:        test quality
 
 import unicorn from "eslint-plugin-unicorn";
 import security from "eslint-plugin-security";
 import sonarjs from "eslint-plugin-sonarjs";
+import react from "eslint-plugin-react";
+import reactHooks from "eslint-plugin-react-hooks";
+import jsxA11y from "eslint-plugin-jsx-a11y";
 
 export default [
   {
@@ -20,7 +26,6 @@ export default [
     },
     rules: {
       // ── Filename conventions ──────────────────────────────
-      // Python: snake_case (importability). JS/TS: kebab-case (convention).
       "unicorn/filename-case": [
         "warn",
         { cases: { kebabCase: true, pascalCase: true } },
@@ -50,17 +55,38 @@ export default [
       "sonarjs/prefer-single-boolean-return": "warn",
     },
   },
-  // ── Test files: add jest rules ────────────────────────────
+  // ── React/JSX (auto-activates for .jsx/.tsx files) ────────
+  {
+    files: ["**/*.jsx", "**/*.tsx"],
+    plugins: {
+      react,
+      "react-hooks": reactHooks,
+      "jsx-a11y": jsxA11y,
+    },
+    settings: {
+      react: { version: "detect" },
+    },
+    rules: {
+      // Hooks
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+
+      // React best practices
+      "react/jsx-no-target-blank": "error",
+      "react/no-danger": "warn",
+      "react/self-closing-comp": "warn",
+
+      // Accessibility
+      "jsx-a11y/alt-text": "warn",
+      "jsx-a11y/anchor-is-valid": "warn",
+      "jsx-a11y/click-events-have-key-events": "warn",
+      "jsx-a11y/no-autofocus": "warn",
+      "jsx-a11y/label-has-associated-control": "warn",
+    },
+  },
+  // ── Test files ────────────────────────────────────────────
   {
     files: ["**/*.test.*", "**/*.spec.*", "**/test/**", "**/tests/**"],
-    plugins: {},
-    rules: {
-      // jest plugin is pre-installed in cupcake but needs to be
-      // imported by the consumer if they want these rules.
-      // These are intentionally commented — consumers add jest plugin:
-      // "jest/expect-expect": "warn",
-      // "jest/no-disabled-tests": "warn",
-      // "jest/no-focused-tests": "error",
-    },
+    rules: {},
   },
 ];

@@ -67,6 +67,7 @@ ENABLE_LINTERS:
   - REPOSITORY_LICENSE_CHECKER
   # Python project analyzers
   - REPOSITORY_DEPTRY
+  - REPOSITORY_IMPORT_LINTER
   # CSS
   - CSS_STYLELINT
   # SQL
@@ -112,6 +113,7 @@ DISABLE_ERRORS_LINTERS:
   - MAKEFILE_CHECKMAKE
   - PYTHON_VULTURE
   - REPOSITORY_DEPTRY
+  - REPOSITORY_IMPORT_LINTER
   - SQL_SQLFLUFF
   - ANSIBLE_ANSIBLE_LINT
   - KUBERNETES_KUBECONFORM
@@ -266,3 +268,4 @@ PLUGINS:
   - "file:///mega-linter-plugin-custom/repo-standards.megalinter-descriptor.yml"
   - "file:///mega-linter-plugin-custom/vulture.megalinter-descriptor.yml"
   - "file:///mega-linter-plugin-custom/deptry.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/import-linter.megalinter-descriptor.yml"
