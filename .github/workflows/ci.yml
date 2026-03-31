@@ -49,9 +49,15 @@ jobs:
 
       - uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # v8
         with:
-          enable-cache: false
+          enable-cache: true
 
       - uses: extractions/setup-just@dd310ad5a97d8e7b41793f8ef055398d51ad4de6 # v2
+
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('lint-configs-626465/.pre-commit-config.yaml') }}
+          restore-keys: pre-commit-
 
       - name: just check
         run: just check
@@ -148,14 +154,22 @@ jobs:
           cache-from: type=gha,scope=coding-standards
           cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,scope=coding-standards,mode=min' || '' }}
 
-      - name: Smoke test
+      - name: Smoke test (all tools in single container)
         run: |
           img="${REGISTRY}/${IMAGE_NAME}:ci-test"
           echo "Testing tool availability..."
-          jq -r '.test_commands[]' .ci.json | while IFS= read -r cmd; do
-            echo "  → $cmd"
-            docker run --rm --entrypoint="" "$img" sh -c "$cmd"
-          done
+          # Run all version checks in one container — eliminates per-command startup overhead
+          jq -r '.test_commands[]' .ci.json | docker run --rm -i --entrypoint="" "$img" sh -c '
+            failed=0
+            while IFS= read -r cmd; do
+              printf "  → %s\n" "$cmd"
+              if ! eval "$cmd" > /dev/null 2>&1; then
+                printf "    FAIL: %s\n" "$cmd"
+                failed=1
+              fi
+            done
+            exit $failed
+          '
           echo "All tools verified."
 
       - name: Test entrypoint commands

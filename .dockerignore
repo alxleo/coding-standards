@@ -12,3 +12,16 @@ examples
 .pre-commit-config.yaml
 .claude
 pyrightconfig.json
+
+# Dev/CI-only files not needed in the image
+docker-action
+justfile
+pyproject.toml
+uv.lock
+package.json
+package-lock.json
+renovate.json
+repo-manifest.json
+.ci.json
+.zizmor.yml
+.repo-standards.yml
