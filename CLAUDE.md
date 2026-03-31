@@ -27,7 +27,7 @@ Conftest policies validate structured config files:
 Checks whether a repo is **set up** to benefit from the other layers. A manifest generator scans the repo, conftest evaluates Rego policies against it.
 
 ```
-scripts/generate-repo-manifest.py  →  repo-manifest.json  →  conftest  →  policies/repo-standards/*.rego
+scripts/generate_repo_manifest.py  →  repo-manifest.json  →  conftest  →  policies/repo-standards/*.rego
        (gather facts)                  (structured data)      (evaluate)     (declarative policies)
 ```
 
@@ -56,7 +56,7 @@ Custom rules beyond what MegaLinter's `auto + p/trailofbits` provides:
 
 **EXTENDS merges arrays** — consumers must not override array-valued keys containing absolute image paths. Either omit (inherit) or stop using EXTENDS.
 
-**The catalog** (`docs/catalog.md`) is auto-generated from config files by `scripts/generate-catalog.py`. It IS the source of truth — not a doc to maintain.
+**The catalog** (`docs/catalog.md`) is auto-generated from config files by `scripts/generate_catalog.py`. It IS the source of truth — not a doc to maintain.
 
 ## Quick start for consumers
 
@@ -109,9 +109,9 @@ policies/
 semgrep-rules/                      # 18 custom rules (6 files)
 lint-configs-626465/                # Baked linter configs (ruff, shellcheck, yamllint, etc.)
 scripts/
-  generate-repo-manifest.py         # Manifest generator for repo standards
-  generate-catalog.py               # Auto-generates docs/catalog.md
-  report-statuses.py                # Posts per-linter commit statuses (Gitea + GitHub)
+  generate_repo_manifest.py         # Manifest generator for repo standards
+  generate_catalog.py               # Auto-generates docs/catalog.md
+  megalinter_report_statuses.py                # Posts per-linter commit statuses (Gitea + GitHub)
   ci/check-drift.sh                 # Generic generated-file drift checker
   ci/check-expiry.py                # Expiry/TTL enforcement for date markers
 
@@ -134,7 +134,7 @@ docs/
 
 | Check type | Files to touch | Auto-detection |
 |---|---|---|
-| **Repo setup** (file/dep presence) | manifest field in `generate-repo-manifest.py` + `manifest_schema.py` + `policies/repo-standards/*.rego` + `*_test.rego` + `test/test_generate_repo_manifest.py` | Manifest scans repo |
+| **Repo setup** (file/dep presence) | manifest field in `generate_repo_manifest.py` + `manifest_schema.py` + `policies/repo-standards/*.rego` + `*_test.rego` + `test/test_generate_repo_manifest.py` | Manifest scans repo |
 | **Code pattern** (anti-pattern in source) | `semgrep-rules/*.yml` | Semgrep matches patterns |
 | **Config content** (compose/YAML validation) | `policies/compose/*.rego` + `*_test.rego` | Conftest parses files |
 | **Code quality rule** | `lint-configs-626465/ruff.toml` (add category) | Ruff runs on .py files |
@@ -154,7 +154,7 @@ docs/
 2. Create `plugins/<tool>.megalinter-descriptor.yml`
 3. Add to `.mega-linter-default.yml`: `ENABLE_LINTERS` + `DISABLE_ERRORS_LINTERS` (warn tier) + `PLUGINS`
 4. Add `<tool> --version` to `.ci.json`
-5. Pre-commit runs `generate-catalog.py` automatically
+5. Pre-commit runs `generate_catalog.py` automatically
 6. Test: `docker build` + entrypoint commands
 
 ## Developing the image
@@ -172,5 +172,5 @@ just docker-lint-only PYTHON_RUFF  # single linter
 ```bash
 just test                     # pytest + bats
 conftest verify -p policies/repo-standards/   # Rego unit tests (needs conftest or Docker)
-python3 scripts/generate-catalog.py --check   # catalog drift
+python3 scripts/generate_catalog.py --check   # catalog drift
 ```

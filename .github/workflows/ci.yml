@@ -45,7 +45,7 @@ jobs:
         run: uv run --with pydantic --with pyyaml --with pytest pytest test/ -v
 
       - name: Catalog drift check
-        run: uv run --with pydantic --with pyyaml python3 scripts/generate-catalog.py --check
+        run: uv run --with pydantic --with pyyaml python3 scripts/generate_catalog.py --check
 
       - name: CI smoke test coverage check
         run: python3 scripts/hooks/check-ci-json-coverage

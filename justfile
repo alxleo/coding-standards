@@ -67,7 +67,7 @@ test-semgrep:
 [doc('Regenerate catalog')]
 [group('check')]
 catalog-gen:
-    uv run --with pydantic --with pyyaml python3 scripts/generate-catalog.py
+    uv run --with pydantic --with pyyaml python3 scripts/generate_catalog.py
 
 [doc('Run all checks (fast + rego + semgrep + pytest)')]
 [group('check')]

@@ -136,7 +136,7 @@ Add a second CI step:
             -e GITHUB_RUN_ID=${{ github.run_id }} \
             -e GITHUB_SERVER_URL=${{ github.server_url }} \
             ghcr.io/alxleo/coding-standards:latest \
-            /opt/coding-standards/scripts/report-statuses.py \
+            /opt/coding-standards/scripts/megalinter_megalinter_report_statuses.py \
             megalinter-reports/mega-linter-report.json
 ```
 
@@ -145,7 +145,7 @@ Or add as an opt-in POST_COMMAND in your `.mega-linter.yml`:
 ```yaml
 POST_COMMANDS:
   - command: >-
-      python3 /opt/coding-standards/scripts/report-statuses.py
+      python3 /opt/coding-standards/scripts/megalinter_megalinter_report_statuses.py
       megalinter-reports/mega-linter-report.json
     cwd: workspace
     secured_env: false
@@ -191,7 +191,7 @@ Use the baked-in drift checker via POST_COMMANDS:
 
 ```yaml
 POST_COMMANDS:
-  - command: /opt/coding-standards/scripts/check-drift.sh "python3 scripts/generate-catalog.py" catalog.json
+  - command: /opt/coding-standards/scripts/check-drift.sh "python3 scripts/generate_catalog.py" catalog.json
     cwd: workspace
     continue_if_failed: false
 ```
@@ -324,7 +324,7 @@ deny := python.warn
 
 ## Full catalog
 
-See `docs/catalog.md` — auto-generated inventory of all linters, semgrep rules, conftest policies, and repo-standards checks. Run `python3 scripts/generate-catalog.py` to regenerate.
+See `docs/catalog.md` — auto-generated inventory of all linters, semgrep rules, conftest policies, and repo-standards checks. Run `python3 scripts/generate_catalog.py` to regenerate.
 
 ## Contributing new checks
 
@@ -337,7 +337,7 @@ Adding a check to the coding-standards image:
    - Code quality → ruff rule category
 
 2. **For repo-standards checks:**
-   - Add manifest field in `scripts/generate-repo-manifest.py`
+   - Add manifest field in `scripts/generate_repo_manifest.py`
    - Add `warn contains msg` rule in `policies/repo-standards/<category>.rego`
    - Add unit test in `policies/repo-standards/<category>_test.rego`
    - Run `conftest verify -p policies/repo-standards/`
@@ -346,6 +346,6 @@ Adding a check to the coding-standards image:
    - Add rule to existing or new file in `semgrep-rules/`
    - Run `semgrep scan --config semgrep-rules/<file>.yml --validate`
 
-4. **Regenerate catalog:** `python3 scripts/generate-catalog.py`
+4. **Regenerate catalog:** `python3 scripts/generate_catalog.py`
 
-5. **Test against a real repo:** `python3 scripts/generate-repo-manifest.py ~/path/to/repo`
+5. **Test against a real repo:** `python3 scripts/generate_repo_manifest.py ~/path/to/repo`

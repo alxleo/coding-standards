@@ -157,7 +157,7 @@ jobs:
         run: |
           img="${REGISTRY}/${IMAGE_NAME}:ci-test"
           docker run --rm --entrypoint="" "$img" \
-            python3 /opt/coding-standards/scripts/generate-catalog.py --check
+            python3 /opt/coding-standards/scripts/generate_catalog.py --check
 
       # Push via docker tag + push (no second buildx build needed).
       # The image is already loaded in the daemon from the build step.
