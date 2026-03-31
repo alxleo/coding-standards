@@ -42,7 +42,10 @@ RUN npm install -g \
   typescript@6.0.2 \
   knip@6.1.0 \
   dependency-cruiser@17.3.10 \
-  license-checker@25.0.1
+  license-checker@25.0.1 \
+  eslint-plugin-unicorn@62.0.0 \
+  eslint-plugin-security@3.0.1 \
+  eslint-plugin-sonarjs@3.0.2
 
 # zizmor — GitHub Actions security scanner
 RUN pip install --no-cache-dir zizmor==1.23.1

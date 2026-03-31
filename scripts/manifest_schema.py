@@ -51,6 +51,7 @@ class ManifestContent(BaseModel):
     compose_files: int
     shell_scripts_over_50_lines: int
     dockerfile_files: int
+    python_files_with_hyphens: int
 
 
 class ManifestDependencies(BaseModel):

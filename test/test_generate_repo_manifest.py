@@ -12,7 +12,9 @@ from pathlib import Path
 import pytest
 
 # Import from hyphenated filename
-_script = Path(__file__).resolve().parent.parent / "scripts" / "generate-repo-manifest.py"
+_script = (
+    Path(__file__).resolve().parent.parent / "scripts" / "generate-repo-manifest.py"
+)
 _spec = importlib.util.spec_from_file_location("generate_repo_manifest", _script)
 _mod = importlib.util.module_from_spec(_spec)
 sys.modules["generate_repo_manifest"] = _mod
@@ -125,6 +127,14 @@ def test_suppressions_counted(tmp_path: Path) -> None:
     assert manifest["suppressions"]["noqa"] == 1
     assert manifest["suppressions"]["type_ignore"] == 1
     assert manifest["suppressions"]["total"] >= 2
+
+
+def test_python_files_with_hyphens_counted(tmp_path: Path) -> None:
+    (tmp_path / "good_name.py").write_text("x = 1\n")
+    (tmp_path / "bad-name.py").write_text("x = 1\n")
+    (tmp_path / "also-bad.py").write_text("x = 1\n")
+    manifest = generate(tmp_path)
+    assert manifest["content"]["python_files_with_hyphens"] == 2
 
 
 def test_compose_files_recursive(tmp_path: Path) -> None:

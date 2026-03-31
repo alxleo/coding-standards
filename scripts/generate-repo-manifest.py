@@ -365,6 +365,11 @@ def generate(root: Path) -> dict:
             "shell_scripts_over_50_lines": _count_large_shell(
                 root, 50, _acknowledged_paths(ack, "large_shell_scripts")
             ),
+            "python_files_with_hyphens": sum(
+                1
+                for f in root.rglob("*.py")
+                if not _is_excluded(f.relative_to(root)) and "-" in f.stem
+            ),
             "dockerfile_files": sum(
                 1
                 for _ in root.rglob("Dockerfile*")

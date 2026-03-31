@@ -118,7 +118,7 @@ Generated from config files — this IS the source of truth.
 - **deny**: service '%s' missing container_name (resources.rego)
 - **deny**: service '%s' missing memory limit (deploy.resources.limits.memory or mem_limit) (resources.rego)
 
-## Repo standards (37)
+## Repo standards (38)
 
 - **warn**: .mega-linter.yml not found (ci.rego)
 - **warn**: .mega-linter.yml exists but has no EXTENDS URL (ci.rego)
@@ -141,6 +141,7 @@ Generated from config files — this IS the source of truth.
 - **warn**: ruff.toml not found (python.rego)
 - **warn**: pytest-randomly not in dependencies (python.rego)
 - **warn**: tests/ directory exists but no test framework in pyproject.toml (python.rego)
+- **warn**: %d Python file(s) have hyphens in their names (python.rego)
 - **warn**: pydantic not in dependencies (python.rego)
 - **warn**: import-linter not in dependencies (python.rego)
 - **warn**: import-linter installed but no contracts defined (python.rego)

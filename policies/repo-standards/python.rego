@@ -52,6 +52,16 @@ warn contains msg if {
 }
 
 warn contains msg if {
+	input.content.python_files_with_hyphens > 0
+	not helpers.acknowledged("python_hyphens")
+	msg := sprintf(concat("\n", [
+		"%d Python file(s) have hyphens in their names",
+		"  Hyphens prevent importing — Python modules must be snake_case.",
+		"  Fix: rename foo-bar.py to foo_bar.py",
+	]), [input.content.python_files_with_hyphens])
+}
+
+warn contains msg if {
 	input.content.python_files > 0
 	not input.dependencies.pydantic
 	not helpers.acknowledged("pydantic")
