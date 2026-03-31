@@ -117,13 +117,18 @@ Generated from config files — this IS the source of truth.
 | test-hardcoded-dict-assertion | WARNING | test-quality.yml | Large hardcoded dict assertion is likely tautological — copied from a single run. Test specific properties or use snapshot testing. |
 | unexpanded-env-var-in-yaml | WARNING | yaml-env-vars.yml | YAML value contains ${VAR} that won't be expanded by most YAML-consuming tools. Use envsubst, the tool's native env mechanism, or inject the value at runtime. |
 
-## Compose policies (5)
+## Compose policies (10)
 
 - **deny**: service '%s' missing healthcheck (healthcheck.rego)
 - **warn**: service '%s' has healthcheck explicitly disabled (healthcheck.rego)
 - **deny**: service '%s' uses own image '%s' without :latest tag (images.rego)
 - **deny**: service '%s' missing container_name (resources.rego)
 - **deny**: service '%s' missing memory limit (deploy.resources.limits.memory or mem_limit) (resources.rego)
+- **warn**: service '%s' has unnamed volume '%s' — use named volumes for persistence (runtime.rego)
+- **warn**: service '%s' uses host networking — loses container isolation (runtime.rego)
+- **warn**: service '%s' has no restart policy — won't recover from crashes (runtime.rego)
+- **deny**: service '%s' is privileged — use specific cap_add instead (runtime.rego)
+- **warn**: service '%s' uses host bind mount '%s' — consider named volumes for portability (runtime.rego)
 
 ## Repo standards (38)
 
