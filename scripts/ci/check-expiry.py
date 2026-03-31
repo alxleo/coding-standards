@@ -53,7 +53,9 @@ def main():
     parser.add_argument("--ext", default=".yml,.yaml,.sh,.py,.tf,.md,.toml,.cfg")
     args = parser.parse_args()
 
-    raw_patterns = args.pattern or DEFAULT_PATTERNS  # nosemgrep: python-silent-fallback-or
+    raw_patterns = (
+        args.pattern or DEFAULT_PATTERNS
+    )  # nosemgrep: python-silent-fallback-or
     patterns = [re.compile(p) for p in raw_patterns]
     extensions = set(args.ext.split(","))
     today = datetime.now(tz=UTC).date()

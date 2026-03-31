@@ -47,7 +47,9 @@ def get_step_urls() -> dict[str, str]:
 
     jobs_data = api_request(f"{api_url}/repos/{repo}/actions/runs/{run_id}/jobs")
     # API may return non-dict on error, or dict without jobs key
-    if not isinstance(jobs_data, dict) or not jobs_data.get("jobs"):  # nosemgrep: python-silent-fallback-or
+    if not isinstance(jobs_data, dict) or not jobs_data.get(
+        "jobs"
+    ):  # nosemgrep: python-silent-fallback-or
         return {}
 
     # Find the first job whose name contains "Lint"
@@ -84,7 +86,9 @@ def post_status(
     if outcome == "success":
         description = "Passed"
     else:
-        description = extract_hint(LOGDIR / f"{logkey}.log") or "Failed"  # nosemgrep: python-silent-fallback-or
+        description = (
+            extract_hint(LOGDIR / f"{logkey}.log") or "Failed"
+        )  # nosemgrep: python-silent-fallback-or
 
     target_url = step_urls.get(step_name, os.environ["RUN_URL"])
 

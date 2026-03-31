@@ -78,7 +78,9 @@ def extract_rego_rules(policy_dir: Path, _kind: str) -> list[dict]:
     rules = []
     for f in sorted(policy_dir.glob("*.rego")):
         # Skip test files and shared helper module
-        if "_test" in f.name or f.name == "helpers.rego":  # nosemgrep: python-silent-fallback-or
+        if (
+            "_test" in f.name or f.name == "helpers.rego"
+        ):  # nosemgrep: python-silent-fallback-or
             continue
         text = f.read_text()
         # Match msg := concat/sprintf/string patterns, extract first quoted string
@@ -93,7 +95,9 @@ def extract_rego_rules(policy_dir: Path, _kind: str) -> list[dict]:
         ):
             level = match.group(1)
             # First non-None capture group is the message text
-            msg = match.group(2) or match.group(3) or match.group(4) or match.group(5)  # nosemgrep: python-silent-fallback-or
+            msg = (
+                match.group(2) or match.group(3) or match.group(4) or match.group(5)
+            )  # nosemgrep: python-silent-fallback-or
             rules.append(
                 {
                     "file": f.name,

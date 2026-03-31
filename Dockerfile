@@ -138,7 +138,8 @@ COPY lint-configs-626465/ /opt/coding-standards/configs/
 COPY scripts/entrypoint.sh /opt/coding-standards/entrypoint.sh
 RUN chmod +x /opt/coding-standards/entrypoint.sh
 # MegaLinter requires root for tool installs and workspace writes.
-ENTRYPOINT ["/bin/bash", "/opt/coding-standards/entrypoint.sh"]  # nosemgrep: dockerfile.security.missing-user-entrypoint.missing-user-entrypoint
+# nosemgrep: dockerfile.security.missing-user-entrypoint.missing-user-entrypoint
+ENTRYPOINT ["/bin/bash", "/opt/coding-standards/entrypoint.sh"]
 
 # ── Generated catalog ────────────────────────────────────────
 COPY docs/catalog.md /opt/coding-standards/docs/catalog.md
