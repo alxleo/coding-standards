@@ -1,4 +1,3 @@
-# POISON PILL — catches missing --config flags.
-# All shellcheck invocations MUST use the config from lint-configs-626465/.shellcheckrc
-# If you see "not a valid directive", you forgot --config.
-POISON_PILL_MISSING_CONFIG_FLAG
+# shellcheck auto-discovers this file — no --config override exists.
+# This IS the config (not a poison pill). Same content as the image baked config.
+source-path=SCRIPTDIR

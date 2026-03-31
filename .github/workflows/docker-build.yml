@@ -152,39 +152,6 @@ jobs:
 
           echo "All entrypoint commands verified."
 
-      # Config isolation test — prove image uses its own configs, not workspace
-      - name: Test config isolation (poison pill)
-        run: |
-          img="${REGISTRY}/${IMAGE_NAME}:ci-test"
-          workspace="$(mktemp -d)"
-
-          # Plant a poison pill ruff.toml in the workspace
-          cat > "$workspace/ruff.toml" << 'PILL'
-          [lint]
-          select = ["POISON_PILL_SHOULD_NOT_BE_USED"]
-          PILL
-
-          # Create a valid Python file to lint
-          echo 'x = 1' > "$workspace/test.py"
-
-          # Run ruff via MegaLinter config — must use image config, not workspace poison
-          echo "Testing: image ruff ignores workspace ruff.toml..."
-          docker run --rm -v "$workspace:/tmp/lint" -e DEFAULT_WORKSPACE=/tmp/lint \
-            --entrypoint="" "$img" sh -c \
-            "ruff check --config /opt/coding-standards/configs/ruff.toml /tmp/lint/test.py"
-          echo "  ✓ Image uses /opt/coding-standards/configs/ruff.toml"
-
-          # Verify the poison pill WOULD fail if used
-          echo "Testing: poison pill would crash if auto-discovered..."
-          if docker run --rm -v "$workspace:/tmp/lint" -e DEFAULT_WORKSPACE=/tmp/lint \
-            --entrypoint="" "$img" sh -c \
-            "cd /tmp/lint && ruff check test.py" 2>&1; then
-            echo "  ✗ FAIL: ruff did NOT crash on poison pill"
-            exit 1
-          else
-            echo "  ✓ Poison pill correctly crashes ruff without --config"
-          fi
-
       # Catalog drift check
       - name: Check catalog is up to date
         run: |

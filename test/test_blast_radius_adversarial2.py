@@ -20,6 +20,8 @@ _spec = spec_from_file_location(
     "blast_radius",
     Path(__file__).resolve().parent.parent / "scripts" / "blast_radius.py",
 )
+assert _spec is not None
+assert _spec.loader is not None
 br = module_from_spec(_spec)
 _spec.loader.exec_module(br)
 

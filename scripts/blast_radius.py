@@ -419,16 +419,16 @@ def _build_dependency_graph(
             if scanner_rel == target_rel:
                 continue
             if re.search(re.escape(name), content):
-                pair = tuple(sorted([scanner_rel, target_rel]))
-                co_count = co_changes.get(pair, 0)
+                a, b = sorted([scanner_rel, target_rel])
+                co_count = co_changes.get((a, b), 0)
                 weight = max(co_count, 1)
                 g.add_edge(scanner_rel, target_rel, weight=weight)
 
     # Layer 2: Python AST import edges (code-to-code)
     for importer, imported in _extract_python_imports(root):
         if not g.has_edge(importer, imported):
-            pair = tuple(sorted([importer, imported]))
-            co_count = co_changes.get(pair, 0)
+            a, b = sorted([importer, imported])
+            co_count = co_changes.get((a, b), 0)
             g.add_edge(importer, imported, weight=max(co_count, 1), source="ast")
 
     return g, all_rel

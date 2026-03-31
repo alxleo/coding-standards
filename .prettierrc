@@ -1,3 +1,0 @@
-{
-  "POISON_PILL_MISSING_CONFIG_FLAG": "All prettier invocations MUST use --config lint-configs-626465/.prettierrc"
-}

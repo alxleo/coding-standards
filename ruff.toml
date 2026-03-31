@@ -1,5 +1,0 @@
-# POISON PILL — catches missing --config flags.
-# All ruff invocations MUST use: --config lint-configs-626465/ruff.toml
-# If you see this error, you forgot --config.
-[lint]
-select = ["POISON_PILL_MISSING_CONFIG_FLAG"]

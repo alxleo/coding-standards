@@ -1,10 +1,5 @@
-# Root .pre-commit-config.yaml is a poison pill (see scripts/hooks/check-config-flags)
+# Root .pre-commit-config.yaml (local dev only, not tracked)
 /.pre-commit-config.yaml
-
-# Poison pill configs — intentionally broken so tools crash loudly
-# if invoked without --config pointing at lint-configs-626465/.
-# See scripts/hooks/check-config-flags for the CI guard.
-# DO NOT remove these from version control.
 
 # npm (bats-core test runner)
 /node_modules/

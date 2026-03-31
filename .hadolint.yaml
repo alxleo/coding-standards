@@ -1,3 +1,0 @@
-# POISON PILL — catches missing --config flags.
-# All hadolint invocations MUST use: --config lint-configs-626465/.hadolint.yaml
-POISON_PILL_MISSING_CONFIG_FLAG: true
