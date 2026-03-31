@@ -98,7 +98,7 @@ Generated from config files — this IS the source of truth.
 - PT011 — pytest.raises() without match= (overly broad exception catch in tests)
 - N — pep8-naming (N999 catches hyphenated/non-importable module filenames)
 
-## Semgrep rules (20)
+## Semgrep rules (22)
 
 | Rule | Severity | Source | Description |
 |------|----------|--------|-------------|
@@ -107,6 +107,8 @@ Generated from config files — this IS the source of truth.
 | no-env-file-secrets | WARNING | compose-security.yml | Do not use env_file to inject secrets. Use Docker secrets or SOPS-encrypted environment variables instead. |
 | justfile-eval-usage | WARNING | justfile-safety.yml | Avoid eval in justfile recipes. Use direct command invocation or just's built-in variable interpolation. |
 | justfile-curl-pipe-sh | ERROR | justfile-safety.yml | Piping curl output to sh/bash is a security risk. Download to a file, verify checksum, then execute. |
+| python-no-bare-print | WARNING | observability.yml | Bare print() in application code. Use structured logging (structlog or logging with JSON formatter) for production code. Print statements are invisible to log aggregators. |
+| javascript-no-console-log | WARNING | observability.yml | console.log() in application code. Use a structured logger (pino, winston) for production code. Console output is unstructured and invisible to log aggregators. |
 | no-bare-dict-params | WARNING | python-typing.yml | Use a TypedDict or specific dict[K, V] instead of bare `dict`. Bare dict parameters lose all type information — callers can pass anything, and the function body has no contract to enforce. |
 | no-bare-dict-return | WARNING | python-typing.yml | Use a TypedDict or specific dict[K, V] instead of bare `dict` return. Callers get no type information about the returned structure. |
 | shell-json-parsing | INFO | shell-complexity.yml | JSON parsing in shell with jq pipeline. Consider Python instead — shell + jq is brittle, hard to test, and lacks error handling. Python's json module does the same with types and try/except. |
@@ -142,7 +144,7 @@ Generated from config files — this IS the source of truth.
 - **warn**: service '%s' exposes port %s to all interfaces — bind to 127.0.0.1 unless intentionally public (security.rego)
 - **deny**: service '%s' mounts sensitive host path '%s' (security.rego)
 
-## Repo standards (41)
+## Repo standards (45)
 
 - **warn**: .mega-linter.yml not found (ci.rego)
 - **warn**: .mega-linter.yml exists but has no EXTENDS URL (ci.rego)
@@ -163,6 +165,10 @@ Generated from config files — this IS the source of truth.
 - **warn**: No structured logging library (pino, winston, bunyan) (javascript.rego)
 - **warn**: zod not in dependencies (javascript.rego)
 - **warn**: @stryker-mutator/core not in dependencies (javascript.rego)
+- **warn**: No health endpoint found (/health, /healthz, /ready) (observability.rego)
+- **warn**: No Prometheus client found — /metrics endpoint enables monitoring dashboards (observability.rego)
+- **warn**: No error tracking SDK found (Sentry, Datadog) — errors in production need alerting (observability.rego)
+- **warn**: No tracing/OpenTelemetry SDK found (observability.rego)
 - **warn**: pyrightconfig.json not found (python.rego)
 - **warn**: ruff.toml not found (python.rego)
 - **warn**: pytest-randomly not in dependencies (python.rego)

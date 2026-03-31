@@ -88,11 +88,20 @@ class ManifestSuppressions(BaseModel):
     total: int
 
 
+class ManifestObservability(BaseModel):
+    is_service: bool
+    has_health_route: bool
+    has_metrics: bool
+    has_error_tracking: bool
+    has_tracing: bool
+
+
 class Manifest(BaseModel):
     files: ManifestFiles
     directories: ManifestDirectories
     content: ManifestContent
     dependencies: ManifestDependencies
     ci: ManifestCI
+    observability: ManifestObservability
     acknowledged: dict
     suppressions: ManifestSuppressions

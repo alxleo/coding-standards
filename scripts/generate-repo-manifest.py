@@ -221,6 +221,23 @@ def check_actions_pinned(root: Path) -> bool:
     return found_any
 
 
+def _has_health_route(root: Path) -> bool:
+    """Check if any source file defines a health endpoint."""
+    patterns = ["/health", "/healthz", "/ready", "/readyz"]
+    for f in root.rglob("*"):
+        if f.is_dir() or _is_excluded(f.relative_to(root)):
+            continue
+        if f.suffix not in (".py", ".js", ".ts", ".tsx"):
+            continue
+        try:
+            text = f.read_text(errors="replace")
+            if any(p in text for p in patterns):
+                return True
+        except OSError:
+            pass
+    return False
+
+
 def load_acknowledged(root: Path) -> dict[str, Any]:
     """Load .repo-standards.yml acknowledged entries.
 
@@ -443,6 +460,31 @@ def generate(root: Path) -> dict[str, Any]:
             "workflow_actions_sha_pinned": check_actions_pinned(root),
             "has_sha_pins": check_workflow_field(root, "@")
             and check_actions_pinned(root),
+        },
+        "observability": {
+            "is_service": (
+                check_pyproject_dep(root, "fastapi")
+                or check_pyproject_dep(root, "flask")
+                or check_pyproject_dep(root, "django")
+                or check_package_json_dep(root, "express")
+                or check_package_json_dep(root, "hono")
+                or check_package_json_dep(root, "fastify")
+                or check_package_json_dep(root, "next")
+                or (root / "Dockerfile").exists()
+            ),
+            "has_health_route": _has_health_route(root),
+            "has_metrics": (
+                check_pyproject_dep(root, "prometheus-client")
+                or check_package_json_dep(root, "prom-client")
+            ),
+            "has_error_tracking": (
+                check_pyproject_dep(root, "sentry-sdk")
+                or check_package_json_dep(root, "@sentry/node")
+            ),
+            "has_tracing": (
+                check_pyproject_dep(root, "opentelemetry-sdk")
+                or check_package_json_dep(root, "@opentelemetry/sdk-node")
+            ),
         },
         "acknowledged": ack,
         "suppressions": _count_suppressions(root),
