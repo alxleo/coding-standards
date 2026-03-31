@@ -422,8 +422,8 @@ class TestPersonalizedPageRank:
             pytest.skip("Empty scores")
 
         # The rankings should differ when we personalize on a specific file
-        static_ranking = sorted(static_scores, key=static_scores.get, reverse=True)
-        personal_ranking = sorted(personal_scores, key=personal_scores.get, reverse=True)
+        static_ranking = sorted(static_scores, key=lambda k: static_scores.get(k, 0.0), reverse=True)
+        personal_ranking = sorted(personal_scores, key=lambda k: personal_scores.get(k, 0.0), reverse=True)
 
         # At minimum, the focus file should be boosted in personalized ranking
         static_rank_of_center = static_ranking.index("center.py") if "center.py" in static_ranking else -1
