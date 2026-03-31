@@ -90,6 +90,20 @@ def check_actions_pinned(root: Path) -> bool:
     return True
 
 
+def load_acknowledged(root: Path) -> dict[str, str]:
+    """Load .repo-standards.yml acknowledged entries."""
+    rs = root / ".repo-standards.yml"
+    if not rs.exists():
+        return {}
+    try:
+        import yaml
+        with open(rs) as f:
+            data = yaml.safe_load(f) or {}
+        return data.get("acknowledged", {}) or {}
+    except Exception:
+        return {}
+
+
 def generate(root: Path) -> dict:
     return {
         "files": {
@@ -140,6 +154,7 @@ def generate(root: Path) -> dict:
             "workflow_persist_credentials_false": check_workflow_field(root, "persist-credentials: false"),
             "workflow_actions_sha_pinned": check_actions_pinned(root),
         },
+        "acknowledged": load_acknowledged(root),
     }
 
 

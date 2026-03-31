@@ -2,15 +2,19 @@ package repo_standards.javascript
 
 import rego.v1
 
+import data.repo_standards.helpers
+
 warn contains msg if {
 	input.content.typescript_files > 0
 	not input.files.tsconfig
+	not helpers.acknowledged("tsconfig")
 	msg := "tsconfig.json not found — TypeScript needs config for type checking"
 }
 
 warn contains msg if {
 	(input.content.typescript_files + input.content.javascript_files) > 0
 	not input.files.eslint_config
+	not helpers.acknowledged("eslint_config")
 	msg := "No ESLint config found — linting config needed for JS/TS code"
 }
 
@@ -18,6 +22,7 @@ warn contains msg if {
 	input.directories.tests
 	(input.content.typescript_files + input.content.javascript_files) > 0
 	not input.dependencies.eslint_plugin_jest
+	not helpers.acknowledged("eslint_plugin_jest")
 	msg := concat("\n", [
 		"eslint-plugin-jest not in dependencies",
 		"  Catches tests with zero assertions (most common LLM test defect).",

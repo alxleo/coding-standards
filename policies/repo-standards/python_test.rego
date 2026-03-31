@@ -34,6 +34,28 @@ test_no_warn_pytest_randomly_no_tests if {
 	not any_contains(result, "pytest-randomly")
 }
 
+test_acknowledged_silences_pyrightconfig if {
+	result := python.warn with input as {
+		"content": {"python_files": 10},
+		"files": {"pyrightconfig": false, "ruff": true},
+		"directories": {"tests": false},
+		"dependencies": {},
+		"acknowledged": {"pyrightconfig": "not needed — no local imports"},
+	}
+	not any_contains(result, "pyrightconfig")
+}
+
+test_acknowledged_silences_pytest_randomly if {
+	result := python.warn with input as {
+		"content": {"python_files": 5},
+		"files": {"pyrightconfig": true, "ruff": true},
+		"directories": {"tests": true},
+		"dependencies": {"pytest_randomly": false, "test_deps_defined": true},
+		"acknowledged": {"pytest_randomly": "tracked in #123"},
+	}
+	not any_contains(result, "pytest-randomly")
+}
+
 any_contains(set, substring) if {
 	some msg in set
 	contains(msg, substring)

@@ -2,9 +2,12 @@ package repo_standards.infrastructure
 
 import rego.v1
 
+import data.repo_standards.helpers
+
 warn contains msg if {
 	input.content.compose_files > 0
 	not input.files.conftest_toml
+	not helpers.acknowledged("conftest")
 	msg := concat("\n", [
 		"conftest.toml not found",
 		"  Docker Compose files present but compose policies won't run without it.",
@@ -15,5 +18,6 @@ warn contains msg if {
 
 warn contains msg if {
 	not input.files.editorconfig
+	not helpers.acknowledged("editorconfig")
 	msg := ".editorconfig not found — ensures consistent formatting across editors"
 }
