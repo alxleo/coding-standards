@@ -108,23 +108,17 @@ class TestFindShadows:
 
 
 class TestShowConfig:
-    def test_no_shadows_in_empty_workspace(
-        self, empty_workspace: Path, sample_yml: Path
-    ) -> None:
+    def test_no_shadows_in_empty_workspace(self, empty_workspace: Path, sample_yml: Path) -> None:
         rows = show_config(empty_workspace, sample_yml)
         assert len(rows) == 3
         assert all(r["shadow"] == "" for r in rows)
 
-    def test_detects_shadow(
-        self, workspace_with_ruff: Path, sample_yml: Path
-    ) -> None:
+    def test_detects_shadow(self, workspace_with_ruff: Path, sample_yml: Path) -> None:
         rows = show_config(workspace_with_ruff, sample_yml)
         ruff_row = next(r for r in rows if r["linter"] == "PYTHON_RUFF")
         assert "ruff.toml" in ruff_row["shadow"]
 
-    def test_tier_classification(
-        self, empty_workspace: Path, sample_yml: Path
-    ) -> None:
+    def test_tier_classification(self, empty_workspace: Path, sample_yml: Path) -> None:
         rows = show_config(empty_workspace, sample_yml)
         tiers = {r["linter"]: r["tier"] for r in rows}
         assert tiers["PYTHON_RUFF"] == "error"
