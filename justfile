@@ -29,7 +29,7 @@ check:
             echo "⚠ Branch is behind main — merge before pushing: git merge origin/main"
         fi
     fi
-    SKIP=just-fmt-check,caddy-fmt-check,hadolint-docker uvx pre-commit run --all-files -c {{ precommit_cfg }}
+    SKIP=caddy-fmt-check,hadolint-docker uvx pre-commit run --all-files -c {{ precommit_cfg }}
 
 [doc('Full MegaLinter suite via Docker image (mounts branch configs)')]
 [group('workflow')]
