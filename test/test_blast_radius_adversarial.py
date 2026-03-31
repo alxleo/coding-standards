@@ -7,12 +7,9 @@ so failures indicate real bugs in the implementation.
 
 from __future__ import annotations
 
-import os
 import subprocess
+from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
-
-import pytest
-from importlib.util import spec_from_file_location, module_from_spec
 
 # Load blast_radius module from scripts/ (not importable directly)
 _spec = spec_from_file_location(
@@ -31,11 +28,15 @@ def _git_init(path: Path) -> None:
     subprocess.run(["git", "init"], cwd=path, capture_output=True, check=True)
     subprocess.run(
         ["git", "config", "user.email", "test@test.com"],
-        cwd=path, capture_output=True, check=True,
+        cwd=path,
+        capture_output=True,
+        check=True,
     )
     subprocess.run(
         ["git", "config", "user.name", "Test"],
-        cwd=path, capture_output=True, check=True,
+        cwd=path,
+        capture_output=True,
+        check=True,
     )
 
 
@@ -44,7 +45,9 @@ def _git_commit(path: Path, msg: str) -> None:
     subprocess.run(["git", "add", "."], cwd=path, capture_output=True, check=True)
     subprocess.run(
         ["git", "commit", "-m", msg, "--no-gpg-sign", "--allow-empty"],
-        cwd=path, capture_output=True, check=True,
+        cwd=path,
+        capture_output=True,
+        check=True,
     )
 
 
@@ -62,12 +65,17 @@ class TestBlastRadiusSubstringMatches:
     """
 
     def test_substring_match_false_positive_prefix(self, tmp_path: Path) -> None:
-        """'test.py' should NOT match 'contest.py' — but re.search finds it as substring."""
+        """'test.py' should NOT match 'contest.py' — but re.search finds it as substrin
+        """
         (tmp_path / "test.py").write_text("print('hello')\n")
         # This file's NAME is 'contest.py' but its CONTENT mentions 'contest.py'
         # The real question: does content of other files contain 'test.py' as substring?
-        (tmp_path / "app.py").write_text("from contest import stuff  # has 'test.py' as substring? no\n")
-        (tmp_path / "runner.py").write_text("run pytest.py  # contains 'test.py' as substring!\n")
+        (tmp_path / "app.py").write_text(
+            "from contest import stuff  # has 'test.py' as substring? no\n"
+        )
+        (tmp_path / "runner.py").write_text(
+            "run pytest.py  # contains 'test.py' as substring!\n"
+        )
 
         results = br.compute_blast_radius(tmp_path)
         by_name = {r["name"]: r for r in results}
@@ -75,9 +83,9 @@ class TestBlastRadiusSubstringMatches:
         # 'runner.py' content 'pytest.py' contains 'test.py' as a substring
         # This IS a false positive — re.escape("test.py") matches inside "pytest.py"
         test_refs = by_name["test.py"]["referencing_files"]
-        # BUG: runner.py references "pytest.py" not "test.py", but substring match catches it
+        # BUG: runner.py references "pytest.py" not "test.py", but substring match catc
         assert "runner.py" in test_refs, (
-            "Expected false positive: 'test.py' matches inside 'pytest.py' via substring"
+            "Expected false positive: 'test.py' matches inside 'pytest.py' via substr"
         )
 
     def test_substring_match_false_positive_suffix(self, tmp_path: Path) -> None:
@@ -109,7 +117,8 @@ class TestBlastRadiusSymlinks:
     """Test #2: Symlinked files — counted once or twice?"""
 
     def test_symlink_not_double_counted_as_target(self, tmp_path: Path) -> None:
-        """A symlink to a file should not inflate the blast radius of referencing files."""
+        """A symlink to a file should not inflate the blast radius of referencing files
+        """
         (tmp_path / "real.py").write_text("code\n")
         (tmp_path / "link.py").symlink_to(tmp_path / "real.py")
         (tmp_path / "app.sh").write_text("python real.py\n")
@@ -135,19 +144,20 @@ class TestBlastRadiusSymlinks:
         refs = by_name["config.toml"]["referencing_files"]
         assert "real.py" in refs
         # link.py has the same content — does it also reference config.toml?
-        assert "link.py" in refs, (
-            "Symlink content should also count as a reference"
-        )
+        assert "link.py" in refs, "Symlink content should also count as a reference"
 
 
 class TestBlastRadiusBinaryFiles:
     """Test #3: Binary files containing filenames as byte sequences."""
 
     def test_binary_file_not_scanned(self, tmp_path: Path) -> None:
-        """Binary files (.png, .whl) are not in SCANNABLE_EXTS — they should be skipped."""
+        """Binary files (.png, .whl) are not in SCANNABLE_EXTS — they should be skipped
+        """
         (tmp_path / "config.toml").write_text("[x]\n")
         # Write binary content that happens to contain "config.toml" as bytes
-        (tmp_path / "icon.png").write_bytes(b"\x89PNG\r\n" + b"config.toml" + b"\x00\x00")
+        (tmp_path / "icon.png").write_bytes(
+            b"\x89PNG\r\n" + b"config.toml" + b"\x00\x00"
+        )
 
         results = br.compute_blast_radius(tmp_path)
         by_name = {r["name"]: r for r in results}
@@ -157,7 +167,8 @@ class TestBlastRadiusBinaryFiles:
         assert "icon.png" not in refs
 
     def test_binary_file_still_appears_as_target(self, tmp_path: Path) -> None:
-        """Binary files should still appear as blast radius targets if their name is referenced."""
+        """Binary files should still appear as blast radius targets if their name is re
+        """
         (tmp_path / "icon.png").write_bytes(b"\x89PNG\r\n\x00\x00")
         (tmp_path / "app.py").write_text("img = load('icon.png')\n")
 
@@ -285,7 +296,9 @@ class TestBlastRadiusSameNameDifferentDirs:
             "lib/config.toml should NOT match when content says 'scripts/config.toml'"
         )
 
-    def test_same_name_files_reference_each_other_false_positive(self, tmp_path: Path) -> None:
+    def test_same_name_files_reference_each_other_false_positive(
+        self, tmp_path: Path
+    ) -> None:
         """Two files named 'config.toml' — each references the OTHER because
         each file's content is scanned for the basename 'config.toml', and
         the other file IS named 'config.toml'. But neither file's CONTENT
@@ -302,7 +315,7 @@ class TestBlastRadiusSameNameDifferentDirs:
         results = br.compute_blast_radius(tmp_path)
         config_entries = {r["file"]: r for r in results if r["name"] == "config.toml"}
 
-        # Neither file's content mentions "config.toml" so neither should reference the other
+        # Neither file's content mentions "config.toml" so neither should reference the
         scripts_refs = config_entries["scripts/config.toml"]["referencing_files"]
         lib_refs = config_entries["lib/config.toml"]["referencing_files"]
         assert "lib/config.toml" not in scripts_refs
@@ -334,7 +347,10 @@ class TestTemporalCouplingSingleFileCommits:
         _git_commit(tmp_path, "c4")
 
         couplings = br.compute_temporal_coupling(
-            tmp_path, min_co_changes=1, min_coupling=0.01, min_revisions=1,
+            tmp_path,
+            min_co_changes=1,
+            min_coupling=0.01,
+            min_revisions=1,
         )
         assert len(couplings) == 0
 
@@ -352,11 +368,13 @@ class TestTemporalCouplingAllFilesEveryCommit:
             _git_commit(tmp_path, f"c{i}")
 
         couplings = br.compute_temporal_coupling(
-            tmp_path, min_co_changes=1, min_coupling=0.1, min_revisions=1,
+            tmp_path,
+            min_co_changes=1,
+            min_coupling=0.1,
+            min_revisions=1,
         )
         ab = next(
-            c for c in couplings
-            if {c["file_a"], c["file_b"]} == {"a.py", "b.py"}
+            c for c in couplings if {c["file_a"], c["file_b"]} == {"a.py", "b.py"}
         )
         # Jaccard = 5 / (5 + 5 - 5) = 1.0
         assert ab["coupling"] == 1.0
@@ -372,7 +390,10 @@ class TestTemporalCouplingAllFilesEveryCommit:
             _git_commit(tmp_path, f"c{i}")
 
         couplings = br.compute_temporal_coupling(
-            tmp_path, min_co_changes=1, min_coupling=0.1, min_revisions=1,
+            tmp_path,
+            min_co_changes=1,
+            min_coupling=0.1,
+            min_revisions=1,
         )
         pair_set = {frozenset([c["file_a"], c["file_b"]]) for c in couplings}
         assert frozenset(["a.py", "b.py"]) in pair_set
@@ -398,7 +419,9 @@ class TestTemporalCouplingMergeCommits:
         # feature branch: b.py
         subprocess.run(
             ["git", "checkout", "-b", "feature"],
-            cwd=tmp_path, capture_output=True, check=True,
+            cwd=tmp_path,
+            capture_output=True,
+            check=True,
         )
         (tmp_path / "b.py").write_text("v1")
         _git_commit(tmp_path, "feature: add b")
@@ -406,31 +429,36 @@ class TestTemporalCouplingMergeCommits:
         # back to main, add c.py
         subprocess.run(
             ["git", "checkout", "master"],
-            cwd=tmp_path, capture_output=True,
+            cwd=tmp_path, check=False,
+            capture_output=True,
         )
         # might be main
         subprocess.run(
             ["git", "checkout", "main"],
-            cwd=tmp_path, capture_output=True,
+            cwd=tmp_path, check=False,
+            capture_output=True,
         )
         (tmp_path / "c.py").write_text("v1")
         _git_commit(tmp_path, "main: add c")
 
         # Merge feature → creates a merge commit touching a.py, b.py, c.py
-        result = subprocess.run(
+        subprocess.run(
             ["git", "merge", "feature", "--no-edit", "--no-gpg-sign"],
-            cwd=tmp_path, capture_output=True,
+            cwd=tmp_path, check=False,
+            capture_output=True,
         )
 
         # The merge commit itself should be excluded by --no-merges
         # So b.py and c.py should NOT appear coupled just from the merge
         couplings = br.compute_temporal_coupling(
-            tmp_path, min_co_changes=1, min_coupling=0.01, min_revisions=1,
+            tmp_path,
+            min_co_changes=1,
+            min_coupling=0.01,
+            min_revisions=1,
         )
         # b.py and c.py only co-occur in the merge commit, which is filtered
         bc_coupling = [
-            c for c in couplings
-            if {c["file_a"], c["file_b"]} == {"b.py", "c.py"}
+            c for c in couplings if {c["file_a"], c["file_b"]} == {"b.py", "c.py"}
         ]
         assert len(bc_coupling) == 0, (
             "b.py and c.py only co-occur in a merge commit, "
@@ -459,27 +487,34 @@ class TestTemporalCouplingRenamedFiles:
         # Rename old.py -> new.py
         subprocess.run(
             ["git", "mv", "old.py", "new.py"],
-            cwd=tmp_path, capture_output=True, check=True,
+            cwd=tmp_path,
+            capture_output=True,
+            check=True,
         )
         (tmp_path / "partner.py").write_text("v_after_rename")
         _git_commit(tmp_path, "rename old to new")
 
         couplings = br.compute_temporal_coupling(
-            tmp_path, min_co_changes=1, min_coupling=0.1, min_revisions=1,
+            tmp_path,
+            min_co_changes=1,
+            min_coupling=0.1,
+            min_revisions=1,
         )
 
         # old.py should still show coupling with partner.py (from historical commits)
         old_partner = [
-            c for c in couplings
+            c
+            for c in couplings
             if {c["file_a"], c["file_b"]} == {"old.py", "partner.py"}
         ]
         assert len(old_partner) > 0, (
-            "Historical coupling between old.py and partner.py should persist in git log"
+            "Historical coupling between old.py and partner.py persists in git log"
         )
 
         # new.py has only 1 co-change with partner.py — may not meet thresholds
         new_partner = [
-            c for c in couplings
+            c
+            for c in couplings
             if {c["file_a"], c["file_b"]} == {"new.py", "partner.py"}
         ]
         # With min_co_changes=1 it should appear, but coupling is weak
@@ -510,13 +545,15 @@ class TestTemporalCouplingDeletedFiles:
         _git_commit(tmp_path, "delete doomed")
 
         couplings = br.compute_temporal_coupling(
-            tmp_path, min_co_changes=2, min_coupling=0.1, min_revisions=2,
+            tmp_path,
+            min_co_changes=2,
+            min_coupling=0.1,
+            min_revisions=2,
         )
 
         # doomed.py should still appear in coupling data from historical commits
         doomed_couplings = [
-            c for c in couplings
-            if "doomed.py" in (c["file_a"], c["file_b"])
+            c for c in couplings if "doomed.py" in (c["file_a"], c["file_b"])
         ]
         assert len(doomed_couplings) > 0, (
             "Deleted file should still appear in coupling output from git history"
@@ -569,7 +606,7 @@ class TestCriticalityDisconnectedGraph:
         # Should produce results for the connected component
         if ranked:
             files = {r["file"] for r in ranked}
-            # hub and spoke should appear; island might or might not depending on threshold
+            # hub and spoke should appear; island might or might not depending on thres
             assert "hub.py" in files or "spoke.py" in files
 
 
@@ -582,7 +619,7 @@ class TestCriticalitySelfReference:
         # Add another file so the graph isn't empty
         (tmp_path / "app.py").write_text("load('config.toml')\n")
 
-        ranked = br.compute_criticality(tmp_path)
+        br.compute_criticality(tmp_path)
         # The graph should have edges but no self-loops
         g, _ = br._build_dependency_graph(tmp_path)
         for node in g.nodes():
@@ -649,8 +686,7 @@ class TestExtractPythonImportsDynamic:
         """
         (tmp_path / "foo.py").write_text("x = 1\n")
         (tmp_path / "loader.py").write_text(
-            "import importlib\n"
-            "mod = importlib.import_module('foo')\n"
+            "import importlib\nmod = importlib.import_module('foo')\n"
         )
 
         edges = br._extract_python_imports(tmp_path)
@@ -694,10 +730,7 @@ class TestExtractPythonImportsConditional:
         (tmp_path / "foo.py").write_text("x = 1\n")
         (tmp_path / "bar.py").write_text("y = 2\n")
         (tmp_path / "loader.py").write_text(
-            "try:\n"
-            "    import foo\n"
-            "except ImportError:\n"
-            "    import bar\n"
+            "try:\n    import foo\nexcept ImportError:\n    import bar\n"
         )
 
         edges = br._extract_python_imports(tmp_path)
@@ -771,7 +804,8 @@ class TestBlastRadiusNonScannableNotSearched:
     """Non-scannable files (e.g., .png) should be targets but not scanners."""
 
     def test_non_scannable_ext_not_scanned_as_source(self, tmp_path: Path) -> None:
-        """A .whl file whose bytes contain 'config.toml' should NOT be a referencing file."""
+        """A .whl file whose bytes contain 'config.toml' should NOT be a referencing fi
+        """
         (tmp_path / "config.toml").write_text("[x]\n")
         (tmp_path / "package.whl").write_bytes(b"PK\x03\x04config.toml\x00\x00")
 
@@ -786,14 +820,14 @@ class TestBuildDependencyGraphEdgeCases:
 
     def test_empty_repo_produces_empty_graph(self, tmp_path: Path) -> None:
         """A repo with no files should produce an empty graph."""
-        g, nodes = br._build_dependency_graph(tmp_path)
+        g, _nodes = br._build_dependency_graph(tmp_path)
         assert g.number_of_nodes() == 0
         assert g.number_of_edges() == 0
 
     def test_single_file_repo(self, tmp_path: Path) -> None:
         """A repo with one file should have one node and no edges."""
         (tmp_path / "solo.py").write_text("x = 1\n")
-        g, nodes = br._build_dependency_graph(tmp_path)
+        g, _nodes = br._build_dependency_graph(tmp_path)
         assert g.number_of_nodes() == 1
         assert g.number_of_edges() == 0
 

@@ -10,11 +10,10 @@ Red-team tests targeting algorithmic flaws in:
 from __future__ import annotations
 
 import subprocess
-from collections import Counter
+from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
 import pytest
-from importlib.util import spec_from_file_location, module_from_spec
 
 # Load blast_radius module from scripts/ (not importable directly)
 _spec = spec_from_file_location(
@@ -33,11 +32,15 @@ def _git_init(path: Path) -> None:
     subprocess.run(["git", "init"], cwd=path, capture_output=True, check=True)
     subprocess.run(
         ["git", "config", "user.email", "test@test.com"],
-        cwd=path, capture_output=True, check=True,
+        cwd=path,
+        capture_output=True,
+        check=True,
     )
     subprocess.run(
         ["git", "config", "user.name", "Test"],
-        cwd=path, capture_output=True, check=True,
+        cwd=path,
+        capture_output=True,
+        check=True,
     )
 
 
@@ -46,7 +49,9 @@ def _git_commit(path: Path, msg: str) -> None:
     subprocess.run(["git", "add", "."], cwd=path, capture_output=True, check=True)
     subprocess.run(
         ["git", "commit", "-m", msg, "--no-gpg-sign", "--allow-empty"],
-        cwd=path, capture_output=True, check=True,
+        cwd=path,
+        capture_output=True,
+        check=True,
     )
 
 
@@ -78,8 +83,11 @@ class TestJaccardBoundaryConditions:
             min_revisions=1,
         )
         ab = next(
-            (c for c in couplings
-             if {c["file_a"], c["file_b"]} == {"alpha.py", "beta.py"}),
+            (
+                c
+                for c in couplings
+                if {c["file_a"], c["file_b"]} == {"alpha.py", "beta.py"}
+            ),
             None,
         )
         assert ab is not None, "Perfect coupling pair not found in results"
@@ -96,7 +104,8 @@ class TestJaccardBoundaryConditions:
             min_revisions=1,
         )
         ab = next(
-            c for c in couplings
+            c
+            for c in couplings
             if {c["file_a"], c["file_b"]} == {"alpha.py", "beta.py"}
         )
         assert ab["co_changes"] == ab["changes_a"] == ab["changes_b"] == 5
@@ -114,6 +123,7 @@ class TestJaccardZeroDivision:
         # but we can verify the guard by calling _parse_git_commits on an
         # empty repo and ensuring no division error.
         import tempfile
+
         with tempfile.TemporaryDirectory() as td:
             path = Path(td)
             _git_init(path)
@@ -122,14 +132,18 @@ class TestJaccardZeroDivision:
 
             # Should return empty — no pairs exist with 1 file
             couplings = br.compute_temporal_coupling(
-                path, min_co_changes=1, min_coupling=0.0,
-                max_changeset=50, min_revisions=1,
+                path,
+                min_co_changes=1,
+                min_coupling=0.0,
+                max_changeset=50,
+                min_revisions=1,
             )
             assert couplings == []
 
     def test_single_file_no_coupling(self) -> None:
         """A repo with only one file can never produce coupling pairs."""
         import tempfile
+
         with tempfile.TemporaryDirectory() as td:
             path = Path(td)
             _git_init(path)
@@ -138,8 +152,11 @@ class TestJaccardZeroDivision:
                 _git_commit(path, f"c{i}")
 
             couplings = br.compute_temporal_coupling(
-                path, min_co_changes=1, min_coupling=0.0,
-                max_changeset=50, min_revisions=1,
+                path,
+                min_co_changes=1,
+                min_coupling=0.0,
+                max_changeset=50,
+                min_revisions=1,
             )
             assert couplings == []
 
@@ -165,8 +182,9 @@ class TestNoiseFilterBoundary:
         """A commit with exactly max_changeset=50 files should be INCLUDED.
         The filter is `len(commit_files) > max_changeset`, so 50 is NOT filtered.
         """
-        file_changes, co_changes, commits = br._parse_git_commits(
-            boundary_repo, max_changeset=50,
+        file_changes, co_changes, _commits = br._parse_git_commits(
+            boundary_repo,
+            max_changeset=50,
         )
         # The commit has 50 files, filter is >50, so it should be included
         assert len(file_changes) == 50, (
@@ -182,8 +200,9 @@ class TestNoiseFilterBoundary:
             (tmp_path / f"file_{i:03d}.py").write_text(f"content {i}")
         _git_commit(tmp_path, "51-files")
 
-        file_changes, co_changes, commits = br._parse_git_commits(
-            tmp_path, max_changeset=50,
+        file_changes, co_changes, _commits = br._parse_git_commits(
+            tmp_path,
+            max_changeset=50,
         )
         # All 51 files in one commit, which is >50 so filtered
         assert len(file_changes) == 0
@@ -196,8 +215,9 @@ class TestNoiseFilterBoundary:
             (tmp_path / f"file_{i:03d}.py").write_text(f"content {i}")
         _git_commit(tmp_path, "49-files")
 
-        file_changes, co_changes, commits = br._parse_git_commits(
-            tmp_path, max_changeset=50,
+        file_changes, _co_changes, _commits = br._parse_git_commits(
+            tmp_path,
+            max_changeset=50,
         )
         assert len(file_changes) == 49
 
@@ -206,7 +226,8 @@ class TestFormattingCommitDetection:
     """Mass formatter runs (e.g., black on 100 .py files) should be filtered."""
 
     def test_mass_format_commit_filtered(self, tmp_path: Path) -> None:
-        """A commit touching 100 .py files (formatter run) is filtered at default max_changeset=50."""
+        """A commit touching 100 .py files (formatter run) is filtered at default max_c
+        """
         _git_init(tmp_path)
         # First commit: create files individually coupled
         (tmp_path / "core.py").write_text("v1")
@@ -215,21 +236,24 @@ class TestFormattingCommitDetection:
 
         # Strengthen coupling with more small commits
         for i in range(4):
-            (tmp_path / "core.py").write_text(f"v{i+2}")
-            (tmp_path / "helper.py").write_text(f"v{i+2}")
+            (tmp_path / "core.py").write_text(f"v{i + 2}")
+            (tmp_path / "helper.py").write_text(f"v{i + 2}")
             _git_commit(tmp_path, f"coupled-{i}")
 
         # Massive formatter commit touching 100 files
         for i in range(100):
-            (tmp_path / f"formatted_{i:03d}.py").write_text(f"# formatted\npass\n")
+            (tmp_path / f"formatted_{i:03d}.py").write_text("# formatted\npass\n")
         (tmp_path / "core.py").write_text("v99-formatted")
         (tmp_path / "helper.py").write_text("v99-formatted")
         _git_commit(tmp_path, "black format all")
 
         # The formatter commit has 102 files (100 new + 2 existing) -> filtered
         couplings = br.compute_temporal_coupling(
-            tmp_path, min_co_changes=3, min_coupling=0.3,
-            max_changeset=50, min_revisions=3,
+            tmp_path,
+            min_co_changes=3,
+            min_coupling=0.3,
+            max_changeset=50,
+            min_revisions=3,
         )
 
         # core.py<->helper.py coupling should exist from the small commits
@@ -238,7 +262,8 @@ class TestFormattingCommitDetection:
 
         # None of the formatted_*.py files should appear in coupling results
         formatted_in_results = [
-            c for c in couplings
+            c
+            for c in couplings
             if "formatted_" in c["file_a"] or "formatted_" in c["file_b"]
         ]
         assert formatted_in_results == [], (
@@ -253,8 +278,11 @@ class TestFormattingCommitDetection:
         _git_commit(tmp_path, "initial import of everything")
 
         couplings = br.compute_temporal_coupling(
-            tmp_path, min_co_changes=1, min_coupling=0.0,
-            max_changeset=50, min_revisions=1,
+            tmp_path,
+            min_co_changes=1,
+            min_coupling=0.0,
+            max_changeset=50,
+            min_revisions=1,
         )
         assert couplings == [], (
             "A single massive commit should produce zero coupling pairs"
@@ -278,9 +306,7 @@ class TestPageRankTopology:
 
         # 20 leaf files, each referencing hub.py by name
         for i in range(20):
-            (tmp_path / f"leaf_{i:03d}.py").write_text(
-                f"import hub\nhub.core()\n"
-            )
+            (tmp_path / f"leaf_{i:03d}.py").write_text("import hub\nhub.core()\n")
 
         _git_commit(tmp_path, "star topology")
 
@@ -336,17 +362,20 @@ class TestPageRankTopology:
         Authority should rank higher than hub.
         """
         _git_init(tmp_path)
-        (tmp_path / "authority.py").write_text("# everyone imports me\ndef api(): pass\n")
+        (tmp_path / "authority.py").write_text(
+            "# everyone imports me\ndef api(): pass\n"
+        )
         (tmp_path / "hub.py").write_text(
-            "# I import everyone\n" +
-            "\n".join(f"import leaf_{i:03d}" for i in range(15)) + "\n"
+            "# I import everyone\n"
+            + "\n".join(f"import leaf_{i:03d}" for i in range(15))
+            + "\n"
         )
 
         for i in range(15):
             # Each leaf imports authority (creating in-links to authority)
             # Each leaf is imported by hub (creating out-links from hub)
             (tmp_path / f"leaf_{i:03d}.py").write_text(
-                f"import authority\nauthority.api()\n"
+                "import authority\nauthority.api()\n"
             )
 
         _git_commit(tmp_path, "hub-authority topology")
@@ -388,7 +417,6 @@ class TestPersonalizedPageRank:
 
     def test_personalized_boosts_focus_neighbors(self, graph_repo: Path) -> None:
         """Focusing on center.py should rank its neighbors higher than distant.py."""
-        import networkx as nx
 
         g, all_rel = br._build_dependency_graph(graph_repo, max_changeset=50)
 
@@ -423,14 +451,25 @@ class TestPersonalizedPageRank:
 
         # The rankings should differ when we personalize on a specific file
         static_ranking = sorted(static_scores, key=static_scores.get, reverse=True)
-        personal_ranking = sorted(personal_scores, key=personal_scores.get, reverse=True)
+        personal_ranking = sorted(
+            personal_scores, key=personal_scores.get, reverse=True
+        )
 
         # At minimum, the focus file should be boosted in personalized ranking
-        static_rank_of_center = static_ranking.index("center.py") if "center.py" in static_ranking else -1
-        personal_rank_of_center = personal_ranking.index("center.py") if "center.py" in personal_ranking else -1
+        static_rank_of_center = (
+            static_ranking.index("center.py") if "center.py" in static_ranking else -1
+        )
+        personal_rank_of_center = (
+            personal_ranking.index("center.py")
+            if "center.py" in personal_ranking
+            else -1
+        )
 
         # Personalized should rank center.py at least as high as static
-        assert personal_rank_of_center <= static_rank_of_center or personal_rank_of_center == 0, (
+        assert (
+            personal_rank_of_center <= static_rank_of_center
+            or personal_rank_of_center == 0
+        ), (
             f"Personalized rank of center.py ({personal_rank_of_center}) should be "
             f"<= static rank ({static_rank_of_center})"
         )
@@ -440,7 +479,6 @@ class TestPersonalizedPageRank:
 
 
 class TestPRReviewEdgeCases:
-
     def test_changed_file_not_in_graph(self, tmp_path: Path) -> None:
         """PR changes a file with zero references anywhere. Should not crash."""
         _git_init(tmp_path)
@@ -502,7 +540,6 @@ class TestPRReviewEdgeCases:
 
 
 class TestPythonASTImports:
-
     def test_import_chain_produces_transitive_edges(self, tmp_path: Path) -> None:
         """A imports B, B imports C. Both A->B and B->C edges should exist."""
         _git_init(tmp_path)
@@ -582,7 +619,7 @@ class TestPythonASTImports:
 
         # Should not crash — relative imports have module=None when level>0
         # but the code guards with `and node.module`
-        edges = br._extract_python_imports(tmp_path)
+        br._extract_python_imports(tmp_path)
         # We just verify it doesn't crash; relative imports are silently skipped
 
     def test_syntax_error_file_skipped(self, tmp_path: Path) -> None:
@@ -603,7 +640,6 @@ class TestPythonASTImports:
 
 
 class TestParseGitCommitsInternals:
-
     def test_excluded_dirs_filtered_from_commits(self, tmp_path: Path) -> None:
         """Files in excluded dirs (.git, __pycache__, etc) should not appear."""
         _git_init(tmp_path)
@@ -622,7 +658,8 @@ class TestParseGitCommitsInternals:
         (tmp_path / "file.py").write_text("x = 1")
 
         file_changes, co_changes, commits = br._parse_git_commits(
-            tmp_path, max_changeset=50,
+            tmp_path,
+            max_changeset=50,
         )
         assert len(file_changes) == 0
         assert len(co_changes) == 0
@@ -632,8 +669,9 @@ class TestParseGitCommitsInternals:
         """A git repo with no commits should return empty results."""
         _git_init(tmp_path)
 
-        file_changes, co_changes, commits = br._parse_git_commits(
-            tmp_path, max_changeset=50,
+        file_changes, co_changes, _commits = br._parse_git_commits(
+            tmp_path,
+            max_changeset=50,
         )
         assert len(file_changes) == 0
         assert len(co_changes) == 0
@@ -643,7 +681,6 @@ class TestParseGitCommitsInternals:
 
 
 class TestCIRankDegenerate:
-
     def test_no_edges_returns_empty(self, tmp_path: Path) -> None:
         """A repo where no file references any other should return empty ranking."""
         _git_init(tmp_path)
@@ -663,13 +700,12 @@ class TestCIRankDegenerate:
         """
         _git_init(tmp_path)
         (tmp_path / "selfish.py").write_text(
-            "# This file is called selfish.py\n"
-            "import selfish\n"  # self-import attempt
+            "# This file is called selfish.py\nimport selfish\n"  # self-import attempt
         )
         _git_commit(tmp_path, "init")
 
         # Should not crash and should not produce self-edges
-        ranked = br.compute_criticality(tmp_path)
+        br.compute_criticality(tmp_path)
         # Verify no self-edges in the graph
         g, _ = br._build_dependency_graph(tmp_path)
         for u, v in g.edges():
@@ -680,9 +716,9 @@ class TestCIRankDegenerate:
 
 
 class TestCommitParsingEdgeCases:
-
     def test_max_changeset_zero_filters_everything(self, tmp_path: Path) -> None:
-        """max_changeset=0 means ALL commits are filtered (every commit has >0 files)."""
+        """max_changeset=0 means ALL commits are filtered (every commit has >0 files)."
+        """
         _git_init(tmp_path)
         (tmp_path / "a.py").write_text("v1")
         (tmp_path / "b.py").write_text("v1")
@@ -723,7 +759,7 @@ class TestCouplingSymmetry:
     def test_asymmetric_change_pattern(self, tmp_path: Path) -> None:
         """A changes 10 times, B changes 3 times, they co-change 3 times.
         Jaccard = 3/(10+3-3) = 0.3.
-        If we looked at conditional probability: P(B|A) = 3/10 = 0.3, P(A|B) = 3/3 = 1.0.
+        P(B|A)=3/10=0.3, P(A|B)=3/3=1.0 but Jaccard is symmetric.
         Jaccard is symmetric by definition, but the underlying causality isn't.
         Just verify the Jaccard value is correct.
         """
@@ -741,17 +777,19 @@ class TestCouplingSymmetry:
             _git_commit(tmp_path, f"a-only-{i}")
 
         couplings = br.compute_temporal_coupling(
-            tmp_path, min_co_changes=1, min_coupling=0.0,
-            max_changeset=50, min_revisions=1,
+            tmp_path,
+            min_co_changes=1,
+            min_coupling=0.0,
+            max_changeset=50,
+            min_revisions=1,
         )
 
         ab = next(
-            (c for c in couplings
-             if {c["file_a"], c["file_b"]} == {"a.py", "b.py"}),
+            (c for c in couplings if {c["file_a"], c["file_b"]} == {"a.py", "b.py"}),
             None,
         )
         assert ab is not None
         # Jaccard = 3 / (10 + 3 - 3) = 3/10 = 0.3
         assert ab["coupling"] == 0.3, f"Expected 0.3, got {ab['coupling']}"
         assert ab["changes_a"] == 10  # a.py: 3 co + 7 solo = 10
-        assert ab["changes_b"] == 3   # b.py: 3 co-changes only
+        assert ab["changes_b"] == 3  # b.py: 3 co-changes only

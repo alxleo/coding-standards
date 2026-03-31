@@ -7,13 +7,11 @@ output on controlled input — no dependency on the hypothesis.
 
 from __future__ import annotations
 
-import json
 import subprocess
+from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
 import pytest
-
-from importlib.util import spec_from_file_location, module_from_spec
 
 # Load blast_radius module from scripts/ (not importable directly)
 _spec = spec_from_file_location(
@@ -48,58 +46,72 @@ def synthetic_repo(tmp_path: Path) -> Path:
 @pytest.fixture()
 def git_repo(tmp_path: Path) -> Path:
     """Create a git repo with known commit history for coupling tests."""
-    subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True)
+    subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True, check=False)
     subprocess.run(
         ["git", "config", "user.email", "test@test.com"],
-        cwd=tmp_path, capture_output=True,
+        cwd=tmp_path,
+        capture_output=True,
+        check=False,
     )
     subprocess.run(
         ["git", "config", "user.name", "Test"],
-        cwd=tmp_path, capture_output=True,
+        cwd=tmp_path,
+        capture_output=True,
+        check=False,
     )
 
     # Commit 1: a.py + b.py (coupled pair)
     (tmp_path / "a.py").write_text("v1")
     (tmp_path / "b.py").write_text("v1")
-    subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+    subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True, check=False)
     subprocess.run(
         ["git", "commit", "-m", "c1", "--no-gpg-sign"],
-        cwd=tmp_path, capture_output=True,
+        cwd=tmp_path,
+        capture_output=True,
+        check=False,
     )
 
     # Commit 2: a.py + b.py again (strengthens coupling)
     (tmp_path / "a.py").write_text("v2")
     (tmp_path / "b.py").write_text("v2")
-    subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+    subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True, check=False)
     subprocess.run(
         ["git", "commit", "-m", "c2", "--no-gpg-sign"],
-        cwd=tmp_path, capture_output=True,
+        cwd=tmp_path,
+        capture_output=True,
+        check=False,
     )
 
     # Commit 3: a.py + b.py + c.py
     (tmp_path / "a.py").write_text("v3")
     (tmp_path / "b.py").write_text("v3")
     (tmp_path / "c.py").write_text("v1")
-    subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+    subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True, check=False)
     subprocess.run(
         ["git", "commit", "-m", "c3", "--no-gpg-sign"],
-        cwd=tmp_path, capture_output=True,
+        cwd=tmp_path,
+        capture_output=True,
+        check=False,
     )
 
     # Commit 4: a.py alone (weakens a↔b coupling via Jaccard)
     (tmp_path / "a.py").write_text("v4")
-    subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+    subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True, check=False)
     subprocess.run(
         ["git", "commit", "-m", "c4", "--no-gpg-sign"],
-        cwd=tmp_path, capture_output=True,
+        cwd=tmp_path,
+        capture_output=True,
+        check=False,
     )
 
     # Commit 5: c.py alone (independent)
     (tmp_path / "c.py").write_text("v2")
-    subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+    subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True, check=False)
     subprocess.run(
         ["git", "commit", "-m", "c5", "--no-gpg-sign"],
-        cwd=tmp_path, capture_output=True,
+        cwd=tmp_path,
+        capture_output=True,
+        check=False,
     )
 
     return tmp_path
@@ -116,7 +128,9 @@ class TestBlastRadius:
         # config.toml is referenced by ci.yml, justfile, README.md
         assert by_name["config.toml"]["blast_radius"] == 3
 
-    def test_unreferenced_file_has_zero_blast_radius(self, synthetic_repo: Path) -> None:
+    def test_unreferenced_file_has_zero_blast_radius(
+        self, synthetic_repo: Path
+    ) -> None:
         results = br.compute_blast_radius(synthetic_repo)
         by_name = {r["name"]: r for r in results}
 
@@ -145,7 +159,10 @@ class TestTemporalCoupling:
     def test_coupled_files_detected(self, git_repo: Path) -> None:
         # a.py and b.py change together in 3 of 4 a-commits and 3 of 3 b-commits
         couplings = br.compute_temporal_coupling(
-            git_repo, min_co_changes=2, min_coupling=0.2, min_revisions=2,
+            git_repo,
+            min_co_changes=2,
+            min_coupling=0.2,
+            min_revisions=2,
         )
         pairs = {(c["file_a"], c["file_b"]) for c in couplings}
         assert ("a.py", "b.py") in pairs
@@ -154,18 +171,23 @@ class TestTemporalCoupling:
         # a.py: 4 changes, b.py: 3 changes, co-changes: 3
         # Jaccard = 3 / (4 + 3 - 3) = 3/4 = 0.75
         couplings = br.compute_temporal_coupling(
-            git_repo, min_co_changes=2, min_coupling=0.2, min_revisions=2,
+            git_repo,
+            min_co_changes=2,
+            min_coupling=0.2,
+            min_revisions=2,
         )
         ab = next(
-            c for c in couplings
-            if c["file_a"] == "a.py" and c["file_b"] == "b.py"
+            c for c in couplings if c["file_a"] == "a.py" and c["file_b"] == "b.py"
         )
         assert ab["coupling"] == 0.75
 
     def test_weak_coupling_filtered(self, git_repo: Path) -> None:
         # With high min_coupling, weak pairs are filtered
         couplings = br.compute_temporal_coupling(
-            git_repo, min_co_changes=2, min_coupling=0.9, min_revisions=2,
+            git_repo,
+            min_co_changes=2,
+            min_coupling=0.9,
+            min_revisions=2,
         )
         # a↔b at 0.75 should be filtered
         assert len(couplings) == 0
@@ -173,8 +195,11 @@ class TestTemporalCoupling:
     def test_large_changeset_filtered(self, git_repo: Path) -> None:
         # With max_changeset=1, no commits qualify (all have 2+ files)
         couplings = br.compute_temporal_coupling(
-            git_repo, min_co_changes=1, min_coupling=0.1,
-            max_changeset=1, min_revisions=1,
+            git_repo,
+            min_co_changes=1,
+            min_coupling=0.1,
+            max_changeset=1,
+            min_revisions=1,
         )
         assert len(couplings) == 0
 
@@ -207,12 +232,14 @@ class TestNamingEntropy:
     def test_entropy_zero_for_uniform(self) -> None:
         """All same convention → entropy 0."""
         from collections import Counter
+
         counts = Counter({"snake_case": 10})
         assert br._shannon_entropy(counts) == 0.0
 
     def test_entropy_one_for_two_equal(self) -> None:
         """Two conventions 50/50 → entropy 1.0."""
         from collections import Counter
+
         counts = Counter({"snake_case": 5, "kebab-case": 5})
         assert br._shannon_entropy(counts) == pytest.approx(1.0)
 
