@@ -157,6 +157,13 @@ repos:
         pass_filenames: false
         files: "semgrep-rules/"
 
+      - id: semgrep-scan
+        name: Semgrep scan (custom rules)
+        entry: uvx semgrep scan --config semgrep-rules/ --error --quiet
+        language: system
+        pass_filenames: false
+        types_or: [python, javascript, ts, yaml, bash]
+
       - id: check-ci-json-coverage
         name: CI smoke test coverage
         entry: python3 scripts/hooks/check-ci-json-coverage

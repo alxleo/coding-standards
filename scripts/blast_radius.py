@@ -329,7 +329,9 @@ def _extract_python_imports(root: Path) -> list[tuple[str, str]]:
             module_map[stem] = paths[0]
 
     def _resolve_relative_import(
-        node: ast_mod.ImportFrom, importer: str, importer_dir: Path,
+        node: ast_mod.ImportFrom,
+        importer: str,
+        importer_dir: Path,
     ) -> list[tuple[str, str]]:
         """Resolve `from . import foo` style imports."""
         rel_dir = importer_dir

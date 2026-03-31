@@ -1,10 +1,7 @@
 ---
 # CI — two-tier feedback.
-#   1. Fast checks: pre-commit runs ALL hooks (ruff, pytest, semgrep, catalog, etc)
+#   1. Fast checks: `just check` — same command locally and in CI
 #   2. Image self-lint (via composite action): runs the published image
-#
-# Single source of truth: lint-configs-626465/.pre-commit-config.yaml
-# Same command locally: just check
 name: CI
 
 on:
@@ -20,7 +17,6 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  # Fast feedback — no Docker, no image pull. Pre-commit runs everything.
   fast-checks:
     if: >-
       github.event_name == 'push' ||
@@ -36,13 +32,12 @@ jobs:
         with:
           enable-cache: false
 
-      - name: Pre-commit (all checks)
-        env:
-          SKIP: just-fmt-check,caddy-fmt-check,hadolint-docker
-        run: uvx pre-commit run --all-files -c lint-configs-626465/.pre-commit-config.yaml
+      - uses: extractions/setup-just@dd310ad5a97d8e7b41793f8ef055398d51ad4de6 # v2
+
+      - name: just check
+        run: just check
 
   # Image self-lint — runs the published image against this repo.
-  # Uses :latest from GHCR (tests the shipped image, not local changes).
   self-lint:
     if: >-
       github.event_name == 'push' ||

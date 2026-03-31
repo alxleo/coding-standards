@@ -13,7 +13,7 @@ precommit_cfg := "lint-configs-626465/.pre-commit-config.yaml"
 
 # ── Dev workflow (use these) ───────────────────────────────
 
-[doc('Fast local checks — pre-commit runs all hooks including ruff, pytest, catalog drift')]
+[doc('All checks — identical to CI. Pre-commit runs ruff, pytest, semgrep, catalog, etc.')]
 [group('workflow')]
 check:
     SKIP=just-fmt-check,caddy-fmt-check,hadolint-docker uvx pre-commit run --all-files -c {{ precommit_cfg }}
@@ -53,6 +53,11 @@ warnings:
 [group('image')]
 catalog:
     docker run --rm --platform linux/amd64 {{ docker_args }} {{ image }} catalog
+
+[doc('Same as CI — pre-commit runs all hooks. Run before every push.')]
+[group('workflow')]
+ci-local:
+    SKIP=just-fmt-check,caddy-fmt-check,hadolint-docker uvx pre-commit run --all-files -c {{ precommit_cfg }}
 
 # ── Individual checks ──────────────────────────────────────
 

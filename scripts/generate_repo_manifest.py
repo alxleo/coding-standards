@@ -370,9 +370,7 @@ def generate(root: Path) -> dict[str, Any]:
             "gitignore": (root / ".gitignore").exists(),
             "gitignore_covers_decrypted": check_gitignore_covers(root, ".decrypted"),
             "ci_json": (root / ".ci.json").exists(),
-            "renovate": any(
-                (root / f).exists() for f in ("renovate.json", ".renovaterc.json")
-            ),
+            "renovate": any((root / f).exists() for f in ("renovate.json", ".renovaterc.json")),
             "nvmrc": (root / ".nvmrc").exists(),
             "envrc": (root / ".envrc").exists(),
             "makefile": any((root / f).exists() for f in ("Makefile", "justfile")),
@@ -434,14 +432,16 @@ def generate(root: Path) -> dict[str, Any]:
             "has_sha_pins": check_workflow_field(root, "@") and check_actions_pinned(root),
         },
         "observability": {
-            "is_service": any((
-                _has_any_dep(
-                    root,
-                    pyproject=("fastapi", "flask", "django"),
-                    pkg=("express", "hono", "fastify", "next"),
-                ),
-                (root / "Dockerfile").exists(),
-            )),
+            "is_service": any(
+                (
+                    _has_any_dep(
+                        root,
+                        pyproject=("fastapi", "flask", "django"),
+                        pkg=("express", "hono", "fastify", "next"),
+                    ),
+                    (root / "Dockerfile").exists(),
+                )
+            ),
             "has_health_route": _has_health_route(root),
             "has_metrics": _has_any_dep(root, pyproject=("prometheus-client",), pkg=("prom-client",)),
             "has_error_tracking": _has_any_dep(root, pyproject=("sentry-sdk",), pkg=("@sentry/node",)),
