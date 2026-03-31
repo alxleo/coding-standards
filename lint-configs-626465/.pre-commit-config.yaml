@@ -133,3 +133,22 @@ repos:
         entry: prettier --check
         args: [--config, .coding-standards/lint-configs-626465/.prettierrc]
         exclude: '\.md$'
+
+  # ── Fast checks (pytest + catalog drift) ───────────────────
+  - repo: local
+    hooks:
+      - id: pytest
+        name: Run tests
+        entry: python3 -m pytest test/ -q --tb=short
+        language: python
+        additional_dependencies: [pytest, pydantic, pyyaml, pytest-randomly]
+        pass_filenames: false
+        types_or: [python]
+
+      - id: catalog-drift
+        name: Check catalog is up to date
+        entry: python3 scripts/generate-catalog.py --check
+        language: python
+        additional_dependencies: [pyyaml]
+        pass_filenames: false
+        files: '(\.mega-linter-default\.yml|semgrep-rules/|policies/|lint-configs-626465/ruff\.toml)'
