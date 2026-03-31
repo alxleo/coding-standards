@@ -128,6 +128,8 @@ def generate(root: Path) -> dict:
             ),
             "gitignore": (root / ".gitignore").exists(),
             "gitignore_covers_decrypted": check_gitignore_covers(root, ".decrypted"),
+            "ci_json": (root / ".ci.json").exists(),
+            "renovate": (root / "renovate.json").exists() or (root / ".renovaterc.json").exists(),
         },
         "directories": {
             "tests": (root / "tests").is_dir() or (root / "test").is_dir(),
@@ -142,6 +144,7 @@ def generate(root: Path) -> dict:
             "javascript_files": count_files(root, ".js") + count_files(root, ".jsx"),
             "shell_files": count_files(root, ".sh"),
             "compose_files": len(list(root.glob("docker-compose*.yml"))) + len(list(root.glob("compose*.yml"))),
+            "dockerfile_files": sum(1 for _ in root.rglob("Dockerfile*") if not any(p in EXCLUDES for p in _.relative_to(root).parts)),
         },
         "dependencies": {
             "pytest_randomly": check_pyproject_dep(root, "pytest-randomly"),
@@ -153,6 +156,7 @@ def generate(root: Path) -> dict:
             "workflow_fetch_depth_zero": check_workflow_field(root, "fetch-depth: 0"),
             "workflow_persist_credentials_false": check_workflow_field(root, "persist-credentials: false"),
             "workflow_actions_sha_pinned": check_actions_pinned(root),
+            "has_sha_pins": check_workflow_field(root, "@") and check_actions_pinned(root),
         },
         "acknowledged": load_acknowledged(root),
     }
