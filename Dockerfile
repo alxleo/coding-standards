@@ -25,8 +25,10 @@ LABEL org.opencontainers.image.description="Centralized linting image — MegaLi
 # base layer binaries (~1.8 GB wasted). See dive analysis 2026-03-31.
 
 # npm-based tools (single layer to reduce image size)
+# Cache mount speeds up rebuilds when only versions change
 # hadolint ignore=DL3059
-RUN npm install -g \
+RUN --mount=type=cache,target=/root/.npm \
+  npm install -g \
   @commitlint/cli@20.5.0 \
   @commitlint/config-conventional@20.5.0 \
   dclint@3.1.0 \
@@ -47,8 +49,10 @@ RUN npm install -g \
   eslint-plugin-i18next@6.1.3
 
 # Python tools — zizmor (Actions security), vulture, deptry, import-linter
+# --no-compile: skip .pyc generation (saves ~2s, tools generate on first use)
 # hadolint ignore=DL3059
-RUN pip install --no-cache-dir \
+RUN --mount=type=cache,target=/root/.cache/pip \
+  pip install --no-compile \
   zizmor==1.23.1 \
   vulture==2.14 \
   deptry==0.22.0 \
@@ -58,39 +62,39 @@ RUN pip install --no-cache-dir \
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# PMD-CPD — copy-paste detector (replaces jscpd, ~50x faster)
+# ── Binary tool downloads (single layer) ────────────────────
+# PMD-CPD, caddy, just, conftest — combined into one RUN to reduce layers.
+# All downloads are SHA-pinned for supply-chain safety.
+ARG TARGETARCH=amd64
 RUN PMD_VERSION="7.12.0" && \
   PMD_SHA256="418dd819d38a16a49d7f345ef9a0a51e9f53e99f022d8b0722de77b7049bb8b8" && \
+  CADDY_VERSION="2.11.2" && \
+  CADDY_SHA256="94391dfefe1f278ac8f387ab86162f0e88d87ff97df367f360e51e3cda3df56f" && \
+  JUST_VERSION="1.48.1" && \
+  JUST_SHA256="9293e553ce401d1b524bf4e104918f72f268e3f9c6827e0055fe98d84a1b2522" && \
+  CONFTEST_SHA256="0863738f798c1850269a121ef56c2df1ab88074204c480f282f3baf2726898fd" && \
+  # PMD-CPD — copy-paste detector
   curl -fsSL "https://github.com/pmd/pmd/releases/download/pmd_releases%2F${PMD_VERSION}/pmd-dist-${PMD_VERSION}-bin.zip" \
     -o /tmp/pmd.zip && \
   echo "${PMD_SHA256}  /tmp/pmd.zip" | sha256sum -c - && \
   unzip -q /tmp/pmd.zip -d /opt && \
   ln -s /opt/pmd-bin-${PMD_VERSION}/bin/pmd /usr/local/bin/pmd && \
-  rm /tmp/pmd.zip
-
-# caddy — Caddyfile formatter (pinned version with checksum, multi-arch)
-ARG TARGETARCH=amd64
-RUN CADDY_VERSION="2.11.2" && \
-  CADDY_SHA256="94391dfefe1f278ac8f387ab86162f0e88d87ff97df367f360e51e3cda3df56f" && \
+  rm /tmp/pmd.zip && \
+  # caddy — Caddyfile formatter
   curl -fsSL "https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_${TARGETARCH}.tar.gz" \
     -o /tmp/caddy.tar.gz && \
   echo "${CADDY_SHA256}  /tmp/caddy.tar.gz" | sha256sum -c - && \
   tar -xzf /tmp/caddy.tar.gz -C /usr/local/bin caddy && \
   chmod +x /usr/local/bin/caddy && \
-  rm /tmp/caddy.tar.gz
-
-# just — justfile formatter (pinned version with checksum, no curl | bash)
-RUN JUST_VERSION="1.48.1" && \
-  JUST_SHA256="9293e553ce401d1b524bf4e104918f72f268e3f9c6827e0055fe98d84a1b2522" && \
+  rm /tmp/caddy.tar.gz && \
+  # just — justfile formatter
   curl -fsSL "https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz" \
     -o /tmp/just.tar.gz && \
   echo "${JUST_SHA256}  /tmp/just.tar.gz" | sha256sum -c - && \
   tar -xzf /tmp/just.tar.gz -C /usr/local/bin just && \
   chmod +x /usr/local/bin/just && \
-  rm /tmp/just.tar.gz
-
-# conftest — OPA/Rego policy engine for structural validation
-RUN CONFTEST_SHA256="0863738f798c1850269a121ef56c2df1ab88074204c480f282f3baf2726898fd" && \
+  rm /tmp/just.tar.gz && \
+  # conftest — OPA/Rego policy engine
   curl -fsSL "https://github.com/open-policy-agent/conftest/releases/download/v0.58.0/conftest_0.58.0_Linux_x86_64.tar.gz" \
     -o /tmp/conftest.tar.gz && \
   echo "${CONFTEST_SHA256}  /tmp/conftest.tar.gz" | sha256sum -c - && \
@@ -114,23 +118,17 @@ COPY semgrep-rules/ /opt/coding-standards/semgrep-rules/
 COPY policies/ /opt/coding-standards/policies/
 
 # ── Mechanism scripts + reporting ─────────────────────────────
-COPY scripts/ci/check-drift.sh scripts/ci/check-expiry.py scripts/megalinter_report_statuses.py scripts/generate_repo_manifest.py scripts/generate_catalog.py scripts/manifest_schema.py scripts/show_warnings.py scripts/blast_radius.py /opt/coding-standards/scripts/
-RUN chmod +x /opt/coding-standards/scripts/check-drift.sh /opt/coding-standards/scripts/generate_repo_manifest.py
+COPY --chmod=755 scripts/ci/check-drift.sh scripts/ci/check-expiry.py scripts/megalinter_report_statuses.py scripts/generate_repo_manifest.py scripts/generate_catalog.py scripts/manifest_schema.py scripts/show_warnings.py scripts/blast_radius.py /opt/coding-standards/scripts/
 
 # ── Linter config files ──────────────────────────────────────
 # Baked into image at /opt/coding-standards/configs
 # LINTER_RULES_PATH in .mega-linter.yml points here
 COPY lint-configs-626465/ /opt/coding-standards/configs/
 
-# ── Default config ────────────────────────────────────────────
-# Baked config used when no workspace .mega-linter.yml exists.
-# Consumer repos use EXTENDS with a raw GitHub URL to inherit this:
-#   EXTENDS: https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml
 # ── Entrypoint (command router) ──────────────────────────────
 # Routes: lint [linter], fix, standards, catalog, help
 # No args → falls through to MegaLinter's /entrypoint.sh
-COPY scripts/entrypoint.sh /opt/coding-standards/entrypoint.sh
-RUN chmod +x /opt/coding-standards/entrypoint.sh
+COPY --chmod=755 scripts/entrypoint.sh /opt/coding-standards/entrypoint.sh
 # MegaLinter requires root for tool installs and workspace writes.
 # nosemgrep: dockerfile.security.missing-user-entrypoint.missing-user-entrypoint
 ENTRYPOINT ["/bin/bash", "/opt/coding-standards/entrypoint.sh"]
