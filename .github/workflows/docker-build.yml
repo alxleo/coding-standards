@@ -130,6 +130,33 @@ jobs:
           done
           echo "All tools verified."
 
+      # Entrypoint command tests — verify the command router works
+      - name: Test entrypoint commands
+        run: |
+          img="${REGISTRY}/${IMAGE_NAME}:ci-test"
+          echo "Testing entrypoint commands..."
+
+          echo "  → help"
+          docker run --rm "$img" help | grep -q "Commands:"
+
+          echo "  → catalog"
+          docker run --rm "$img" catalog | grep -q "Coding Standards Catalog"
+
+          echo "  → standards (against empty workspace)"
+          docker run --rm -v "$(mktemp -d):/tmp/lint" -e DEFAULT_WORKSPACE=/tmp/lint "$img" standards || true
+
+          echo "  → lint (single linter, no workspace needed for --help)"
+          docker run --rm "$img" help | grep -q "lint \[LINTER\]"
+
+          echo "All entrypoint commands verified."
+
+      # Catalog drift check
+      - name: Check catalog is up to date
+        run: |
+          img="${REGISTRY}/${IMAGE_NAME}:ci-test"
+          docker run --rm --entrypoint="" "$img" \
+            python3 /opt/coding-standards/scripts/generate-catalog.py --check
+
       # Push via docker tag + push (no second buildx build needed).
       # The image is already loaded in the daemon from the build step.
       - name: Push image
