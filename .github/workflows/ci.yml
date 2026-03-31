@@ -1,6 +1,6 @@
 ---
 # CI — two-tier feedback.
-#   1. Fast checks (~15s): ruff, conftest, semgrep, pytest, pre-commit
+#   1. Fast checks (~15s): ruff, conftest, semgrep, pytest, pre-commit, drift checks
 #   2. Image self-lint (via composite action): runs the published image
 name: CI
 
@@ -43,6 +43,12 @@ jobs:
 
       - name: Pytest
         run: uv run --with pydantic --with pyyaml --with pytest pytest test/ -v
+
+      - name: Catalog drift check
+        run: uv run --with pydantic --with pyyaml python3 scripts/generate-catalog.py --check
+
+      - name: CI smoke test coverage check
+        run: python3 scripts/hooks/check-ci-json-coverage
 
       - name: Pre-commit
         env:
