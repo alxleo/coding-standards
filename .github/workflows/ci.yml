@@ -59,7 +59,10 @@ jobs:
           key: pre-commit-${{ hashFiles('lint-configs-626465/.pre-commit-config.yaml') }}
 
       - name: just check
-        run: just check
+        run: |
+          echo "::group::just check"
+          trap 'echo "::endgroup::"' EXIT
+          just check
 
   # ── Stage 2a: self-lint (needs fast-checks) ─────────────────
   self-lint:
@@ -80,6 +83,8 @@ jobs:
 
       - name: Self-lint (image + branch configs)
         run: |
+          echo "::group::Self-lint (image + branch configs)"
+          trap 'echo "::endgroup::"' EXIT
           docker run --rm \
             -v "${{ github.workspace }}:/tmp/lint" \
             -v "${{ github.workspace }}/lint-configs:/opt/coding-standards/configs" \
@@ -155,6 +160,8 @@ jobs:
 
       - name: Smoke test (all tools in single container)
         run: |
+          echo "::group::Smoke test (all tools in single container)"
+          trap 'echo "::endgroup::"' EXIT
           img="${REGISTRY}/${IMAGE_NAME}:ci-test"
           echo "Testing tool availability..."
           # Run all version checks in one container — eliminates per-command startup overhead
@@ -173,6 +180,8 @@ jobs:
 
       - name: Test entrypoint commands
         run: |
+          echo "::group::Test entrypoint commands"
+          trap 'echo "::endgroup::"' EXIT
           img="${REGISTRY}/${IMAGE_NAME}:ci-test"
           echo "  → help"
           docker run --rm "$img" help | grep -q "Commands:"
@@ -182,8 +191,18 @@ jobs:
           docker run --rm -v "$(mktemp -d):/tmp/lint" -e DEFAULT_WORKSPACE=/tmp/lint "$img" standards || true
           echo "All entrypoint commands verified."
 
+      - name: Verify linter configs resolve
+        run: |
+          img="${REGISTRY}/${IMAGE_NAME}:ci-test"
+          workspace="$(mktemp -d)"
+          echo "x = 1" > "$workspace/test.py"
+          docker run --rm -v "$workspace:/tmp/lint" -e DEFAULT_WORKSPACE=/tmp/lint \
+            "$img" show-config | tee /dev/stderr | grep -q "linters with baked configs"
+
       - name: Check catalog is up to date
         run: |
+          echo "::group::Check catalog is up to date"
+          trap 'echo "::endgroup::"' EXIT
           img="${REGISTRY}/${IMAGE_NAME}:ci-test"
           docker run --rm --entrypoint="" "$img" \
             python3 /opt/coding-standards/scripts/generate_catalog.py --check
@@ -193,6 +212,8 @@ jobs:
         env:
           TAGS: ${{ steps.meta.outputs.tags }}
         run: |
+          echo "::group::Push image"
+          trap 'echo "::endgroup::"' EXIT
           echo "$TAGS" | while IFS= read -r tag; do
             [ -z "$tag" ] && continue
             docker tag "${REGISTRY}/${IMAGE_NAME}:ci-test" "$tag"
