@@ -10,3 +10,4 @@ rules:
       # Pre-commit + UV caches: deterministic tool installs keyed on lock file hashes.
       # Not build artifacts — cache poisoning risk is negligible.
       - .github/workflows/ci.yml
+      - .github/workflows/scheduled.yml
