@@ -10,6 +10,8 @@ linters:
     linter_text: Security scanner for GitHub Actions workflows
     linter_url: https://github.com/woodruffw/zizmor
     cli_executable: zizmor
+    cli_config_arg_name: "-c"
+    config_file_name: .zizmor.yml
     cli_lint_extra_args:
       - .
     cli_help_arg_name: --help
