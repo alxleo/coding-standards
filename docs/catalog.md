@@ -144,7 +144,7 @@ Generated from config files — this IS the source of truth.
 - **warn**: service '%s' exposes port %s to all interfaces — bind to 127.0.0.1 unless intentionally public (security.rego)
 - **deny**: service '%s' mounts sensitive host path '%s' (security.rego)
 
-## Repo standards (47)
+## Repo standards (48)
 
 - **warn**: .mega-linter.yml not found (ci.rego)
 - **warn**: .mega-linter.yml exists but has no EXTENDS URL (ci.rego)
@@ -152,6 +152,7 @@ Generated from config files — this IS the source of truth.
 - **warn**: No workflow uses fetch-depth: 0 (ci.rego)
 - **warn**: persist-credentials: false not set in checkout — security best practice (ci.rego)
 - **warn**: Not all GitHub Actions are SHA-pinned (ci.rego)
+- **warn**: CI has inline linting commands instead of delegating to a task runner (ci.rego)
 - **warn**: coding-standards repo-standards checks active (guide.rego)
 - **warn**: conftest.toml not found (infrastructure.rego)
 - **warn**: .editorconfig not found — ensures consistent formatting across editors (infrastructure.rego)

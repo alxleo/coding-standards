@@ -30,6 +30,16 @@ test_warn_unpinned_actions if {
 	any_contains(result, "SHA-pinned")
 }
 
+test_warn_inline_linting if {
+	result := ci.warn with input as {"files": {"mega_linter": true, "mega_linter_extends_url": "https://example.com"}, "directories": {"github_workflows": true}, "ci": {"workflow_uses_composite_action": true, "workflow_fetch_depth_zero": true, "workflow_persist_credentials_false": true, "workflow_actions_sha_pinned": true, "ci_delegates_to_runner": false}}
+	any_contains(result, "inline linting")
+}
+
+test_no_warn_delegates_to_runner if {
+	result := ci.warn with input as {"files": {"mega_linter": true, "mega_linter_extends_url": "https://example.com"}, "directories": {"github_workflows": true}, "ci": {"workflow_uses_composite_action": true, "workflow_fetch_depth_zero": true, "workflow_persist_credentials_false": true, "workflow_actions_sha_pinned": true, "ci_delegates_to_runner": true}}
+	not any_contains(result, "inline linting")
+}
+
 any_contains(set, substring) if {
 	some msg in set
 	contains(msg, substring)

@@ -64,3 +64,17 @@ warn contains msg if {
 		"  Zizmor will also flag this as unpinned-uses.",
 	])
 }
+
+warn contains msg if {
+	helpers.has_ci_workflows
+	not input.ci.ci_delegates_to_runner
+	not helpers.acknowledged("ci_delegates")
+	msg := concat("\n", [
+		"CI has inline linting commands instead of delegating to a task runner",
+		"  Inline ruff/pytest/semgrep in CI drifts from local dev, causing",
+		"  'passes locally, fails CI' pain. CI should call `just check` or",
+		"  `make check` — one command that runs identically everywhere.",
+		"  Fix: move linting commands into a justfile/Makefile recipe,",
+		"  add that recipe to pre-commit, and have CI call the recipe.",
+	])
+}

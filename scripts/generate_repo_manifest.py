@@ -219,6 +219,24 @@ def check_workflow_field(root: Path, pattern: str) -> bool:
     return any(pattern in wf.read_text(errors="replace") for wf in _workflow_files(root))
 
 
+def check_ci_delegates_to_runner(root: Path) -> bool:
+    """Check that CI run: steps delegate to a task runner, not inline linting.
+
+    CI should call `just check` or `make check`, not `uvx ruff ...` or
+    `pytest ...` directly. Inline linting in CI drifts from local dev.
+    """
+    inline_linters = re.compile(
+        r"^\s*(?:run:\s*\|?\s*)?"
+        r"(?:uvx |npx |pip |uv run )?"
+        r"(?:ruff |semgrep |pytest |pylint |mypy |eslint |prettier )"
+    )
+    for wf in _workflow_files(root):
+        for line in wf.read_text(errors="replace").splitlines():
+            if inline_linters.search(line):
+                return False
+    return True
+
+
 def check_actions_pinned(root: Path) -> bool:
     """Check if all 'uses:' in workflows reference SHA pins (contain @sha)."""
     found_any = False
@@ -429,6 +447,7 @@ def generate(root: Path) -> dict[str, Any]:
             "workflow_fetch_depth_zero": check_workflow_field(root, "fetch-depth: 0"),
             "workflow_persist_credentials_false": check_workflow_field(root, "persist-credentials: false"),
             "workflow_actions_sha_pinned": check_actions_pinned(root),
+            "ci_delegates_to_runner": check_ci_delegates_to_runner(root),
             "has_sha_pins": check_workflow_field(root, "@") and check_actions_pinned(root),
         },
         "observability": {
