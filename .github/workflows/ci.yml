@@ -1,6 +1,7 @@
 ---
-# Self-test — runs the coding-standards Docker image against this repo.
-# This IS the dogfood loop: if CI passes, the image works.
+# CI — two-tier feedback.
+#   1. Fast checks (~15s): ruff, conftest, semgrep, pytest, pre-commit
+#   2. Image self-lint (via composite action): runs the published image
 name: CI
 
 on:
@@ -12,8 +13,44 @@ on:
 permissions:
   contents: read
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
-  lint:
+  # Fast feedback — no Docker, no image pull. Tests configs and policies directly.
+  fast-checks:
+    if: >-
+      github.event_name == 'push' ||
+      (github.event.pull_request.draft == false &&
+       github.actor != 'dependabot[bot]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # v8
+        with:
+          enable-cache: false
+
+      - name: Ruff lint + format check
+        run: |
+          uvx ruff check --config lint-configs-626465/ruff.toml .
+          uvx ruff format --check --config lint-configs-626465/ruff.toml .
+
+      - name: Semgrep rule validation
+        run: uvx semgrep scan --config semgrep-rules/ --validate
+
+      - name: Pytest
+        run: uv run --with pydantic --with pyyaml --with pytest pytest test/ -v
+
+      - name: Pre-commit
+        run: |
+          uvx pre-commit run --all-files
+
+  # Image self-lint — runs the published image against this repo.
+  # Uses :latest from GHCR (tests the shipped image, not local changes).
+  self-lint:
     if: >-
       github.event_name == 'push' ||
       (github.event.pull_request.draft == false &&
