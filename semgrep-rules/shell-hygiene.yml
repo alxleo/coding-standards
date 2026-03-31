@@ -10,8 +10,8 @@ rules:
       include:
         - "*.sh"
       exclude:
-        - scripts/entrypoint.sh
-        - Dockerfile
+        - "**/scripts/entrypoint.sh"
+        - "**/Dockerfile"
 
   - id: pin-npm-versions
     message: >

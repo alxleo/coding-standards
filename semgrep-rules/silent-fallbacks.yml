@@ -1,0 +1,41 @@
+rules:
+  - id: python-silent-fallback-or
+    pattern: $X or $DEFAULT
+    message: >
+      Silent fallback: `or $DEFAULT` may hide a bug. If the empty/falsy
+      case is expected, add `# nosemgrep: python-silent-fallback-or`
+      to acknowledge the intent.
+    languages: [python]
+    severity: INFO
+    paths:
+      exclude:
+        - "test*"
+        - "tests*"
+    metadata:
+      category: maintainability
+      technology: [python]
+
+  - id: python-bare-except-pass
+    pattern: |
+      except:
+          pass
+    message: >
+      Bare except with pass swallows all errors including KeyboardInterrupt.
+      Catch a specific exception, or at minimum log the error.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: correctness
+      technology: [python]
+
+  - id: javascript-silent-catch
+    pattern: |
+      catch ($ERR) {}
+    message: >
+      Empty catch block silently swallows errors. Either handle the error,
+      re-throw, or add a comment explaining why it's safe to ignore.
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      category: correctness
+      technology: [javascript]

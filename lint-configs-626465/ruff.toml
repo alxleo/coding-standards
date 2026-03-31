@@ -33,6 +33,7 @@ select = [
   "PGH",     # pygrep-hooks (blanket type-ignore / noqa without codes)
   "RSE",     # flake8-raise (unnecessary parens in raise)
   "PT011",   # pytest.raises() without match= (overly broad exception catch in tests)
+  "N",       # pep8-naming (N999 catches hyphenated/non-importable module filenames)
 ]
 # ISC001 (single-line implicit concat) conflicts with ruff formatter —
 # formatter can produce code that ISC001 flags, creating a loop.

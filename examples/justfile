@@ -1,0 +1,37 @@
+# coding-standards consumer justfile
+# Drop this into your repo root for ergonomic lint commands.
+#
+# The image has a built-in command router — these recipes just
+# handle the Docker volume mount. All logic is in the image.
+#
+# Usage:
+#   just cs-lint              # full suite
+#   just cs-lint ruff         # single linter
+#   just cs-fix               # auto-fix all
+#   just cs-standards         # repo-standards only
+#   just cs-catalog           # show what's checked
+#   just cs-help              # list available commands
+
+image := "ghcr.io/alxleo/coding-standards:latest"
+workspace := justfile_directory()
+docker_args := "-v " + workspace + ":/tmp/lint -e DEFAULT_WORKSPACE=/tmp/lint"
+
+[doc('Run coding-standards linters')]
+cs-lint *LINTER:
+    docker run --rm {{ docker_args }} {{ image }} lint {{ LINTER }}
+
+[doc('Auto-fix all fixable issues')]
+cs-fix:
+    docker run --rm {{ docker_args }} {{ image }} fix
+
+[doc('Check repo setup against standards')]
+cs-standards:
+    docker run --rm {{ docker_args }} {{ image }} standards
+
+[doc('Show full catalog of checks')]
+cs-catalog:
+    docker run --rm {{ docker_args }} {{ image }} catalog
+
+[doc('Run pre-commit checks locally')]
+check:
+    uvx pre-commit run --all-files

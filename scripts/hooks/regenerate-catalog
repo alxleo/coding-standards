@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Auto-regenerate docs/catalog.md when source files change.
+# Runs as a pre-commit hook in the coding-standards repo only.
+set -euo pipefail
+
+# Check if any catalog source files are staged
+if git diff --cached --name-only | grep -qE '\.mega-linter-default\.yml|semgrep-rules/|policies/|lint-configs-626465/ruff\.toml'; then
+    uv run --with pydantic --with pyyaml python3 scripts/generate-catalog.py
+    git add docs/catalog.md
+fi

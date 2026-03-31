@@ -12,6 +12,7 @@ ENABLE_LINTERS:
   # Python
   - PYTHON_RUFF
   - PYTHON_PYRIGHT
+  - PYTHON_VULTURE
   # YAML
   - YAML_YAMLLINT
   - YAML_PRETTIER
@@ -44,6 +45,8 @@ ENABLE_LINTERS:
   - REPOSITORY_TRIVY_CUSTOM
   # Structural policy (Conftest/OPA)
   - REPOSITORY_CONFTEST
+  # Repo standards (setup validation via manifest)
+  - REPOSITORY_REPO_STANDARDS
   # GHA security
   - REPOSITORY_ZIZMOR
   # Commits
@@ -55,17 +58,27 @@ ENABLE_LINTERS:
   - TSX_ESLINT
   - JAVASCRIPT_PRETTIER
   - TYPESCRIPT_PRETTIER
-  # JS/TS type checking
+  # JS/TS type checking + coverage
   - TYPESCRIPT_TSC
+  - REPOSITORY_TYPE_COVERAGE
+  # JS/TS fast pre-pass (correctness + suspicious)
+  - REPOSITORY_OXLINT
   # JS/TS project analyzers
   - REPOSITORY_KNIP
   - REPOSITORY_DEPENDENCY_CRUISER
   - REPOSITORY_NPM_AUDIT
   - REPOSITORY_LICENSE_CHECKER
+  - REPOSITORY_PUBLINT
+  - REPOSITORY_ATTW
+  # Python project analyzers
+  - REPOSITORY_DEPTRY
+  - REPOSITORY_IMPORT_LINTER
   # CSS
   - CSS_STYLELINT
   # SQL
   - SQL_SQLFLUFF
+  # API contract validation
+  - API_SPECTRAL
   # Ansible
   - ANSIBLE_ANSIBLE_LINT
   # Kubernetes
@@ -73,6 +86,12 @@ ENABLE_LINTERS:
   # Formatting
   - REPOSITORY_CADDY_FMT
   - REPOSITORY_JUST_FMT
+  # Filename conventions (cross-language)
+  - REPOSITORY_LS_LINT
+  # Environment files
+  - ENV_DOTENV_LINTER
+  # Makefile
+  - MAKEFILE_CHECKMAKE
   # Git
   - REPOSITORY_GIT_DIFF
 
@@ -95,6 +114,18 @@ DISABLE_ERRORS_LINTERS:
   - JSON_V8R
   - YAML_V8R
   - DOCKERFILE_DCLINT
+  - REPOSITORY_REPO_STANDARDS
+  - REPOSITORY_LS_LINT
+  - REPOSITORY_OXLINT
+  - REPOSITORY_TYPE_COVERAGE
+  - ENV_DOTENV_LINTER
+  - MAKEFILE_CHECKMAKE
+  - PYTHON_VULTURE
+  - REPOSITORY_DEPTRY
+  - REPOSITORY_IMPORT_LINTER
+  - REPOSITORY_PUBLINT
+  - REPOSITORY_ATTW
+  - API_SPECTRAL
   - SQL_SQLFLUFF
   - ANSIBLE_ANSIBLE_LINT
   - KUBERNETES_KUBECONFORM
@@ -116,6 +147,12 @@ PYTHON_PYRIGHT_ARGUMENTS:
   - "--level"
   - "error"
 PYTHON_RUFF_CONFIG_FILE: /opt/coding-standards/configs/ruff.toml
+REPOSITORY_LS_LINT_CONFIG_FILE: /opt/coding-standards/configs/.ls-lint.yml
+API_SPECTRAL_CONFIG_FILE: /opt/coding-standards/configs/.spectral.yaml
+JAVASCRIPT_ES_CONFIG_FILE: /opt/coding-standards/configs/eslint.config.mjs
+TYPESCRIPT_ES_CONFIG_FILE: /opt/coding-standards/configs/eslint.config.mjs
+JSX_ESLINT_CONFIG_FILE: /opt/coding-standards/configs/eslint.config.mjs
+TSX_ESLINT_CONFIG_FILE: /opt/coding-standards/configs/eslint.config.mjs
 TERRAFORM_TFLINT_CONFIG_FILE: /opt/coding-standards/configs/.tflint.hcl
 YAML_YAMLLINT_CONFIG_FILE: /opt/coding-standards/configs/.yamllint
 DOCKERFILE_HADOLINT_CONFIG_FILE: /opt/coding-standards/configs/.hadolint.yaml
@@ -213,6 +250,11 @@ PRE_COMMANDS:
       git config --global core.autocrlf input
     cwd: workspace
     continue_if_failed: true
+  # Generate repo manifest for repo-standards validation
+  - command: >-
+      python3 /opt/coding-standards/scripts/generate-repo-manifest.py
+    cwd: workspace
+    continue_if_failed: true
   # Install JS deps if package-lock.json exists
   # (needed for knip, dep-cruiser, tsc)
   - command: >-
@@ -236,3 +278,11 @@ PLUGINS:
   - "file:///mega-linter-plugin-custom/tsc.megalinter-descriptor.yml"
   - "file:///mega-linter-plugin-custom/pmd-cpd.megalinter-descriptor.yml"
   - "file:///mega-linter-plugin-custom/conftest.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/repo-standards.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/vulture.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/deptry.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/import-linter.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/oxlint.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/type-coverage.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/publint.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/attw.megalinter-descriptor.yml"

@@ -5,6 +5,7 @@ node_modules
 megalinter-reports
 test
 docs
+!docs/catalog.md
 examples
 *.md
 !CLAUDE.md

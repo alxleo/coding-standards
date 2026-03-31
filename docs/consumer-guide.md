@@ -85,6 +85,27 @@ Or inline in code: `# nosemgrep: rule-id`
 
 Do NOT override `REPOSITORY_SEMGREP_RULESETS` — it contains absolute image paths that break when merged with consumer values.
 
+### Built-in commands
+
+The image has a command router — no setup needed:
+
+```bash
+docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest              # full lint
+docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest lint PYTHON_RUFF     # single linter
+docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest fix           # auto-fix all
+docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest standards     # repo-standards only
+docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest catalog       # show what's checked
+docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest help          # list commands
+```
+
+For shorter commands, copy `examples/justfile` into your repo root:
+
+```bash
+just cs-lint PYTHON_RUFF      # same as the docker run above
+just cs-fix            # auto-fix
+just cs-standards      # repo-standards
+```
+
 ### Auto-fix
 
 ```bash
@@ -253,3 +274,78 @@ for l in r['linters']:
     print(f'{s} {l[\"name\"]:40s} {l.get(\"total_number_errors\",0)} errors')
 "
 ```
+
+## Repo standards (setup validation)
+
+The image checks whether your repo is set up to benefit from the enforcement layer. These are warnings, not blockers — they tell you what's missing and how to fix it.
+
+Checks auto-detect your stack: Python-only repos won't get JS/TS warnings.
+
+See `docs/catalog.md` for the full list of checks (generated, always current).
+
+### Acknowledge warnings
+
+If a check doesn't apply, silence it with a reason in `.repo-standards.yml`:
+
+```yaml
+# .repo-standards.yml
+acknowledged:
+  # Permanent: string reason — check doesn't apply to this repo
+  commitlint_config: "uses baked commitlint from coding-standards image"
+  pydantic: "scripts only, no boundary-crossing data"
+
+  # Temporary: will fix later — MUST have expires date
+  pytest_randomly:
+    reason: "adding next sprint"
+    expires: 2026-04-15
+    tracking: "#123"
+
+  # Per-file: list of {path, reason} excludes specific files from counts
+  large_shell_scripts:
+    - path: scripts/backup-docker-volumes.sh
+      reason: "orchestrates 5 backup targets sequentially"
+```
+
+**String = permanent** ("not applicable"). **Object with `expires` = temporary** ("will fix"). Expired temporaries are automatically stripped — the warning reappears when the date passes.
+
+The acknowledgment IS the documentation — versioned, reviewable, lives next to the code.
+
+### Promote to blocking
+
+Add a `.rego` file in your `policy/repo-standards/` that uses `deny` instead of `warn`:
+
+```rego
+package repo_standards.local
+
+import data.repo_standards.python
+
+deny := python.warn
+```
+
+## Full catalog
+
+See `docs/catalog.md` — auto-generated inventory of all linters, semgrep rules, conftest policies, and repo-standards checks. Run `python3 scripts/generate-catalog.py` to regenerate.
+
+## Contributing new checks
+
+Adding a check to the coding-standards image:
+
+1. **Decide where it lives:**
+   - File/config presence → repo-standards Rego policy + manifest field
+   - Code pattern → semgrep rule
+   - Config content → conftest compose policy
+   - Code quality → ruff rule category
+
+2. **For repo-standards checks:**
+   - Add manifest field in `scripts/generate-repo-manifest.py`
+   - Add `warn contains msg` rule in `policies/repo-standards/<category>.rego`
+   - Add unit test in `policies/repo-standards/<category>_test.rego`
+   - Run `conftest verify -p policies/repo-standards/`
+
+3. **For semgrep rules:**
+   - Add rule to existing or new file in `semgrep-rules/`
+   - Run `semgrep scan --config semgrep-rules/<file>.yml --validate`
+
+4. **Regenerate catalog:** `python3 scripts/generate-catalog.py`
+
+5. **Test against a real repo:** `python3 scripts/generate-repo-manifest.py ~/path/to/repo`

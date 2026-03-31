@@ -1,0 +1,5 @@
+# coding-standards baseline Spectral config for OpenAPI/AsyncAPI.
+# Consumer repos override by placing their own .spectral.yaml at root.
+extends:
+  - spectral:oas
+  - spectral:asyncapi

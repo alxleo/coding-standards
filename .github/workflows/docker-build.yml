@@ -119,6 +119,14 @@ jobs:
           scanners: vuln
           trivyignores: .trivyignore
 
+      # Image efficiency check — catch wasted space in layers
+      - name: Dive layer analysis
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            wagoodman/dive@sha256:f1886e6c32c094fc41a623c1989f5cb3e48aa766da5f0be233f911fc1d85ce10 \
+            --ci --lowestEfficiency=0.9 \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ci-test || true
+
       # Smoke test — verify all custom tools from .ci.json
       - name: Smoke test
         run: |
@@ -129,6 +137,33 @@ jobs:
             docker run --rm --entrypoint="" "$img" sh -c "$cmd"
           done
           echo "All tools verified."
+
+      # Entrypoint command tests — verify the command router works
+      - name: Test entrypoint commands
+        run: |
+          img="${REGISTRY}/${IMAGE_NAME}:ci-test"
+          echo "Testing entrypoint commands..."
+
+          echo "  → help"
+          docker run --rm "$img" help | grep -q "Commands:"
+
+          echo "  → catalog"
+          docker run --rm "$img" catalog | grep -q "Coding Standards Catalog"
+
+          echo "  → standards (against empty workspace)"
+          docker run --rm -v "$(mktemp -d):/tmp/lint" -e DEFAULT_WORKSPACE=/tmp/lint "$img" standards || true
+
+          echo "  → lint (single linter, no workspace needed for --help)"
+          docker run --rm "$img" help | grep -q "lint \[LINTER\]"
+
+          echo "All entrypoint commands verified."
+
+      # Catalog drift check
+      - name: Check catalog is up to date
+        run: |
+          img="${REGISTRY}/${IMAGE_NAME}:ci-test"
+          docker run --rm --entrypoint="" "$img" \
+            python3 /opt/coding-standards/scripts/generate-catalog.py --check
 
       # Push via docker tag + push (no second buildx build needed).
       # The image is already loaded in the daemon from the build step.

@@ -34,6 +34,7 @@ COPY --from=trivy /usr/local/bin/trivy /usr/local/bin/trivy
 RUN trivy fs --download-db-only --no-progress --cache-dir /root/.cache/trivy
 
 # npm-based tools (single layer to reduce image size)
+# hadolint ignore=DL3059
 RUN npm install -g \
   @commitlint/cli@20.5.0 \
   @commitlint/config-conventional@20.5.0 \
@@ -42,10 +43,25 @@ RUN npm install -g \
   typescript@6.0.2 \
   knip@6.1.0 \
   dependency-cruiser@17.3.10 \
-  license-checker@25.0.1
+  license-checker@25.0.1 \
+  eslint-plugin-unicorn@64.0.0 \
+  eslint-plugin-security@4.0.0 \
+  eslint-plugin-sonarjs@4.0.2 \
+  eslint-plugin-testing-library@7.16.2 \
+  oxlint@1.57.0 \
+  type-coverage@2.29.7 \
+  typescript-coverage-report@1.1.1 \
+  publint@0.3.18 \
+  @arethetypeswrong/cli@0.18.2 \
+  eslint-plugin-i18next@6.1.3
 
-# zizmor — GitHub Actions security scanner
-RUN pip install --no-cache-dir zizmor==1.23.1
+# Python tools — zizmor (Actions security), vulture, deptry, import-linter
+# hadolint ignore=DL3059
+RUN pip install --no-cache-dir \
+  zizmor==1.23.1 \
+  vulture==2.14 \
+  deptry==0.22.0 \
+  import-linter==2.4
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -105,8 +121,8 @@ COPY semgrep-rules/ /opt/coding-standards/semgrep-rules/
 COPY policies/ /opt/coding-standards/policies/
 
 # ── Mechanism scripts + reporting ─────────────────────────────
-COPY scripts/ci/check-drift.sh scripts/ci/check-expiry.py scripts/report-statuses.py /opt/coding-standards/scripts/
-RUN chmod +x /opt/coding-standards/scripts/check-drift.sh
+COPY scripts/ci/check-drift.sh scripts/ci/check-expiry.py scripts/report-statuses.py scripts/generate-repo-manifest.py scripts/generate-catalog.py scripts/manifest_schema.py scripts/show_warnings.py /opt/coding-standards/scripts/
+RUN chmod +x /opt/coding-standards/scripts/check-drift.sh /opt/coding-standards/scripts/generate-repo-manifest.py
 
 # ── Linter config files ──────────────────────────────────────
 # Baked into image at /opt/coding-standards/configs
@@ -117,5 +133,19 @@ COPY lint-configs-626465/ /opt/coding-standards/configs/
 # Baked config used when no workspace .mega-linter.yml exists.
 # Consumer repos use EXTENDS with a raw GitHub URL to inherit this:
 #   EXTENDS: https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml
-# No custom entrypoint — MegaLinter's default config discovery handles everything.
+# ── Entrypoint (command router) ──────────────────────────────
+# Routes: lint [linter], fix, standards, catalog, help
+# No args → falls through to MegaLinter's /entrypoint.sh
+COPY scripts/entrypoint.sh /opt/coding-standards/entrypoint.sh
+RUN chmod +x /opt/coding-standards/entrypoint.sh
+# MegaLinter requires root for tool installs and workspace writes.
+# nosemgrep: dockerfile.security.missing-user-entrypoint.missing-user-entrypoint
+ENTRYPOINT ["/bin/bash", "/opt/coding-standards/entrypoint.sh"]
+
+# ── Generated catalog ────────────────────────────────────────
+COPY docs/catalog.md /opt/coding-standards/docs/catalog.md
+
+# ── Default config ────────────────────────────────────────────
+# Consumer repos use EXTENDS with a raw GitHub URL to inherit this:
+#   EXTENDS: https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml
 COPY .mega-linter-default.yml /opt/coding-standards/.mega-linter.yml

@@ -1,7 +1,9 @@
 config:
   default: true
   MD013: false # Line length — too noisy for docs
+  MD012: false # Multiple blank lines — low-value, auto-generated files trigger this
   MD031: false # Blanks around fences — too strict for templates
+  MD032: false # Blanks around lists — high friction on mixed prose+list content
   MD033: false # Inline HTML — needed for badges, details/summary
   MD040: false # Fenced code language — not always applicable
   MD041: false # First line h1 — not always applicable

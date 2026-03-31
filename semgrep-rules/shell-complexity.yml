@@ -1,0 +1,17 @@
+# Note: nested control flow (for+if) and complex awk can't be reliably
+# expressed in semgrep's bash parser. The shell-scripts-over-50-lines
+# repo-standard catches the consequence (scripts that outgrew shell).
+rules:
+  - id: shell-json-parsing
+    pattern-either:
+      - pattern: |
+          ... | jq $FILTER | ...
+    message: >
+      JSON parsing in shell with jq pipeline. Consider Python instead —
+      shell + jq is brittle, hard to test, and lacks error handling.
+      Python's json module does the same with types and try/except.
+    languages: [bash]
+    severity: INFO
+    metadata:
+      category: maintainability
+      technology: [bash]

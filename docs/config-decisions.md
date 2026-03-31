@@ -72,6 +72,22 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 
 - stylelint (CSS), sqlfluff (SQL), ansible-lint, kubeconform (K8s). All self-selecting.
 
+### ESLint baseline: unicorn + security + sonarjs
+
+- eslint-plugin-unicorn: filename conventions (kebab-case), modernization, best practices. filename-case rule catches non-importable Python modules.
+- eslint-plugin-security: eval injection, unsafe regex, timing attacks, prototype pollution.
+- eslint-plugin-sonarjs: cognitive complexity, duplicate strings, identical functions, collapsible if.
+- eslint-plugin-jest: already in cupcake image. Consumer adds to their config for expect-expect, no-disabled-tests.
+- Biome not adopted: faster but shallower ecosystem. ESLint already in image with deeper plugin support.
+- Baseline config baked at `/opt/coding-standards/configs/eslint.config.mjs`. Consumers override with their own eslint config.
+
+### Filename conventions: Python snake_case enforced
+
+- Hyphens in Python filenames prevent importing (`generate-repo-manifest.py` can't be imported).
+- JS/TS: eslint-plugin-unicorn enforces kebab-case or PascalCase.
+- Python: no existing linter checks filenames. Added as repo-standard manifest check.
+- Shell: no enforcement (not imported, convention only).
+
 ### Watch list
 
 - oxlint: when v1.0 + type-aware linting stabilizes.

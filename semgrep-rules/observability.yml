@@ -1,0 +1,38 @@
+rules:
+  - id: python-no-bare-print
+    pattern: print(...)
+    message: >
+      Bare print() in application code. Use structured logging
+      (structlog or logging with JSON formatter) for production code.
+      Print statements are invisible to log aggregators.
+    languages: [python]
+    severity: WARNING
+    paths:
+      exclude:
+        - "test*"
+        - "tests*"
+        - "**/test_*.py"
+        - "**/conftest.py"
+        - "scripts/*"
+    metadata:
+      category: observability
+      technology: [python]
+
+  - id: javascript-no-console-log
+    pattern: console.log(...)
+    message: >
+      console.log() in application code. Use a structured logger
+      (pino, winston) for production code. Console output is
+      unstructured and invisible to log aggregators.
+    languages: [javascript, typescript]
+    severity: WARNING
+    paths:
+      exclude:
+        - "test*"
+        - "tests*"
+        - "**/*.test.*"
+        - "**/*.spec.*"
+        - "scripts/*"
+    metadata:
+      category: observability
+      technology: [javascript]

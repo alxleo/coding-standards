@@ -1,4 +1,7 @@
 {
   "typeCheckingMode": "standard",
-  "include": ["scripts/ci", "test"]
+  "include": ["scripts/ci", "scripts", "test"],
+  "extraPaths": ["scripts/ci", "scripts"],
+  "pythonVersion": "3.11",
+  "reportMissingImports": "warning"
 }

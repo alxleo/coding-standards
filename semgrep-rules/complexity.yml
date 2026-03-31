@@ -1,0 +1,24 @@
+rules:
+  # Deep nesting is a complexity smell regardless of language.
+  # Functions with 4+ levels of nesting are hard to test and reason about.
+  - id: python-deep-nesting
+    patterns:
+      - pattern: |
+          def $FUNC(...):
+              ...
+              if ...:
+                  ...
+                  if ...:
+                      ...
+                      if ...:
+                          ...
+                          if ...:
+                              ...
+    message: >
+      Function $FUNC has 4+ levels of nesting. Extract inner logic into
+      helper functions or use early returns to flatten the structure.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: maintainability
+      technology: [python]

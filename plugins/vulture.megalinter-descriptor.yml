@@ -1,0 +1,17 @@
+descriptor_id: PYTHON
+descriptor_type: language
+lint_all_files: true
+linters:
+  - linter_name: vulture
+    name: PYTHON_VULTURE
+    descriptor_flavors:
+      - cupcake
+    cli_lint_mode: list_of_files
+    linter_text: Find dead Python code (unused functions, imports, variables)
+    linter_url: https://github.com/jendrikseipp/vulture
+    cli_executable: vulture
+    cli_lint_extra_args: []
+    cli_help_arg_name: --help
+    cli_version_arg_name: --version
+    file_extensions:
+      - .py
