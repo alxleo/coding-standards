@@ -16,6 +16,15 @@ precommit_cfg := "lint-configs-626465/.pre-commit-config.yaml"
 [doc('All checks — identical to CI. Pre-commit runs ruff, pytest, semgrep, catalog, etc.')]
 [group('workflow')]
 check:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Warn if branch is behind main (CI merges main, so stale branches can fail)
+    if git rev-parse --git-dir > /dev/null 2>&1; then
+        git fetch origin main --quiet 2>/dev/null || true
+        if ! git merge-base --is-ancestor origin/main HEAD 2>/dev/null; then
+            echo "⚠ Branch is behind main — merge before pushing: git merge origin/main"
+        fi
+    fi
     SKIP=just-fmt-check,caddy-fmt-check,hadolint-docker uvx pre-commit run --all-files -c {{ precommit_cfg }}
 
 [doc('Full MegaLinter suite via Docker image')]

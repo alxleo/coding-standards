@@ -178,3 +178,11 @@ repos:
         additional_dependencies: [pyyaml]
         pass_filenames: false
         files: '\.pre-commit-config\.yaml$'
+
+      - id: check-hook-deps
+        name: Pre-commit hook dependency coverage
+        entry: python scripts/hooks/check-hook-deps
+        language: python
+        additional_dependencies: [pyyaml]
+        pass_filenames: false
+        files: '(\.pre-commit-config\.yaml$|test/|scripts/)'

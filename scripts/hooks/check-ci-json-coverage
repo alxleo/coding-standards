@@ -47,6 +47,26 @@ if missing:
         print(f".ci.json missing smoke test for: {tool}")
     sys.exit(1)
 
+# Verify Dockerfile COPY source paths exist on disk
+dockerfile_stale = []
+for line in dockerfile.read_text().splitlines():
+    if line.strip().startswith("COPY "):
+        parts = line.strip().split()
+        # COPY src1 src2 ... dest/ — all but last are sources
+        sources = parts[1:-1]
+        for src in sources:
+            if src.startswith("--"):
+                continue
+            src_path = root / src
+            if not src_path.exists():
+                dockerfile_stale.append(src)
+
+if dockerfile_stale:
+    print("Stale COPY paths in Dockerfile:")
+    for s in dockerfile_stale:
+        print(f"  ✗ {s}")
+    sys.exit(1)
+
 # Verify script paths in .ci.json actually exist
 ci_data = json.loads(ci_json.read_text())
 stale = []

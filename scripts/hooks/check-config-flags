@@ -41,6 +41,12 @@ SKIP_HOOKS = {
     # External tools without configs in lint-configs-626465/
     "actionlint",
     "zizmor",
+    # Validation hooks (check repo structure, not lint code)
+    "semgrep-validate",
+    "semgrep-scan",
+    "check-ci-json-coverage",
+    "check-config-flags",
+    "check-hook-deps",
 }
 
 CONFIG_FLAGS = {"--config", "-c", "--config-file"}

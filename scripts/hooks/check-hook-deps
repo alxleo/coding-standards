@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+"""Verify pre-commit pytest hook has all deps needed by test imports.
+
+Parses test files for imports, checks each is in the pytest hook's
+additional_dependencies list (or stdlib). Catches the "networkx missing
+from hook deps" class of failure before it reaches CI.
+"""
+
+import ast
+import sys
+from pathlib import Path
+
+import yaml
+
+# Known stdlib + builtins that don't need listing
+STDLIB = {
+    "abc", "argparse", "ast", "asyncio", "atexit", "base64", "collections",
+    "configparser", "contextlib", "copy", "csv", "dataclasses", "datetime",
+    "decimal", "difflib", "dis", "email", "enum", "errno", "fnmatch",
+    "functools", "gc", "getpass", "glob", "gzip", "hashlib", "heapq",
+    "html", "http", "importlib", "inspect", "io", "itertools", "json",
+    "keyword", "linecache", "locale", "logging", "math", "mimetypes",
+    "multiprocessing", "numbers", "operator", "os", "pathlib", "pickle",
+    "platform", "plistlib", "pprint", "profile", "queue", "random", "re",
+    "reprlib", "resource", "select", "shelve", "shlex", "shutil", "signal",
+    "site", "smtplib", "socket", "sqlite3", "ssl", "stat", "statistics",
+    "string", "struct", "subprocess", "sys", "syslog", "tempfile",
+    "textwrap", "threading", "time", "timeit", "token", "tokenize",
+    "tomllib", "trace", "traceback", "tracemalloc", "types", "typing",
+    "unicodedata", "unittest", "urllib", "uuid", "venv", "warnings",
+    "wave", "weakref", "webbrowser", "xml", "xmlrpc", "zipfile", "zipimport",
+    "__future__",
+}
+
+root = Path(__file__).resolve().parent.parent.parent
+config_path = root / "lint-configs-626465" / ".pre-commit-config.yaml"
+
+# Parse pre-commit config for pytest hook's additional_dependencies
+config = yaml.safe_load(config_path.read_text())
+hook_deps: set[str] = set()
+for repo in config.get("repos", []):
+    for hook in repo.get("hooks", []):
+        if hook.get("id") == "pytest":
+            for dep in hook.get("additional_dependencies", []):
+                # Strip version pins: "pydantic>=2.0" → "pydantic"
+                hook_deps.add(dep.split(">")[0].split("=")[0].split("[")[0].strip())
+
+# Collect all imports from test files and scripts that tests import
+test_imports: set[str] = set()
+for f in (root / "test").rglob("*.py"):
+    try:
+        tree = ast.parse(f.read_text(), filename=str(f))
+    except SyntaxError:
+        continue
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                test_imports.add(alias.name.split(".")[0])
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            test_imports.add(node.module.split(".")[0])
+
+# Also check scripts that tests load via importlib
+for f in root.glob("scripts/*.py"):
+    try:
+        tree = ast.parse(f.read_text(), filename=str(f))
+    except SyntaxError:
+        continue
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                test_imports.add(alias.name.split(".")[0])
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            test_imports.add(node.module.split(".")[0])
+
+# Local modules (scripts in this repo) — not external deps
+local_modules = {f.stem for f in root.glob("scripts/*.py")}
+local_modules.update(f.stem for f in root.glob("scripts/ci/*.py"))
+local_modules.update(f.stem for f in (root / "test").rglob("*.py"))
+
+# Find imports that need to be in additional_dependencies
+missing = []
+for imp in sorted(test_imports):
+    if imp in STDLIB:
+        continue
+    if imp in local_modules:
+        continue
+    if imp in hook_deps:
+        continue
+    # Check common name mismatches (import name ≠ package name)
+    aliases = {"yaml": "pyyaml", "nx": "networkx", "np": "numpy", "pd": "pandas"}
+    pkg_name = aliases.get(imp, imp)
+    if pkg_name in hook_deps:
+        continue
+    missing.append(f"{imp} (install as: {pkg_name})")
+
+if missing:
+    print("Pre-commit pytest hook missing additional_dependencies:")
+    for m in missing:
+        print(f"  ✗ {m}")
+    print(f"\nAdd to: {config_path}")
+    sys.exit(1)
