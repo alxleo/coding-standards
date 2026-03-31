@@ -17,9 +17,6 @@ on:
   push:
     branches: [main]
     tags: ["v*.*.*"]
-  schedule:
-    # Weekly Monday 03:00 UTC — rebuild image + trivy scan
-    - cron: "0 3 * * 1"
   workflow_dispatch:
 
 concurrency:
@@ -38,12 +35,10 @@ jobs:
   # ── Stage 1: fast local checks ──────────────────────────────
   fast-checks:
     if: >-
-      github.event_name != 'schedule' && (
-        github.event_name == 'push' ||
-        github.event_name == 'workflow_dispatch' ||
-        (github.event.pull_request.draft == false &&
-         github.actor != 'dependabot[bot]')
-      )
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.draft == false &&
+       github.actor != 'dependabot[bot]')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -65,12 +60,10 @@ jobs:
   self-lint:
     needs: fast-checks
     if: >-
-      github.event_name != 'schedule' && (
-        github.event_name == 'push' ||
-        github.event_name == 'workflow_dispatch' ||
-        (github.event.pull_request.draft == false &&
-         github.actor != 'dependabot[bot]')
-      )
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.draft == false &&
+       github.actor != 'dependabot[bot]')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -108,11 +101,9 @@ jobs:
       contents: read
       packages: write
     # Skip on bot PRs (Renovate digest bumps) — image only matters at merge.
-    # Always run on schedule (weekly rebuild + trivy).
     if: >-
-      github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push') ||
+      github.event_name == 'push' ||
       (github.event_name == 'pull_request' &&
        github.event.pull_request.user.type != 'Bot')
     runs-on: ubuntu-latest
@@ -143,8 +134,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.event_name == 'schedule' }}
-            type=raw,value={{date 'YYYY-MM-DD'}},enable=${{ github.event_name == 'schedule' }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=sha,prefix=sha-
             type=semver,pattern=v{{version}},enable=${{ github.ref_type == 'tag' }}
             type=semver,pattern=v{{major}},enable=${{ github.ref_type == 'tag' }}
@@ -157,17 +147,6 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ci-test
           cache-from: type=gha,scope=coding-standards
           cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,scope=coding-standards,mode=min' || '' }}
-
-      - name: Trivy vulnerability scan
-        if: github.event_name == 'schedule'
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
-        with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ci-test
-          exit-code: "1"
-          severity: CRITICAL
-          ignore-unfixed: true
-          scanners: vuln
-          trivyignores: .trivyignore
 
       - name: Smoke test
         run: |

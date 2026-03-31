@@ -1,0 +1,94 @@
+---
+# Weekly scheduled jobs — operational, not CI.
+#
+# Separate from the CI pipeline because these run on :latest (deployed image),
+# not on branch code. They catch external changes (new CVEs, stale deps).
+name: Scheduled
+
+on:
+  schedule:
+    - cron: "3 3 * * 1" # Monday 03:03 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: alxleo/coding-standards
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  # Rebuild image weekly — picks up base image updates
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
+        with:
+          driver-opts: image=ghcr.io/alxleo/buildkit:v0.20.2
+          buildkitd-config-inline: |
+            [registry."docker.io"]
+              mirrors = ["mirror.gcr.io"]
+
+      - name: Log in to GHCR
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=raw,value={{date 'YYYY-MM-DD'}}
+            type=sha,prefix=sha-
+
+      - name: Build image
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
+        with:
+          context: .
+          load: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ci-test
+          cache-from: type=gha,scope=coding-standards
+          cache-to: type=gha,scope=coding-standards,mode=min
+
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ci-test
+          exit-code: "1"
+          severity: CRITICAL
+          ignore-unfixed: true
+          scanners: vuln
+          trivyignores: .trivyignore
+
+      - name: Push image
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          echo "$TAGS" | while IFS= read -r tag; do
+            [ -z "$tag" ] && continue
+            docker tag "${REGISTRY}/${IMAGE_NAME}:ci-test" "$tag"
+            docker push "$tag"
+          done
+
+  # Dive layer efficiency — non-blocking
+  dive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dive layer analysis
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            wagoodman/dive@sha256:f1886e6c32c094fc41a623c1989f5cb3e48aa766da5f0be233f911fc1d85ce10 \
+            --ci --lowestEfficiency=0.9 \
+            ghcr.io/alxleo/coding-standards:latest 2>&1 | tail -20
