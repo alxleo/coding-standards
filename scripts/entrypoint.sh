@@ -36,6 +36,10 @@ case "${1:-}" in
     catalog)
         cat /opt/coding-standards/docs/catalog.md
         ;;
+    warnings)
+        cd "$WORKSPACE"
+        uv run python3 /opt/coding-standards/scripts/show_warnings.py
+        ;;
     help|--help|-h)
         echo "coding-standards — centralized linting image"
         echo ""
@@ -44,6 +48,7 @@ case "${1:-}" in
         echo "  lint [LINTER]   Run all or a single linter (e.g. lint PYTHON_RUFF)"
         echo "  fix             Auto-fix all fixable issues"
         echo "  standards       Run repo-standards checks only"
+        echo "  warnings        Show warnings from last run (grouped by linter)"
         echo "  catalog         Show full catalog of checks"
         echo "  help            This message"
         echo ""
