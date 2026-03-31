@@ -75,6 +75,8 @@ ENABLE_LINTERS:
   # Formatting
   - REPOSITORY_CADDY_FMT
   - REPOSITORY_JUST_FMT
+  # Filename conventions (cross-language)
+  - REPOSITORY_LS_LINT
   # Git
   - REPOSITORY_GIT_DIFF
 
@@ -98,6 +100,7 @@ DISABLE_ERRORS_LINTERS:
   - YAML_V8R
   - DOCKERFILE_DCLINT
   - REPOSITORY_REPO_STANDARDS
+  - REPOSITORY_LS_LINT
   - SQL_SQLFLUFF
   - ANSIBLE_ANSIBLE_LINT
   - KUBERNETES_KUBECONFORM
@@ -119,6 +122,7 @@ PYTHON_PYRIGHT_ARGUMENTS:
   - "--level"
   - "error"
 PYTHON_RUFF_CONFIG_FILE: /opt/coding-standards/configs/ruff.toml
+REPOSITORY_LS_LINT_CONFIG_FILE: /opt/coding-standards/configs/.ls-lint.yml
 JAVASCRIPT_ES_CONFIG_FILE: /opt/coding-standards/configs/eslint.config.mjs
 TYPESCRIPT_ES_CONFIG_FILE: /opt/coding-standards/configs/eslint.config.mjs
 JSX_ESLINT_CONFIG_FILE: /opt/coding-standards/configs/eslint.config.mjs

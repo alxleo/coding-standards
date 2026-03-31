@@ -4,7 +4,7 @@
 Complete inventory of what the coding-standards image checks.
 Generated from config files — this IS the source of truth.
 
-## Linters (43 total)
+## Linters (44 total)
 
 ### Error tier (24 — blocks build)
 
@@ -33,7 +33,7 @@ Generated from config files — this IS the source of truth.
 - REPOSITORY_JUST_FMT
 - REPOSITORY_GIT_DIFF
 
-### Warn tier (19 — reports only)
+### Warn tier (20 — reports only)
 
 - BASH_SHFMT
 - YAML_YAMLLINT
@@ -54,8 +54,9 @@ Generated from config files — this IS the source of truth.
 - SQL_SQLFLUFF
 - ANSIBLE_ANSIBLE_LINT
 - KUBERNETES_KUBECONFORM
+- REPOSITORY_LS_LINT
 
-## Ruff rule categories (28)
+## Ruff rule categories (29)
 
 - E — pycodestyle errors
 - W — pycodestyle warnings
@@ -85,6 +86,7 @@ Generated from config files — this IS the source of truth.
 - PGH — pygrep-hooks (blanket type-ignore / noqa without codes)
 - RSE — flake8-raise (unnecessary parens in raise)
 - PT011 — pytest.raises() without match= (overly broad exception catch in tests)
+- N — pep8-naming (N999 catches hyphenated/non-importable module filenames)
 
 ## Semgrep rules (19)
 
