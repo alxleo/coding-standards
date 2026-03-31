@@ -48,8 +48,8 @@ def extract_linters(root: Path) -> tuple[list[str], list[str]]:
         ):
             current = None
 
-    error_tier = [l for l in enable if l not in disable_errors]
-    warn_tier = [l for l in enable if l in disable_errors]
+    error_tier = [name for name in enable if name not in disable_errors]
+    warn_tier = [name for name in enable if name in disable_errors]
     return error_tier, warn_tier
 
 
@@ -136,12 +136,14 @@ def generate(root: Path) -> str:
     lines.append(f"## Linters ({len(error_tier) + len(warn_tier)} total)")
     lines.append("")
     lines.append(f"### Error tier ({len(error_tier)} — blocks build)")
-    for l in error_tier:
-        lines.append(f"- {l}")
+    lines.append("")
+    for name in error_tier:
+        lines.append(f"- {name}")
     lines.append("")
     lines.append(f"### Warn tier ({len(warn_tier)} — reports only)")
-    for l in warn_tier:
-        lines.append(f"- {l}")
+    lines.append("")
+    for name in warn_tier:
+        lines.append(f"- {name}")
     lines.append("")
 
     # Ruff categories
@@ -178,7 +180,6 @@ def generate(root: Path) -> str:
     lines.append("")
     for r in standards:
         lines.append(f"- **{r['level']}**: {r['message']} ({r['file']})")
-    lines.append("")
 
     return "\n".join(lines) + "\n"
 

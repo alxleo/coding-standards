@@ -7,6 +7,7 @@ Generated from config files — this IS the source of truth.
 ## Linters (43 total)
 
 ### Error tier (24 — blocks build)
+
 - BASH_SHELLCHECK
 - PYTHON_RUFF
 - PYTHON_PYRIGHT
@@ -33,6 +34,7 @@ Generated from config files — this IS the source of truth.
 - REPOSITORY_GIT_DIFF
 
 ### Warn tier (19 — reports only)
+
 - BASH_SHFMT
 - YAML_YAMLLINT
 - YAML_PRETTIER
@@ -153,4 +155,3 @@ Generated from config files — this IS the source of truth.
 - **warn**: trivy.yaml not found (security.rego)
 - **warn**: .sops.yaml not found (security.rego)
 - **warn**: .gitignore does not cover .decrypted/ (security.rego)
-

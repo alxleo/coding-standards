@@ -85,6 +85,21 @@ Or inline in code: `# nosemgrep: rule-id`
 
 Do NOT override `REPOSITORY_SEMGREP_RULESETS` — it contains absolute image paths that break when merged with consumer values.
 
+### Ergonomic commands (justfile)
+
+Copy `examples/justfile` into your repo root for quick commands:
+
+```bash
+just lint              # full suite
+just lint ruff         # single linter
+just fix               # auto-fix all formatting issues
+just standards         # repo-standards checks only
+just catalog           # show what the image checks
+just check             # pre-commit (catches what CI catches)
+```
+
+Or use Docker directly:
+
 ### Auto-fix
 
 ```bash

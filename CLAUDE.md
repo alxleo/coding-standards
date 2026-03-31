@@ -9,6 +9,7 @@ Built on MegaLinter. Runs identically on Gitea Actions and GitHub Actions.
 ### 1. Enforcement (linters + security)
 
 43 linters catch code problems. Two tiers:
+
 - **Error tier** (24): blocks build — security, type checking, correctness
 - **Warn tier** (19): reports only — formatting, style, schemas
 
@@ -17,6 +18,7 @@ See `docs/catalog.md` for the full generated inventory.
 ### 2. Structural validation (conftest/Rego policies)
 
 Conftest policies validate structured config files:
+
 - `policies/compose/` — Docker Compose: healthchecks, resource limits, image pinning
 - Consumers activate by adding `conftest.toml` in their repo root
 
@@ -39,11 +41,13 @@ acknowledged:
 
 ### Custom semgrep rules
 
-18 rules beyond what MegaLinter's `auto + p/trailofbits` provides:
+20 rules beyond what MegaLinter's `auto + p/trailofbits` provides:
+
 - **test-quality**: over-mocking, mock call counts, hardcoded dict assertions
 - **sql-safety**: string interpolation in SQL (Python + JS)
 - **silent-fallbacks**: empty catches, bare except, fallbacks without comments
 - **python-typing**: bare `dict` params/returns (sync + async)
+- **shell-complexity**: jq-in-shell nudges toward Python
 - **shell-hygiene, compose-security, justfile-safety, yaml-env-vars**
 
 ## Key Concepts
