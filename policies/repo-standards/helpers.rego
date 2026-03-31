@@ -3,9 +3,18 @@ package repo_standards.helpers
 import rego.v1
 
 # Check if a specific standard has been acknowledged by the consumer.
-# Acknowledged checks are listed in .repo-standards.yml with a reason.
+#
+# Two formats in .repo-standards.yml:
+#   repo-wide:  acknowledged: { check_id: "reason string" }
+#   per-file:   acknowledged: { check_id: [{path: "...", reason: "..."}] }
+#
+# For repo-wide (string value): this helper returns true → policy skips entirely.
+# For per-file (list value): the manifest generator already excluded those files
+# from counts, so the policy sees reduced numbers. The raw list is preserved in
+# the manifest for auditability.
 acknowledged(check_id) if {
-	input.acknowledged[check_id]
+	value := input.acknowledged[check_id]
+	is_string(value)
 }
 
 # True when the repo has workflow files in either GitHub or Gitea location.

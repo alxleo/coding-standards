@@ -269,12 +269,19 @@ If a check doesn't apply, silence it with a reason in `.repo-standards.yml`:
 ```yaml
 # .repo-standards.yml
 acknowledged:
+  # Repo-wide: string reason silences the check entirely
   commitlint_config: "uses baked commitlint from coding-standards image"
-  eslint_config: "vendored JS files, not application code"
   pydantic: "scripts only, no boundary-crossing data"
+
+  # Per-file: list of {path, reason} excludes specific files from counts
+  large_shell_scripts:
+    - path: scripts/backup-docker-volumes.sh
+      reason: "orchestrates 5 backup targets sequentially"
+    - path: scripts/deploy-all.sh
+      reason: "intentional single-file deploy sequence"
 ```
 
-The acknowledgment IS the documentation — versioned, reviewable, lives next to the code.
+The acknowledgment IS the documentation — versioned, reviewable, lives next to the code. Per-file exceptions are resolved during manifest generation (excluded files don't count toward thresholds).
 
 ### Promote to blocking
 

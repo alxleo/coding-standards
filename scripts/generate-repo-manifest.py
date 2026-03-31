@@ -96,11 +96,14 @@ def check_pyproject_dep(root: Path, dep_name: str) -> bool:
     return any(dep_re.match(dep) for deps in dep_lists for dep in deps)
 
 
-def _count_large_shell(root: Path, threshold: int) -> int:
-    """Count shell scripts exceeding threshold lines."""
+def _count_large_shell(root: Path, threshold: int, skip_paths: set[str] | None = None) -> int:
+    """Count shell scripts exceeding threshold lines, skipping acknowledged paths."""
     count = 0
     for f in root.rglob("*.sh"):
-        if _is_excluded(f.relative_to(root)):
+        rel = f.relative_to(root)
+        if _is_excluded(rel):
+            continue
+        if skip_paths and rel.as_posix() in skip_paths:
             continue
         try:
             lines = len(f.read_text(errors="replace").splitlines())
@@ -201,8 +204,13 @@ def check_actions_pinned(root: Path) -> bool:
     return found_any
 
 
-def load_acknowledged(root: Path) -> dict[str, str]:
-    """Load .repo-standards.yml acknowledged entries."""
+def load_acknowledged(root: Path) -> dict:
+    """Load .repo-standards.yml acknowledged entries.
+
+    Values can be:
+      - string: repo-wide acknowledgment ("we don't use pydantic")
+      - list of {path, reason}: per-file exceptions
+    """
     rs = root / ".repo-standards.yml"
     if not rs.exists():
         return {}
@@ -216,7 +224,19 @@ def load_acknowledged(root: Path) -> dict[str, str]:
         return {}
 
 
+def _acknowledged_paths(acknowledged: dict, check_id: str) -> set[str]:
+    """Extract acknowledged file paths for a check (per-file exceptions)."""
+    value = acknowledged.get(check_id)
+    if not isinstance(value, list):
+        return set()
+    return {
+        entry["path"] for entry in value
+        if isinstance(entry, dict) and "path" in entry
+    }
+
+
 def generate(root: Path) -> dict:
+    ack = load_acknowledged(root)
     return {
         "files": {
             "pyrightconfig": (root / "pyrightconfig.json").exists(),
@@ -283,7 +303,9 @@ def generate(root: Path) -> dict:
                     "compose*.yaml",
                 ]
             ),
-            "shell_scripts_over_50_lines": _count_large_shell(root, 50),
+            "shell_scripts_over_50_lines": _count_large_shell(
+                root, 50, _acknowledged_paths(ack, "large_shell_scripts")
+            ),
             "dockerfile_files": sum(
                 1
                 for _ in root.rglob("Dockerfile*")
@@ -313,7 +335,7 @@ def generate(root: Path) -> dict:
             "has_sha_pins": check_workflow_field(root, "@")
             and check_actions_pinned(root),
         },
-        "acknowledged": load_acknowledged(root),
+        "acknowledged": ack,
     }
 
 
