@@ -5,6 +5,6 @@ set -euo pipefail
 
 # Check if any catalog source files are staged
 if git diff --cached --name-only | grep -qE '\.mega-linter-default\.yml|semgrep-rules/|policies/|lint-configs-626465/ruff\.toml'; then
-    uv run --with pydantic --with pyyaml python3 scripts/generate-catalog.py
+    uv run --with pydantic --with pyyaml python3 scripts/generate_catalog.py
     git add docs/catalog.md
 fi

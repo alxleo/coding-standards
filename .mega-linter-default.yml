@@ -252,7 +252,7 @@ PRE_COMMANDS:
     continue_if_failed: true
   # Generate repo manifest for repo-standards validation
   - command: >-
-      python3 /opt/coding-standards/scripts/generate-repo-manifest.py
+      python3 /opt/coding-standards/scripts/generate_repo_manifest.py
     cwd: workspace
     continue_if_failed: true
   # Install JS deps if package-lock.json exists

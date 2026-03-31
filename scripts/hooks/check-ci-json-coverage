@@ -3,8 +3,10 @@
 
 Parses Dockerfile for npm/pip install lines, checks each CLI tool has a
 corresponding entry in .ci.json. Libraries (eslint-plugin-*, config-*) skipped.
+Also validates that script paths in .ci.json actually exist on disk.
 """
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -26,10 +28,8 @@ ci_json = root / ".ci.json"
 # Parse tools from Dockerfile
 tools: list[str] = []
 for line in dockerfile.read_text().splitlines():
-    for match in re.findall(r"(\S+)@[\d.]+", line):  # npm: pkg@version
-        tools.append(match)
-    for match in re.findall(r"(\S+)==[\d.]+", line):  # pip: pkg==version
-        tools.append(match)
+    tools.extend(re.findall(r"(\S+)@[\d.]+", line))  # npm: pkg@version
+    tools.extend(re.findall(r"(\S+)==[\d.]+", line))  # pip: pkg==version
 
 ci_text = ci_json.read_text().lower()
 
@@ -45,4 +45,19 @@ for tool in tools:
 if missing:
     for tool in missing:
         print(f".ci.json missing smoke test for: {tool}")
+    sys.exit(1)
+
+# Verify script paths in .ci.json actually exist
+ci_data = json.loads(ci_json.read_text())
+stale = []
+for cmd in ci_data.get("test_commands", []):
+    for path_match in re.findall(r"(?:scripts/\S+\.(?:py|sh))", cmd):
+        local_path = root / path_match.replace("/opt/coding-standards/", "")
+        if not local_path.exists():
+            stale.append(f"{path_match} (in command: {cmd[:60]}...)")
+
+if stale:
+    print("Stale script paths in .ci.json:")
+    for s in stale:
+        print(f"  ✗ {s}")
     sys.exit(1)

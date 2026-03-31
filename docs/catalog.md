@@ -1,4 +1,4 @@
-<!-- GENERATED — do not edit. Run: python3 scripts/generate-catalog.py -->
+<!-- GENERATED — do not edit. Run: python3 scripts/generate_catalog.py -->
 # Coding Standards Catalog
 
 Complete inventory of what the coding-standards image checks.

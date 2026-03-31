@@ -1,4 +1,4 @@
-"""Tests for generate-repo-manifest.py.
+"""Tests for generate_repo_manifest.py.
 
 Uses a temporary directory as a fixture repo to verify manifest output.
 Pydantic validation runs inside generate() — if the manifest is structurally
@@ -11,9 +11,9 @@ from pathlib import Path
 
 import pytest
 
-# Import from hyphenated filename
+# Import via spec loader (script lives in scripts/, not a package)
 _script = (
-    Path(__file__).resolve().parent.parent / "scripts" / "generate-repo-manifest.py"
+    Path(__file__).resolve().parent.parent / "scripts" / "generate_repo_manifest.py"
 )
 _spec = importlib.util.spec_from_file_location("generate_repo_manifest", _script)
 assert _spec is not None, f"Could not load spec from {_script}"

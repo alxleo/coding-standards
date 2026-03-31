@@ -28,7 +28,7 @@ case "${1:-}" in
         ;;
     standards)
         cd "$WORKSPACE"
-        uv run python3 /opt/coding-standards/scripts/generate-repo-manifest.py
+        uv run python3 /opt/coding-standards/scripts/generate_repo_manifest.py
         conftest test repo-manifest.json \
             --all-namespaces --no-color \
             -p /opt/coding-standards/policies/repo-standards/

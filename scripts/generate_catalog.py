@@ -4,7 +4,7 @@
 Parses linter config, semgrep rules, conftest policies, and ruff config
 to produce a single generated file. Run as drift check in CI:
 
-    python3 scripts/generate-catalog.py --check
+    python3 scripts/generate_catalog.py --check
 
 Sources:
   .mega-linter-default.yml  → linters + tiers
@@ -116,7 +116,8 @@ def _find_lint_configs(root: Path) -> Path:
         if p.is_dir():
             return p
         tried.append(p)
-    msg = f"Cannot find lint configs directory under {root}; tried: {', '.join(str(p) for p in tried)}"
+    tried_str = ", ".join(str(p) for p in tried)
+    msg = f"Cannot find lint configs directory under {root}; tried: {tried_str}"
     raise FileNotFoundError(msg)
 
 
@@ -142,7 +143,7 @@ def extract_ruff_categories(root: Path) -> list[str]:
 
 def generate(root: Path) -> str:
     lines = [
-        "<!-- GENERATED — do not edit. Run: python3 scripts/generate-catalog.py -->",
+        "<!-- GENERATED — do not edit. Run: python3 scripts/generate_catalog.py -->",
         "# Coding Standards Catalog",
         "",
         "Complete inventory of what the coding-standards image checks.",
@@ -213,7 +214,7 @@ if __name__ == "__main__":
         if existing != content:
             print(
                 "docs/catalog.md is out of date"
-                " — regenerate with: python3 scripts/generate-catalog.py"
+                " — regenerate with: python3 scripts/generate_catalog.py"
             )
             sys.exit(1)
         print("docs/catalog.md is up to date")

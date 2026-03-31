@@ -7,7 +7,7 @@
 # If no paths specified, checks the entire working tree.
 #
 # Examples:
-#   check-drift.sh "python3 scripts/generate-catalog.py" catalog.json
+#   check-drift.sh "python3 scripts/generate_catalog.py" catalog.json
 #   check-drift.sh "just generate-routes" services/caddy/routes.conf
 set -euo pipefail
 
