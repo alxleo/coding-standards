@@ -116,7 +116,7 @@ Generated from config files — this IS the source of truth.
 - **deny**: service '%s' missing container_name (resources.rego)
 - **deny**: service '%s' missing memory limit (deploy.resources.limits.memory or mem_limit) (resources.rego)
 
-## Repo standards (34)
+## Repo standards (35)
 
 - **warn**: .mega-linter.yml not found (ci.rego)
 - **warn**: .mega-linter.yml exists but has no EXTENDS URL (ci.rego)
@@ -124,6 +124,7 @@ Generated from config files — this IS the source of truth.
 - **warn**: No workflow uses fetch-depth: 0 (ci.rego)
 - **warn**: persist-credentials: false not set in checkout — security best practice (ci.rego)
 - **warn**: Not all GitHub Actions are SHA-pinned (ci.rego)
+- **warn**: coding-standards repo-standards checks active (guide.rego)
 - **warn**: conftest.toml not found (infrastructure.rego)
 - **warn**: .editorconfig not found — ensures consistent formatting across editors (infrastructure.rego)
 - **warn**: .ci.json not found (infrastructure.rego)

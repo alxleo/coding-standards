@@ -71,7 +71,7 @@ EXTENDS:
   - https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml
 ```
 
-Full consumer guide: `docs/consumer-guide.md`
+Full consumer guide: https://github.com/alxleo/coding-standards/blob/main/docs/consumer-guide.md
 
 ## Repository layout
 

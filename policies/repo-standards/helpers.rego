@@ -2,6 +2,9 @@ package repo_standards.helpers
 
 import rego.v1
 
+# Consumer guide URL — included in warning messages for LLM/human discoverability
+docs_url := "https://github.com/alxleo/coding-standards/blob/main/docs/consumer-guide.md"
+
 # Check if a specific standard has been acknowledged by the consumer.
 #
 # Two formats in .repo-standards.yml:
