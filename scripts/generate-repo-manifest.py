@@ -226,6 +226,11 @@ def generate(root: Path) -> dict:
             "ci_json": (root / ".ci.json").exists(),
             "renovate": (root / "renovate.json").exists()
             or (root / ".renovaterc.json").exists(),
+            "nvmrc": (root / ".nvmrc").exists(),
+            "envrc": (root / ".envrc").exists(),
+            "makefile": (root / "Makefile").exists() or (root / "justfile").exists(),
+            "env_example": (root / ".env.example").exists(),
+            "gitignore_covers_spikes": check_gitignore_covers(root, "spikes"),
         },
         "directories": {
             "tests": (root / "tests").is_dir() or (root / "test").is_dir(),
@@ -258,6 +263,9 @@ def generate(root: Path) -> dict:
             "pytest_randomly": check_pyproject_dep(root, "pytest-randomly"),
             "test_deps_defined": check_pyproject_dep(root, "pytest"),
             "eslint_plugin_jest": check_package_json_dep(root, "eslint-plugin-jest"),
+            "zod": check_package_json_dep(root, "zod"),
+            "pydantic": check_pyproject_dep(root, "pydantic"),
+            "import_linter": check_pyproject_dep(root, "import-linter"),
         },
         "ci": {
             "workflow_uses_composite_action": check_workflow_field(

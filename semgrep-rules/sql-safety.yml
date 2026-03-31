@@ -1,0 +1,39 @@
+rules:
+  - id: python-sql-string-interpolation
+    pattern-either:
+      - pattern: |
+          $CURSOR.execute(f"...", ...)
+      - pattern: |
+          $CURSOR.execute("..." % ..., ...)
+      - pattern: |
+          $CURSOR.execute("...".format(...), ...)
+    message: >
+      SQL query uses string interpolation — use parameterized queries instead.
+      String interpolation in SQL enables injection attacks, even for
+      "trusted" internal data. Use ? placeholders or a query builder.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      technology: [python]
+      cwe: ["CWE-89"]
+
+  - id: javascript-sql-string-interpolation
+    pattern-either:
+      - pattern: |
+          $DB.query(`...${...}...`)
+      - pattern: |
+          $DB.exec(`...${...}...`)
+      - pattern: |
+          $DB.run(`...${...}...`)
+      - pattern: |
+          $DB.prepare(`...${...}...`)
+    message: >
+      SQL query uses template literal interpolation — use parameterized
+      queries instead. Use ? placeholders or a query builder.
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      category: security
+      technology: [javascript]
+      cwe: ["CWE-89"]

@@ -29,3 +29,22 @@ warn contains msg if {
 		"  Fix: npm install -D eslint-plugin-jest and add to eslint config",
 	])
 }
+
+warn contains msg if {
+	(input.content.typescript_files + input.content.javascript_files) > 0
+	not input.files.nvmrc
+	not helpers.acknowledged("nvmrc")
+	msg := ".nvmrc not found — pin Node version for consistent builds across machines"
+}
+
+warn contains msg if {
+	(input.content.typescript_files + input.content.javascript_files) > 0
+	not input.dependencies.zod
+	not helpers.acknowledged("zod")
+	msg := concat("\n", [
+		"zod not in dependencies",
+		"  Runtime validation at boundaries (API responses, config, user input).",
+		"  Types check shape at compile time; Zod checks shape at runtime.",
+		"  Fix: npm install zod",
+	])
+}

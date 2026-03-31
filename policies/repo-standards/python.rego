@@ -50,3 +50,27 @@ warn contains msg if {
 		"  Fix: add pytest to [project.optional-dependencies] or [dependency-groups]",
 	])
 }
+
+warn contains msg if {
+	input.content.python_files > 0
+	not input.dependencies.pydantic
+	not helpers.acknowledged("pydantic")
+	msg := concat("\n", [
+		"pydantic not in dependencies",
+		"  Runtime validation at boundaries (API, config, env) catches shape mismatches",
+		"  that types alone can't — data from disk/network/user must be validated.",
+		"  Fix: add pydantic to [project.dependencies]",
+	])
+}
+
+warn contains msg if {
+	input.content.python_files > 20
+	not input.dependencies.import_linter
+	not helpers.acknowledged("import_linter")
+	msg := concat("\n", [
+		"import-linter not in dependencies",
+		"  Enforces allowed import directions between layers (e.g. models can't import CLI).",
+		"  Catches architecture violations that compile fine but create coupling.",
+		"  Fix: add import-linter to dev deps, define contracts in pyproject.toml",
+	])
+}

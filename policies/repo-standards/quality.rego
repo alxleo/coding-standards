@@ -26,3 +26,25 @@ warn contains msg if {
 	not helpers.acknowledged("commitlint_config")
 	msg := "No commitlint config found — conventional commits make history readable"
 }
+
+warn contains msg if {
+	not input.files.envrc
+	not helpers.acknowledged("envrc")
+	msg := concat("\n", [
+		".envrc not found",
+		"  direnv auto-loads env vars on cd. Non-secret config (URLs, paths, IDs).",
+		"  Secrets stay in shell profile / keychain, not .envrc.",
+		"  Fix: create .envrc with project-specific env vars",
+	])
+}
+
+warn contains msg if {
+	not input.files.makefile
+	not helpers.acknowledged("makefile")
+	msg := concat("\n", [
+		"No Makefile or justfile found",
+		"  Unified check command (make check / just check) ensures nothing is skipped.",
+		"  If an LLM has to remember 4 commands, it'll skip some.",
+		"  Fix: create justfile or Makefile with check/test/lint recipes",
+	])
+}

@@ -56,6 +56,26 @@ test_acknowledged_silences_pytest_randomly if {
 	not any_contains(result, "pytest-randomly")
 }
 
+test_warn_missing_pydantic if {
+	result := python.warn with input as {"content": {"python_files": 5}, "files": {"pyrightconfig": true, "ruff": true}, "directories": {"tests": false}, "dependencies": {"pydantic": false, "import_linter": false}, "acknowledged": {}}
+	any_contains(result, "pydantic")
+}
+
+test_no_warn_pydantic_when_present if {
+	result := python.warn with input as {"content": {"python_files": 5}, "files": {"pyrightconfig": true, "ruff": true}, "directories": {"tests": false}, "dependencies": {"pydantic": true, "import_linter": true}, "acknowledged": {}}
+	not any_contains(result, "pydantic")
+}
+
+test_warn_missing_import_linter_large_project if {
+	result := python.warn with input as {"content": {"python_files": 25}, "files": {"pyrightconfig": true, "ruff": true}, "directories": {"tests": false}, "dependencies": {"pydantic": true, "import_linter": false}, "acknowledged": {}}
+	any_contains(result, "import-linter")
+}
+
+test_no_warn_import_linter_small_project if {
+	result := python.warn with input as {"content": {"python_files": 10}, "files": {"pyrightconfig": true, "ruff": true}, "directories": {"tests": false}, "dependencies": {"pydantic": true, "import_linter": false}, "acknowledged": {}}
+	not any_contains(result, "import-linter")
+}
+
 any_contains(set, substring) if {
 	some msg in set
 	contains(msg, substring)

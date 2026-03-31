@@ -47,3 +47,14 @@ warn contains msg if {
 		"  Fix: add .decrypted/ to .gitignore",
 	])
 }
+
+warn contains msg if {
+	input.directories.secrets
+	not input.files.env_example
+	not helpers.acknowledged("env_example")
+	msg := concat("\n", [
+		".env.example not found",
+		"  secrets/ present but no template documenting required env vars.",
+		"  Fix: create .env.example with placeholder values for all required vars",
+	])
+}
