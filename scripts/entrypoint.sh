@@ -14,10 +14,10 @@ WORKSPACE="${DEFAULT_WORKSPACE:-/tmp/lint}"
 case "${1:-}" in
     lint)
         # Single linter: lint <name> or lint (full suite)
+        # Accepts short names (ruff, shellcheck) or full IDs (PYTHON_RUFF)
         shift
         if [ $# -gt 0 ]; then
-            linter=$(echo "$1" | tr '[:lower:]' '[:upper:]')
-            export ENABLE_LINTERS="$linter"
+            export ENABLE_LINTERS="$(echo "$1" | tr '[:lower:]' '[:upper:]')"
         fi
         exec /entrypoint.sh
         ;;
@@ -41,7 +41,7 @@ case "${1:-}" in
         echo ""
         echo "Commands:"
         echo "  (none)          Full MegaLinter suite"
-        echo "  lint [LINTER]   Run all or a single linter (e.g. lint ruff)"
+        echo "  lint [LINTER]   Run all or a single linter (e.g. lint PYTHON_RUFF)"
         echo "  fix             Auto-fix all fixable issues"
         echo "  standards       Run repo-standards checks only"
         echo "  catalog         Show full catalog of checks"

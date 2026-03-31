@@ -8,12 +8,12 @@ Built on MegaLinter. Runs identically on Gitea Actions and GitHub Actions.
 
 ### 1. Enforcement (linters + security)
 
-43 linters catch code problems. Two tiers:
+Linters catch code problems. Two tiers:
 
-- **Error tier** (24): blocks build — security, type checking, correctness
-- **Warn tier** (19): reports only — formatting, style, schemas
+- **Error tier**: blocks build — security, type checking, correctness
+- **Warn tier**: reports only — formatting, style, schemas
 
-See `docs/catalog.md` for the full generated inventory.
+See `docs/catalog.md` for the full generated inventory (counts, rule IDs, descriptions).
 
 ### 2. Structural validation (conftest/Rego policies)
 
@@ -31,7 +31,7 @@ scripts/generate-repo-manifest.py  →  repo-manifest.json  →  conftest  →  
        (gather facts)                  (structured data)      (evaluate)     (declarative policies)
 ```
 
-33 checks across 6 policy files: Python readiness, security, CI, infrastructure, JS/TS, quality. All `warn` by default. Error messages include remediation steps — executable documentation.
+Checks across 6 policy files: Python readiness, security, CI, infrastructure, JS/TS, quality. All `warn` by default. Error messages include remediation steps — executable documentation.
 
 Consumer repos silence warnings with reasons via `.repo-standards.yml`:
 ```yaml
@@ -41,7 +41,7 @@ acknowledged:
 
 ### Custom semgrep rules
 
-20 rules beyond what MegaLinter's `auto + p/trailofbits` provides:
+Custom rules beyond what MegaLinter's `auto + p/trailofbits` provides:
 
 - **test-quality**: over-mocking, mock call counts, hardcoded dict assertions
 - **sql-safety**: string interpolation in SQL (Python + JS)

@@ -350,13 +350,15 @@ def generate(root: Path) -> dict:
             "javascript_files": count_files(root, ".js") + count_files(root, ".jsx"),
             "shell_files": count_files(root, ".sh"),
             "compose_files": sum(
-                len(list(root.glob(p)))
+                1
                 for p in [
                     "docker-compose*.yml",
                     "docker-compose*.yaml",
                     "compose*.yml",
                     "compose*.yaml",
                 ]
+                for f in root.rglob(p)
+                if not _is_excluded(f.relative_to(root))
             ),
             "shell_scripts_over_50_lines": _count_large_shell(
                 root, 50, _acknowledged_paths(ack, "large_shell_scripts")
