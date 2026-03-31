@@ -15,4 +15,6 @@ rules:
         - "**/docker-compose*.yml"
         - "**/compose*.yml"
         - "**/.github/**"
+        - "**/docker-action/**"
         - "**/dags/**"
+        - "**/semgrep-rules/**"

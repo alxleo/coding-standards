@@ -1,14 +1,10 @@
 rules:
   - id: python-silent-fallback-or
-    patterns:
-      - pattern: $X or $DEFAULT
-      - pattern-not-inside: |
-          # $COMMENT
-          ...
-          $X or $DEFAULT
+    pattern: $X or $DEFAULT
     message: >
       Silent fallback: `or $DEFAULT` may hide a bug. If the empty/falsy
-      case is expected, add a comment explaining why the fallback is safe.
+      case is expected, add `# nosemgrep: python-silent-fallback-or`
+      to acknowledge the intent.
     languages: [python]
     severity: INFO
     paths:

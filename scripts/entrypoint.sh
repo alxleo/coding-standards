@@ -17,7 +17,8 @@ case "${1:-}" in
         # Accepts short names (ruff, shellcheck) or full IDs (PYTHON_RUFF)
         shift
         if [ $# -gt 0 ]; then
-            export ENABLE_LINTERS="$(echo "$1" | tr '[:lower:]' '[:upper:]')"
+            ENABLE_LINTERS="$(echo "$1" | tr '[:lower:]' '[:upper:]')"
+            export ENABLE_LINTERS
         fi
         exec /entrypoint.sh
         ;;

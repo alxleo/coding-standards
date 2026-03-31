@@ -24,7 +24,8 @@ def parse_groups(
     with open(conf_path) as f:
         for raw_line in f:
             stripped = raw_line.strip()
-            if not stripped or stripped.startswith("#"):
+            # Skip blank lines and comments in groups.conf
+            if not stripped or stripped.startswith("#"):  # nosemgrep: python-silent-fallback-or
                 continue
             parts = stripped.split("|")
             if len(parts) == expected_fields:

@@ -34,6 +34,7 @@ COPY --from=trivy /usr/local/bin/trivy /usr/local/bin/trivy
 RUN trivy fs --download-db-only --no-progress --cache-dir /root/.cache/trivy
 
 # npm-based tools (single layer to reduce image size)
+# hadolint ignore=DL3059
 RUN npm install -g \
   @commitlint/cli@20.5.0 \
   @commitlint/config-conventional@20.5.0 \
@@ -53,11 +54,13 @@ RUN npm install -g \
   publint@0.3.2 \
   @arethetypeswrong/cli@0.17.3
 
-# zizmor — GitHub Actions security scanner
-RUN pip install --no-cache-dir zizmor==1.23.1
-
-# Python project analysis tools
-RUN pip install --no-cache-dir vulture==2.14 deptry==0.22.0 import-linter==2.4
+# Python tools — zizmor (Actions security), vulture, deptry, import-linter
+# hadolint ignore=DL3059
+RUN pip install --no-cache-dir \
+  zizmor==1.23.1 \
+  vulture==2.14 \
+  deptry==0.22.0 \
+  import-linter==2.4
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -134,7 +137,8 @@ COPY lint-configs-626465/ /opt/coding-standards/configs/
 # No args → falls through to MegaLinter's /entrypoint.sh
 COPY scripts/entrypoint.sh /opt/coding-standards/entrypoint.sh
 RUN chmod +x /opt/coding-standards/entrypoint.sh
-ENTRYPOINT ["/bin/bash", "/opt/coding-standards/entrypoint.sh"]
+# MegaLinter requires root for tool installs and workspace writes.
+ENTRYPOINT ["/bin/bash", "/opt/coding-standards/entrypoint.sh"]  # nosemgrep: dockerfile.security.missing-user-entrypoint.missing-user-entrypoint
 
 # ── Generated catalog ────────────────────────────────────────
 COPY docs/catalog.md /opt/coding-standards/docs/catalog.md

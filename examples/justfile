@@ -16,27 +16,22 @@ image := "ghcr.io/alxleo/coding-standards:latest"
 workspace := justfile_directory()
 docker_args := "-v " + workspace + ":/tmp/lint -e DEFAULT_WORKSPACE=/tmp/lint"
 
-# Run linters (all or single)
 [doc('Run coding-standards linters')]
 cs-lint *LINTER:
-    docker run --rm {{docker_args}} {{image}} lint {{LINTER}}
+    docker run --rm {{ docker_args }} {{ image }} lint {{ LINTER }}
 
-# Auto-fix formatting issues
 [doc('Auto-fix all fixable issues')]
 cs-fix:
-    docker run --rm {{docker_args}} {{image}} fix
+    docker run --rm {{ docker_args }} {{ image }} fix
 
-# Run repo-standards checks only
 [doc('Check repo setup against standards')]
 cs-standards:
-    docker run --rm {{docker_args}} {{image}} standards
+    docker run --rm {{ docker_args }} {{ image }} standards
 
-# Show what the image checks
 [doc('Show full catalog of checks')]
 cs-catalog:
-    docker run --rm {{docker_args}} {{image}} catalog
+    docker run --rm {{ docker_args }} {{ image }} catalog
 
-# Pre-commit: run before committing (catches what CI catches)
 [doc('Run pre-commit checks locally')]
 check:
     uvx pre-commit run --all-files

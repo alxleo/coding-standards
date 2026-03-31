@@ -16,11 +16,13 @@ _script = (
     Path(__file__).resolve().parent.parent / "scripts" / "generate-repo-manifest.py"
 )
 _spec = importlib.util.spec_from_file_location("generate_repo_manifest", _script)
+assert _spec is not None, f"Could not load spec from {_script}"
 _mod = importlib.util.module_from_spec(_spec)
 sys.modules["generate_repo_manifest"] = _mod
 
 # manifest_schema must be importable for the generator
 sys.path.insert(0, str(_script.parent))
+assert _spec.loader is not None, "spec has no loader"
 _spec.loader.exec_module(_mod)
 
 generate = _mod.generate
