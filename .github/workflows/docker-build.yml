@@ -21,6 +21,7 @@ on:
       - scripts/**
       - policies/**
       - semgrep-rules/**
+      - .ci.json
   schedule:
     # Weekly Monday 03:00 UTC — rebuilds image + trivy scan
     - cron: "0 3 * * 1"
@@ -35,6 +36,7 @@ on:
       - scripts/**
       - policies/**
       - semgrep-rules/**
+      - .ci.json
 
 concurrency:
   group: docker-${{ github.ref }}
