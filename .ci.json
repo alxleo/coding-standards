@@ -15,7 +15,7 @@
     "license-checker --version || true",
     "vulture --version",
     "deptry --version",
-    "lint-imports --version",
+    "lint-imports --help",
     "oxlint --version",
     "type-coverage --version",
     "publint --help",

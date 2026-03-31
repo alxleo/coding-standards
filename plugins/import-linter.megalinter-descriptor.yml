@@ -12,7 +12,7 @@ linters:
     cli_executable: lint-imports
     cli_lint_extra_args: []
     cli_help_arg_name: --help
-    cli_version_arg_name: --version
+    cli_version_arg_name: --help
     files_sub_directory: ""
     file_extensions: []
     active_only_if_file_found:
