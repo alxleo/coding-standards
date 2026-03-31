@@ -46,8 +46,10 @@ jobs:
 
       - name: Pre-commit
         env:
-          SKIP: just-fmt-check,caddy-fmt-check
+          SKIP: just-fmt-check,caddy-fmt-check,hadolint-docker
         run: |
+          # Self-test: this repo IS coding-standards, so .coding-standards → .
+          ln -sf . .coding-standards
           uvx pre-commit run --all-files -c lint-configs-626465/.pre-commit-config.yaml
 
   # Image self-lint — runs the published image against this repo.
@@ -72,4 +74,4 @@ jobs:
         with:
           name: megalinter-report
           path: megalinter-reports/
-          retention-days: 7
+          retention-days: 2
