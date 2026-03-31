@@ -124,8 +124,7 @@ docs/
 
 .ci.json                            # Data-driven smoke tests (tool --version + policy tests)
 .github/workflows/
-  docker-build.yml                  # Build + push image to GHCR (weekly trivy scan)
-  ci.yml                            # Self-test via legacy lint workflow
+  ci.yml                            # Single pipeline: fast-checks → self-lint + build → push
   lint.yml                          # Legacy reusable workflow (being replaced by Docker image)
 ```
 
