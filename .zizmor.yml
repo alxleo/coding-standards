@@ -5,3 +5,10 @@ rules:
       # Composite/Docker actions can't set permissions — only workflows can.
       - action.yml
       - docker-action/action.yml
+  cache-poisoning:
+    ignore:
+      # Pre-commit + UV caches: deterministic tool installs keyed on lock file hashes.
+      # Not build artifacts — cache poisoning risk is negligible.
+      # zizmor matches on filename, not full path
+      - ci.yml
+      - scheduled.yml
