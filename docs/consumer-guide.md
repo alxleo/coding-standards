@@ -220,8 +220,8 @@ When coding-standards adds new ruff rules, your repo may get hundreds of new fin
 
 ```bash
 # Auto-fix what's fixable, suppress the rest with inline comments
-uvx ruff check --config lint-configs-626465/ruff.toml --fix . && \
-uvx ruff check --config lint-configs-626465/ruff.toml --add-noqa .
+uvx ruff check --config lint-configs/ruff.toml --fix . && \
+uvx ruff check --config lint-configs/ruff.toml --add-noqa .
 ```
 
 This gets your CI green immediately. Clean up the `# noqa` suppressions over time — each one is a TODO, not permanent tech debt.

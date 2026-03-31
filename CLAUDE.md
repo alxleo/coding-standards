@@ -107,7 +107,7 @@ policies/
     helpers.rego                    # Shared: acknowledged() helper
 
 semgrep-rules/                      # 18 custom rules (6 files)
-lint-configs-626465/                # Baked linter configs (ruff, shellcheck, yamllint, etc.)
+lint-configs/                # Baked linter configs (ruff, shellcheck, yamllint, etc.)
 scripts/
   generate_repo_manifest.py         # Manifest generator for repo standards
   generate_catalog.py               # Auto-generates docs/catalog.md
@@ -136,9 +136,9 @@ docs/
 | **Repo setup** (file/dep presence) | manifest field in `generate_repo_manifest.py` + `manifest_schema.py` + `policies/repo-standards/*.rego` + `*_test.rego` + `test/test_generate_repo_manifest.py` | Manifest scans repo |
 | **Code pattern** (anti-pattern in source) | `semgrep-rules/*.yml` | Semgrep matches patterns |
 | **Config content** (compose/YAML validation) | `policies/compose/*.rego` + `*_test.rego` | Conftest parses files |
-| **Code quality rule** | `lint-configs-626465/ruff.toml` (add category) | Ruff runs on .py files |
+| **Code quality rule** | `lint-configs/ruff.toml` (add category) | Ruff runs on .py files |
 | **New linter tool** | `Dockerfile` (install) + `plugins/*.yml` (descriptor) + `.mega-linter-default.yml` (3 places: ENABLE + DISABLE_ERRORS + PLUGINS) + `.ci.json` (smoke test) | MegaLinter orchestrates |
-| **ESLint rule** | `lint-configs-626465/eslint.config.mjs` | ESLint runs on .js/.ts |
+| **ESLint rule** | `lint-configs/eslint.config.mjs` | ESLint runs on .js/.ts |
 
 ### What's automated
 

@@ -4,7 +4,7 @@
 
 GROUPS_CONF="scripts/ci/groups.conf"
 LINT_YML=".github/workflows/lint.yml"
-PRE_COMMIT="lint-configs-626465/.pre-commit-config.yaml"
+PRE_COMMIT="lint-configs/.pre-commit-config.yaml"
 EXAMPLES="examples/.coding-standards.yml"
 
 # ── Reverse validation: lint.yml → groups.conf ────────
