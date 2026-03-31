@@ -73,8 +73,9 @@ repos:
     rev: v0.15.4
     hooks:
       - id: ruff
-        args: [--fix]
+        args: [--fix, --config, lint-configs-626465/ruff.toml]
       - id: ruff-format
+        args: [--config, lint-configs-626465/ruff.toml]
 
   # ── Cruft & secrets blocking ─────────────────────────────────
   - repo: local
@@ -139,15 +140,15 @@ repos:
     hooks:
       - id: pytest
         name: Run tests
-        entry: python3 -m pytest test/ -q --tb=short
+        entry: python -m pytest test/ -q --tb=short
         language: python
         additional_dependencies: [pytest, pydantic, pyyaml, pytest-randomly]
         pass_filenames: false
-        types_or: [python]
+        always_run: true
 
       - id: catalog-drift
         name: Check catalog is up to date
-        entry: python3 scripts/generate-catalog.py --check
+        entry: python scripts/generate-catalog.py --check
         language: python
         additional_dependencies: [pyyaml]
         pass_filenames: false
