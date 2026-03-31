@@ -391,7 +391,6 @@ def generate(root: Path) -> dict[str, Any]:
                     "commitlint.config.js",
                     "commitlint.config.mjs",
                     "commitlint.config.cjs",
-                    "commitlint.config.baseline.mjs",
                     ".commitlintrc.yml",
                     ".commitlintrc.json",
                 ]
