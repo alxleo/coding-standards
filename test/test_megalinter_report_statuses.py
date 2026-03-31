@@ -7,9 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-SCRIPT = str(
-    Path(__file__).resolve().parent.parent / "scripts" / "megalinter_report_statuses.py"
-)
+SCRIPT = str(Path(__file__).resolve().parent.parent / "scripts" / "megalinter_report_statuses.py")
 
 
 def _make_report(tmp_path: Path, linters: list[dict]) -> Path:

@@ -142,13 +142,14 @@ repos:
         name: Run tests
         entry: python -m pytest test/ -q --tb=short
         language: python
-        additional_dependencies: [pytest, pydantic, pyyaml, pytest-randomly]
+        additional_dependencies:
+          [pytest, pydantic, pyyaml, pytest-randomly, networkx, scipy]
         pass_filenames: false
         always_run: true
 
       - id: catalog-drift
         name: Check catalog is up to date
-        entry: python scripts/generate-catalog.py --check
+        entry: python scripts/generate_catalog.py --check
         language: python
         additional_dependencies: [pyyaml]
         pass_filenames: false

@@ -128,9 +128,7 @@ class TestBlastRadius:
         # config.toml is referenced by ci.yml, justfile, README.md
         assert by_name["config.toml"]["blast_radius"] == 3
 
-    def test_unreferenced_file_has_zero_blast_radius(
-        self, synthetic_repo: Path
-    ) -> None:
+    def test_unreferenced_file_has_zero_blast_radius(self, synthetic_repo: Path) -> None:
         results = br.compute_blast_radius(synthetic_repo)
         by_name = {r["name"]: r for r in results}
 
@@ -176,9 +174,7 @@ class TestTemporalCoupling:
             min_coupling=0.2,
             min_revisions=2,
         )
-        ab = next(
-            c for c in couplings if c["file_a"] == "a.py" and c["file_b"] == "b.py"
-        )
+        ab = next(c for c in couplings if c["file_a"] == "a.py" and c["file_b"] == "b.py")
         assert ab["coupling"] == 0.75
 
     def test_weak_coupling_filtered(self, git_repo: Path) -> None:

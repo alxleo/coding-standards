@@ -59,15 +59,12 @@ def check(config_path: Path) -> list[str]:
             args = hook.get("args", [])
             entry = hook.get("entry", "")
 
-            has_config = any(
-                flag in arg for arg in args for flag in CONFIG_FLAGS
-            ) or any(flag in entry for flag in CONFIG_FLAGS)
+            has_config = any(flag in arg for arg in args for flag in CONFIG_FLAGS) or any(
+                flag in entry for flag in CONFIG_FLAGS
+            )
 
             if not has_config:
-                errors.append(
-                    f"Hook '{hook_id}' has no --config flag. "
-                    f"Add --config lint-configs-626465/... to args."
-                )
+                errors.append(f"Hook '{hook_id}' has no --config flag. Add --config lint-configs-626465/... to args.")
 
     return errors
 

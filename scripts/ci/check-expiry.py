@@ -35,14 +35,10 @@ def scan_file(path: Path, patterns: list[re.Pattern], today: date) -> list[str]:
                 try:
                     expiry = date.fromisoformat(match.group(1))
                 except ValueError:
-                    findings.append(
-                        f"{path}:{i}: invalid date in marker: {match.group(1)}"
-                    )
+                    findings.append(f"{path}:{i}: invalid date in marker: {match.group(1)}")
                     continue
                 if expiry < today:
-                    findings.append(
-                        f"{path}:{i}: expired marker (was {expiry}, today is {today})"
-                    )
+                    findings.append(f"{path}:{i}: expired marker (was {expiry}, today is {today})")
     return findings
 
 
@@ -53,9 +49,7 @@ def main():
     parser.add_argument("--ext", default=".yml,.yaml,.sh,.py,.tf,.md,.toml,.cfg")
     args = parser.parse_args()
 
-    raw_patterns = (
-        args.pattern or DEFAULT_PATTERNS
-    )  # nosemgrep: python-silent-fallback-or
+    raw_patterns = args.pattern or DEFAULT_PATTERNS  # nosemgrep: python-silent-fallback-or
     patterns = [re.compile(p) for p in raw_patterns]
     extensions = set(args.ext.split(","))
     today = datetime.now(tz=UTC).date()

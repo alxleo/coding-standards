@@ -83,11 +83,7 @@ class TestJaccardBoundaryConditions:
             min_revisions=1,
         )
         ab = next(
-            (
-                c
-                for c in couplings
-                if {c["file_a"], c["file_b"]} == {"alpha.py", "beta.py"}
-            ),
+            (c for c in couplings if {c["file_a"], c["file_b"]} == {"alpha.py", "beta.py"}),
             None,
         )
         assert ab is not None, "Perfect coupling pair not found in results"
@@ -103,11 +99,7 @@ class TestJaccardBoundaryConditions:
             max_changeset=50,
             min_revisions=1,
         )
-        ab = next(
-            c
-            for c in couplings
-            if {c["file_a"], c["file_b"]} == {"alpha.py", "beta.py"}
-        )
+        ab = next(c for c in couplings if {c["file_a"], c["file_b"]} == {"alpha.py", "beta.py"})
         assert ab["co_changes"] == ab["changes_a"] == ab["changes_b"] == 5
 
 
@@ -187,9 +179,7 @@ class TestNoiseFilterBoundary:
             max_changeset=50,
         )
         # The commit has 50 files, filter is >50, so it should be included
-        assert len(file_changes) == 50, (
-            f"Expected 50 files counted, got {len(file_changes)}"
-        )
+        assert len(file_changes) == 50, f"Expected 50 files counted, got {len(file_changes)}"
         # With 50 files, we get C(50,2) = 1225 pairs
         assert len(co_changes) == 50 * 49 // 2
 
@@ -226,8 +216,7 @@ class TestFormattingCommitDetection:
     """Mass formatter runs (e.g., black on 100 .py files) should be filtered."""
 
     def test_mass_format_commit_filtered(self, tmp_path: Path) -> None:
-        """A commit touching 100 .py files (formatter run) is filtered at default max_c
-        """
+        """A commit touching 100 .py files (formatter run) is filtered at default max_c"""
         _git_init(tmp_path)
         # First commit: create files individually coupled
         (tmp_path / "core.py").write_text("v1")
@@ -261,14 +250,8 @@ class TestFormattingCommitDetection:
         assert ("core.py", "helper.py") in pairs
 
         # None of the formatted_*.py files should appear in coupling results
-        formatted_in_results = [
-            c
-            for c in couplings
-            if "formatted_" in c["file_a"] or "formatted_" in c["file_b"]
-        ]
-        assert formatted_in_results == [], (
-            "Formatter files should not appear in coupling results"
-        )
+        formatted_in_results = [c for c in couplings if "formatted_" in c["file_a"] or "formatted_" in c["file_b"]]
+        assert formatted_in_results == [], "Formatter files should not appear in coupling results"
 
     def test_single_massive_commit_all_files_filtered(self, tmp_path: Path) -> None:
         """One commit with ALL repo files (initial import) produces no coupling."""
@@ -284,9 +267,7 @@ class TestFormattingCommitDetection:
             max_changeset=50,
             min_revisions=1,
         )
-        assert couplings == [], (
-            "A single massive commit should produce zero coupling pairs"
-        )
+        assert couplings == [], "A single massive commit should produce zero coupling pairs"
 
 
 # ── CIRank / PageRank: Topology Tests ───────────────────────────────
@@ -315,13 +296,9 @@ class TestPageRankTopology:
             pytest.skip("Graph too small for meaningful PageRank")
 
         # hub.py should be the #1 ranked file
-        assert ranked[0]["file"] == "hub.py", (
-            f"Expected hub.py at rank 1, got {ranked[0]['file']}"
-        )
+        assert ranked[0]["file"] == "hub.py", f"Expected hub.py at rank 1, got {ranked[0]['file']}"
         # hub.py should have high in-degree
-        assert ranked[0]["in_degree"] >= 15, (
-            f"Expected in_degree >= 15, got {ranked[0]['in_degree']}"
-        )
+        assert ranked[0]["in_degree"] >= 15, f"Expected in_degree >= 15, got {ranked[0]['in_degree']}"
 
     def test_chain_topology_sink_ranks_highest(self, tmp_path: Path) -> None:
         """Chain: a.py -> b.py -> c.py -> d.py.
@@ -362,21 +339,15 @@ class TestPageRankTopology:
         Authority should rank higher than hub.
         """
         _git_init(tmp_path)
-        (tmp_path / "authority.py").write_text(
-            "# everyone imports me\ndef api(): pass\n"
-        )
+        (tmp_path / "authority.py").write_text("# everyone imports me\ndef api(): pass\n")
         (tmp_path / "hub.py").write_text(
-            "# I import everyone\n"
-            + "\n".join(f"import leaf_{i:03d}" for i in range(15))
-            + "\n"
+            "# I import everyone\n" + "\n".join(f"import leaf_{i:03d}" for i in range(15)) + "\n"
         )
 
         for i in range(15):
             # Each leaf imports authority (creating in-links to authority)
             # Each leaf is imported by hub (creating out-links from hub)
-            (tmp_path / f"leaf_{i:03d}.py").write_text(
-                "import authority\nauthority.api()\n"
-            )
+            (tmp_path / f"leaf_{i:03d}.py").write_text("import authority\nauthority.api()\n")
 
         _git_commit(tmp_path, "hub-authority topology")
 
@@ -390,8 +361,7 @@ class TestPageRankTopology:
         assert "authority.py" in rank_map, "authority.py not in ranked results"
         if "hub.py" in rank_map:
             assert rank_map["authority.py"] > rank_map["hub.py"], (
-                f"authority ({rank_map['authority.py']}) should rank higher "
-                f"than hub ({rank_map['hub.py']})"
+                f"authority ({rank_map['authority.py']}) should rank higher than hub ({rank_map['hub.py']})"
             )
 
 
@@ -451,25 +421,14 @@ class TestPersonalizedPageRank:
 
         # The rankings should differ when we personalize on a specific file
         static_ranking = sorted(static_scores, key=static_scores.get, reverse=True)
-        personal_ranking = sorted(
-            personal_scores, key=personal_scores.get, reverse=True
-        )
+        personal_ranking = sorted(personal_scores, key=personal_scores.get, reverse=True)
 
         # At minimum, the focus file should be boosted in personalized ranking
-        static_rank_of_center = (
-            static_ranking.index("center.py") if "center.py" in static_ranking else -1
-        )
-        personal_rank_of_center = (
-            personal_ranking.index("center.py")
-            if "center.py" in personal_ranking
-            else -1
-        )
+        static_rank_of_center = static_ranking.index("center.py") if "center.py" in static_ranking else -1
+        personal_rank_of_center = personal_ranking.index("center.py") if "center.py" in personal_ranking else -1
 
         # Personalized should rank center.py at least as high as static
-        assert (
-            personal_rank_of_center <= static_rank_of_center
-            or personal_rank_of_center == 0
-        ), (
+        assert personal_rank_of_center <= static_rank_of_center or personal_rank_of_center == 0, (
             f"Personalized rank of center.py ({personal_rank_of_center}) should be "
             f"<= static rank ({static_rank_of_center})"
         )
@@ -519,8 +478,7 @@ class TestPRReviewEdgeCases:
         review = br.pr_review(tmp_path, files)
         # If all files are in the PR, nothing should be "missing"
         assert review["possibly_missing"] == [], (
-            f"Expected empty possibly_missing when all files changed, "
-            f"got {review['possibly_missing']}"
+            f"Expected empty possibly_missing when all files changed, got {review['possibly_missing']}"
         )
 
     def test_empty_pr(self, tmp_path: Path) -> None:
@@ -600,9 +558,7 @@ class TestPythonASTImports:
         edge_set = set(edges)
 
         # Should resolve "scripts.helper" to "scripts/helper.py"
-        assert ("main.py", "scripts/helper.py") in edge_set, (
-            f"Expected main.py -> scripts/helper.py. Got: {edges}"
-        )
+        assert ("main.py", "scripts/helper.py") in edge_set, f"Expected main.py -> scripts/helper.py. Got: {edges}"
 
     def test_relative_import_not_resolved(self, tmp_path: Path) -> None:
         """Relative imports (from . import X) should not crash.
@@ -717,8 +673,7 @@ class TestCIRankDegenerate:
 
 class TestCommitParsingEdgeCases:
     def test_max_changeset_zero_filters_everything(self, tmp_path: Path) -> None:
-        """max_changeset=0 means ALL commits are filtered (every commit has >0 files)."
-        """
+        """max_changeset=0 means ALL commits are filtered (every commit has >0 files)." """
         _git_init(tmp_path)
         (tmp_path / "a.py").write_text("v1")
         (tmp_path / "b.py").write_text("v1")

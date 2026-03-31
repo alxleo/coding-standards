@@ -2,6 +2,7 @@
 # Consumer repos override by placing ruff.toml in their root.
 
 target-version = "py311"
+line-length = 120
 
 [lint]
 select = [

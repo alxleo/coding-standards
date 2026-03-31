@@ -65,17 +65,12 @@ class TestBlastRadiusSubstringMatches:
     """
 
     def test_substring_match_false_positive_prefix(self, tmp_path: Path) -> None:
-        """'test.py' should NOT match 'contest.py' — but re.search finds it as substrin
-        """
+        """'test.py' should NOT match 'contest.py' — but re.search finds it as substrin"""
         (tmp_path / "test.py").write_text("print('hello')\n")
         # This file's NAME is 'contest.py' but its CONTENT mentions 'contest.py'
         # The real question: does content of other files contain 'test.py' as substring?
-        (tmp_path / "app.py").write_text(
-            "from contest import stuff  # has 'test.py' as substring? no\n"
-        )
-        (tmp_path / "runner.py").write_text(
-            "run pytest.py  # contains 'test.py' as substring!\n"
-        )
+        (tmp_path / "app.py").write_text("from contest import stuff  # has 'test.py' as substring? no\n")
+        (tmp_path / "runner.py").write_text("run pytest.py  # contains 'test.py' as substring!\n")
 
         results = br.compute_blast_radius(tmp_path)
         by_name = {r["name"]: r for r in results}
@@ -84,9 +79,7 @@ class TestBlastRadiusSubstringMatches:
         # This IS a false positive — re.escape("test.py") matches inside "pytest.py"
         test_refs = by_name["test.py"]["referencing_files"]
         # BUG: runner.py references "pytest.py" not "test.py", but substring match catc
-        assert "runner.py" in test_refs, (
-            "Expected false positive: 'test.py' matches inside 'pytest.py' via substr"
-        )
+        assert "runner.py" in test_refs, "Expected false positive: 'test.py' matches inside 'pytest.py' via substr"
 
     def test_substring_match_false_positive_suffix(self, tmp_path: Path) -> None:
         """'test.py' matched inside 'test.py.bak' is a false positive."""
@@ -117,8 +110,7 @@ class TestBlastRadiusSymlinks:
     """Test #2: Symlinked files — counted once or twice?"""
 
     def test_symlink_not_double_counted_as_target(self, tmp_path: Path) -> None:
-        """A symlink to a file should not inflate the blast radius of referencing files
-        """
+        """A symlink to a file should not inflate the blast radius of referencing files"""
         (tmp_path / "real.py").write_text("code\n")
         (tmp_path / "link.py").symlink_to(tmp_path / "real.py")
         (tmp_path / "app.sh").write_text("python real.py\n")
@@ -151,13 +143,10 @@ class TestBlastRadiusBinaryFiles:
     """Test #3: Binary files containing filenames as byte sequences."""
 
     def test_binary_file_not_scanned(self, tmp_path: Path) -> None:
-        """Binary files (.png, .whl) are not in SCANNABLE_EXTS — they should be skipped
-        """
+        """Binary files (.png, .whl) are not in SCANNABLE_EXTS — they should be skipped"""
         (tmp_path / "config.toml").write_text("[x]\n")
         # Write binary content that happens to contain "config.toml" as bytes
-        (tmp_path / "icon.png").write_bytes(
-            b"\x89PNG\r\n" + b"config.toml" + b"\x00\x00"
-        )
+        (tmp_path / "icon.png").write_bytes(b"\x89PNG\r\n" + b"config.toml" + b"\x00\x00")
 
         results = br.compute_blast_radius(tmp_path)
         by_name = {r["name"]: r for r in results}
@@ -167,8 +156,7 @@ class TestBlastRadiusBinaryFiles:
         assert "icon.png" not in refs
 
     def test_binary_file_still_appears_as_target(self, tmp_path: Path) -> None:
-        """Binary files should still appear as blast radius targets if their name is re
-        """
+        """Binary files should still appear as blast radius targets if their name is re"""
         (tmp_path / "icon.png").write_bytes(b"\x89PNG\r\n\x00\x00")
         (tmp_path / "app.py").write_text("img = load('icon.png')\n")
 
@@ -292,13 +280,9 @@ class TestBlastRadiusSameNameDifferentDirs:
         assert scripts_radius >= 1, "scripts/config.toml should be found via path match"
         # Fixed: lib/config.toml should NOT match because 'config.toml' in
         # 'scripts/config.toml' is preceded by '/' (not a word boundary)
-        assert lib_radius == 0, (
-            "lib/config.toml should NOT match when content says 'scripts/config.toml'"
-        )
+        assert lib_radius == 0, "lib/config.toml should NOT match when content says 'scripts/config.toml'"
 
-    def test_same_name_files_reference_each_other_false_positive(
-        self, tmp_path: Path
-    ) -> None:
+    def test_same_name_files_reference_each_other_false_positive(self, tmp_path: Path) -> None:
         """Two files named 'config.toml' — each references the OTHER because
         each file's content is scanned for the basename 'config.toml', and
         the other file IS named 'config.toml'. But neither file's CONTENT
@@ -373,9 +357,7 @@ class TestTemporalCouplingAllFilesEveryCommit:
             min_coupling=0.1,
             min_revisions=1,
         )
-        ab = next(
-            c for c in couplings if {c["file_a"], c["file_b"]} == {"a.py", "b.py"}
-        )
+        ab = next(c for c in couplings if {c["file_a"], c["file_b"]} == {"a.py", "b.py"})
         # Jaccard = 5 / (5 + 5 - 5) = 1.0
         assert ab["coupling"] == 1.0
 
@@ -429,13 +411,15 @@ class TestTemporalCouplingMergeCommits:
         # back to main, add c.py
         subprocess.run(
             ["git", "checkout", "master"],
-            cwd=tmp_path, check=False,
+            cwd=tmp_path,
+            check=False,
             capture_output=True,
         )
         # might be main
         subprocess.run(
             ["git", "checkout", "main"],
-            cwd=tmp_path, check=False,
+            cwd=tmp_path,
+            check=False,
             capture_output=True,
         )
         (tmp_path / "c.py").write_text("v1")
@@ -444,7 +428,8 @@ class TestTemporalCouplingMergeCommits:
         # Merge feature → creates a merge commit touching a.py, b.py, c.py
         subprocess.run(
             ["git", "merge", "feature", "--no-edit", "--no-gpg-sign"],
-            cwd=tmp_path, check=False,
+            cwd=tmp_path,
+            check=False,
             capture_output=True,
         )
 
@@ -457,12 +442,9 @@ class TestTemporalCouplingMergeCommits:
             min_revisions=1,
         )
         # b.py and c.py only co-occur in the merge commit, which is filtered
-        bc_coupling = [
-            c for c in couplings if {c["file_a"], c["file_b"]} == {"b.py", "c.py"}
-        ]
+        bc_coupling = [c for c in couplings if {c["file_a"], c["file_b"]} == {"b.py", "c.py"}]
         assert len(bc_coupling) == 0, (
-            "b.py and c.py only co-occur in a merge commit, "
-            "which should be filtered by --no-merges"
+            "b.py and c.py only co-occur in a merge commit, which should be filtered by --no-merges"
         )
 
 
@@ -502,21 +484,11 @@ class TestTemporalCouplingRenamedFiles:
         )
 
         # old.py should still show coupling with partner.py (from historical commits)
-        old_partner = [
-            c
-            for c in couplings
-            if {c["file_a"], c["file_b"]} == {"old.py", "partner.py"}
-        ]
-        assert len(old_partner) > 0, (
-            "Historical coupling between old.py and partner.py persists in git log"
-        )
+        old_partner = [c for c in couplings if {c["file_a"], c["file_b"]} == {"old.py", "partner.py"}]
+        assert len(old_partner) > 0, "Historical coupling between old.py and partner.py persists in git log"
 
         # new.py has only 1 co-change with partner.py — may not meet thresholds
-        new_partner = [
-            c
-            for c in couplings
-            if {c["file_a"], c["file_b"]} == {"new.py", "partner.py"}
-        ]
+        new_partner = [c for c in couplings if {c["file_a"], c["file_b"]} == {"new.py", "partner.py"}]
         # With min_co_changes=1 it should appear, but coupling is weak
         # The key insight: rename breaks the coupling chain
         assert len(new_partner) <= 1  # at most one co-change after rename
@@ -552,12 +524,8 @@ class TestTemporalCouplingDeletedFiles:
         )
 
         # doomed.py should still appear in coupling data from historical commits
-        doomed_couplings = [
-            c for c in couplings if "doomed.py" in (c["file_a"], c["file_b"])
-        ]
-        assert len(doomed_couplings) > 0, (
-            "Deleted file should still appear in coupling output from git history"
-        )
+        doomed_couplings = [c for c in couplings if "doomed.py" in (c["file_a"], c["file_b"])]
+        assert len(doomed_couplings) > 0, "Deleted file should still appear in coupling output from git history"
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -648,9 +616,7 @@ class TestExtractPythonImportsRelative:
         edges = br._extract_python_imports(tmp_path)
         bar_imports = [e for e in edges if "pkg/bar.py" in e[0]]
         # Relative import is now caught
-        assert len(bar_imports) == 1, (
-            "Relative imports (from . import foo) should resolve to pkg/foo.py"
-        )
+        assert len(bar_imports) == 1, "Relative imports (from . import foo) should resolve to pkg/foo.py"
 
     def test_relative_import_with_module(self, tmp_path: Path) -> None:
         """'from .utils import helper' — module is 'utils', level > 0.
@@ -670,9 +636,7 @@ class TestExtractPythonImportsRelative:
         # module_map has 'utils' mapped to 'pkg/utils.py' (via stem)
         # So this DOES get resolved — but only by accident (stem match)
         imported = [e[1] for e in main_imports]
-        assert "pkg/utils.py" in imported, (
-            "Relative import with module resolves via stem match in module_map"
-        )
+        assert "pkg/utils.py" in imported, "Relative import with module resolves via stem match in module_map"
 
 
 class TestExtractPythonImportsDynamic:
@@ -685,18 +649,14 @@ class TestExtractPythonImportsDynamic:
         Dynamic imports are correctly ignored.
         """
         (tmp_path / "foo.py").write_text("x = 1\n")
-        (tmp_path / "loader.py").write_text(
-            "import importlib\nmod = importlib.import_module('foo')\n"
-        )
+        (tmp_path / "loader.py").write_text("import importlib\nmod = importlib.import_module('foo')\n")
 
         edges = br._extract_python_imports(tmp_path)
         loader_imports = [(a, b) for a, b in edges if "loader.py" in a]
 
         # Should find 'import importlib' but not the dynamic import of 'foo'
         imported_files = [b for _, b in loader_imports]
-        assert "foo.py" not in imported_files, (
-            "Dynamic imports should not be caught by AST import extraction"
-        )
+        assert "foo.py" not in imported_files, "Dynamic imports should not be caught by AST import extraction"
 
 
 class TestExtractPythonImportsStarImport:
@@ -713,9 +673,7 @@ class TestExtractPythonImportsStarImport:
         edges = br._extract_python_imports(tmp_path)
         bar_imports = [(a, b) for a, b in edges if "bar.py" in a]
         imported_files = [b for _, b in bar_imports]
-        assert "foo.py" in imported_files, (
-            "Star imports (from foo import *) should be caught via ImportFrom.module"
-        )
+        assert "foo.py" in imported_files, "Star imports (from foo import *) should be caught via ImportFrom.module"
 
 
 class TestExtractPythonImportsConditional:
@@ -729,9 +687,7 @@ class TestExtractPythonImportsConditional:
         """
         (tmp_path / "foo.py").write_text("x = 1\n")
         (tmp_path / "bar.py").write_text("y = 2\n")
-        (tmp_path / "loader.py").write_text(
-            "try:\n    import foo\nexcept ImportError:\n    import bar\n"
-        )
+        (tmp_path / "loader.py").write_text("try:\n    import foo\nexcept ImportError:\n    import bar\n")
 
         edges = br._extract_python_imports(tmp_path)
         loader_imports = [(a, b) for a, b in edges if "loader.py" in a]
@@ -804,8 +760,7 @@ class TestBlastRadiusNonScannableNotSearched:
     """Non-scannable files (e.g., .png) should be targets but not scanners."""
 
     def test_non_scannable_ext_not_scanned_as_source(self, tmp_path: Path) -> None:
-        """A .whl file whose bytes contain 'config.toml' should NOT be a referencing fi
-        """
+        """A .whl file whose bytes contain 'config.toml' should NOT be a referencing fi"""
         (tmp_path / "config.toml").write_text("[x]\n")
         (tmp_path / "package.whl").write_bytes(b"PK\x03\x04config.toml\x00\x00")
 
@@ -855,6 +810,4 @@ class TestImportModuleMapCollisions:
 
         # Ambiguous stem "utils" maps to two files — neither is added to module_map.
         # import utils resolves to nothing (safe), avoiding non-deterministic behavior.
-        assert len(app_imports) == 0, (
-            "Ambiguous stem 'utils' should not resolve to avoid non-determinism"
-        )
+        assert len(app_imports) == 0, "Ambiguous stem 'utils' should not resolve to avoid non-determinism"

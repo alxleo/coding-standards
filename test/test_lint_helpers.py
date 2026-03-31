@@ -74,10 +74,7 @@ class TestExtractErrors:
     def test_filters_noise(self, tmp_path):
         logfile = tmp_path / "test.log"
         logfile.write_text(
-            "[INFO] Starting\n"
-            "- Installing hooks\n"
-            "::group::test\n"
-            "Check YAML.......................Passed\n"
+            "[INFO] Starting\n- Installing hooks\n::group::test\nCheck YAML.......................Passed\n"
         )
         errors = extract_errors(logfile)
         assert len(errors) == 0
@@ -130,20 +127,14 @@ class TestExtractHint:
 
     def test_banner_fallback(self, tmp_path):
         logfile = tmp_path / "test.log"
-        logfile.write_text(
-            "[INFO] Starting\n"
-            "- Installing hooks\n"
-            "Check YAML.....................Failed\n"
-        )
+        logfile.write_text("[INFO] Starting\n- Installing hooks\nCheck YAML.....................Failed\n")
         hint = extract_hint(logfile)
         assert "Failed" in hint
 
     def test_excludes_banner_from_keyword_priority(self, tmp_path):
         """Banner lines with 'Failed' should not match keyword priority."""
         logfile = tmp_path / "test.log"
-        logfile.write_text(
-            "Check YAML.....................Failed\nconfig.yml:3:1 wrong indentation\n"
-        )
+        logfile.write_text("Check YAML.....................Failed\nconfig.yml:3:1 wrong indentation\n")
         hint = extract_hint(logfile)
         assert "config.yml:3:1" in hint
 
@@ -163,12 +154,7 @@ class TestWorkflowCacheAudit:
     def _load_workflow(self):
         import yaml
 
-        wf = (
-            Path(__file__).resolve().parent.parent
-            / ".github"
-            / "workflows"
-            / "lint.yml"
-        )
+        wf = Path(__file__).resolve().parent.parent / ".github" / "workflows" / "lint.yml"
         return yaml.safe_load(wf.read_text())
 
     def test_every_install_step_has_cache(self):
@@ -189,9 +175,7 @@ class TestWorkflowCacheAudit:
         install_steps = [
             s
             for s in steps
-            if s.get("name", "").startswith("Install")
-            and "run" in s
-            and s.get("name", "") not in excluded
+            if s.get("name", "").startswith("Install") and "run" in s and s.get("name", "") not in excluded
         ]
 
         for step in install_steps:
@@ -207,15 +191,6 @@ class TestWorkflowCacheAudit:
         wf = self._load_workflow()
         steps = wf["jobs"]["lint"]["steps"]
 
-        cache_steps = [
-            s
-            for s in steps
-            if isinstance(s.get("uses", ""), str)
-            and "actions/cache@" in s.get("uses", "")
-        ]
-        assert len(cache_steps) == 1, (
-            f"Expected exactly 1 consolidated cache step, found {len(cache_steps)}"
-        )
-        assert cache_steps[0].get("id") == "cache-tools", (
-            "Consolidated cache step must have id: cache-tools"
-        )
+        cache_steps = [s for s in steps if isinstance(s.get("uses", ""), str) and "actions/cache@" in s.get("uses", "")]
+        assert len(cache_steps) == 1, f"Expected exactly 1 consolidated cache step, found {len(cache_steps)}"
+        assert cache_steps[0].get("id") == "cache-tools", "Consolidated cache step must have id: cache-tools"

@@ -74,9 +74,7 @@ class TestSummaryFailure:
         out = capsys.readouterr().out
         # Verify the group name appears on a line that also contains FAIL
         fail_lines = [line for line in out.splitlines() if "FAIL" in line]
-        assert any("Python" in line for line in fail_lines), (
-            f"Expected 'Python' on a FAIL line, got: {fail_lines}"
-        )
+        assert any("Python" in line for line in fail_lines), f"Expected 'Python' on a FAIL line, got: {fail_lines}"
 
     def test_step_summary_failure_table(self, tmp_path):
         summary_file = tmp_path / "summary.md"
@@ -101,9 +99,7 @@ class TestSummaryFailure:
         summary_file = tmp_path / "summary.md"
         env = make_env(str(tmp_path), str(summary_file))
         (tmp_path / "python.outcome").write_text("failure")
-        (tmp_path / "python.log").write_text(
-            "src/main.py:1:1: E302 expected 2 blank lines\n"
-        )
+        (tmp_path / "python.log").write_text("src/main.py:1:1: E302 expected 2 blank lines\n")
 
         with (
             patch.dict("os.environ", env),
