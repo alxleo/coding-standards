@@ -52,6 +52,7 @@ RUN pip install --no-cache-dir \
   zizmor==1.23.1 \
   vulture==2.14 \
   deptry==0.22.0 \
+  networkx==3.6.1 \
   import-linter==2.4
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -112,7 +113,7 @@ COPY semgrep-rules/ /opt/coding-standards/semgrep-rules/
 COPY policies/ /opt/coding-standards/policies/
 
 # ── Mechanism scripts + reporting ─────────────────────────────
-COPY scripts/ci/check-drift.sh scripts/ci/check-expiry.py scripts/megalinter_report_statuses.py scripts/generate_repo_manifest.py scripts/generate_catalog.py scripts/manifest_schema.py scripts/show_warnings.py /opt/coding-standards/scripts/
+COPY scripts/ci/check-drift.sh scripts/ci/check-expiry.py scripts/megalinter_report_statuses.py scripts/generate_repo_manifest.py scripts/generate_catalog.py scripts/manifest_schema.py scripts/show_warnings.py scripts/blast_radius.py /opt/coding-standards/scripts/
 RUN chmod +x /opt/coding-standards/scripts/check-drift.sh /opt/coding-standards/scripts/generate_repo_manifest.py
 
 # ── Linter config files ──────────────────────────────────────

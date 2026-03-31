@@ -78,3 +78,8 @@ test-semgrep:
 [group('check')]
 catalog-gen:
     uv run --with pydantic --with pyyaml python3 scripts/generate_catalog.py
+
+[doc('Change impact analysis (blast radius, coupling, criticality)')]
+[group('check')]
+measure *ARGS:
+    uv run --with networkx --with scipy python3 scripts/blast_radius.py {{ ARGS }}

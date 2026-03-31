@@ -41,6 +41,11 @@ case "${1:-}" in
         cd "$WORKSPACE"
         uv run python3 /opt/coding-standards/scripts/show_warnings.py
         ;;
+    blast-radius)
+        cd "$WORKSPACE"
+        shift
+        python3 /opt/coding-standards/scripts/blast_radius.py "$@"
+        ;;
     help|--help|-h)
         echo "coding-standards — centralized linting image"
         echo ""
@@ -50,6 +55,7 @@ case "${1:-}" in
         echo "  fix             Auto-fix all fixable issues"
         echo "  standards       Run repo-standards checks only"
         echo "  warnings        Show warnings from last run (grouped by linter)"
+        echo "  blast-radius    Change impact analysis (blast radius, coupling, criticality)"
         echo "  catalog         Show full catalog of checks"
         echo "  help            This message"
         echo ""
