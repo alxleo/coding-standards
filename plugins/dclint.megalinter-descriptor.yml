@@ -13,9 +13,7 @@ linters:
       - lint
     cli_help_arg_name: --help
     cli_version_arg_name: --version
-    file_extensions:
-      - .yml
-      - .yaml
+    file_extensions: []
     file_names_regex:
       - (^|/)docker-compose[^/]*\.ya?ml$
       - (^|/)compose[^/]*\.ya?ml$

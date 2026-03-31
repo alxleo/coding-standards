@@ -47,6 +47,7 @@ SKIP_HOOKS = {
     "check-ci-json-coverage",
     "check-config-flags",
     "check-hook-deps",
+    "check-megalinter-config-paths",
 }
 
 CONFIG_FLAGS = {"--config", "-c", "--config-file"}

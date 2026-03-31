@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+"""Verify _CONFIG_FILE values in .mega-linter-default.yml are relative, not absolute.
+
+MegaLinter resolves _CONFIG_FILE by concatenating workspace + "/" + value.
+Absolute paths like /opt/coding-standards/configs/ruff.toml produce
+/tmp/lint//opt/coding-standards/configs/ruff.toml — which doesn't exist.
+Every _CONFIG_FILE must be a bare filename (resolved via LINTER_RULES_PATH).
+"""
+
+import sys
+from pathlib import Path
+
+import yaml
+
+root = Path(__file__).resolve().parent.parent.parent
+config = root / ".mega-linter-default.yml"
+
+data = yaml.safe_load(config.read_text())
+if not isinstance(data, dict):
+    print(f"Invalid config: {config}")
+    sys.exit(1)
+
+errors = []
+for key, value in sorted(data.items()):
+    if not key.endswith("_CONFIG_FILE"):
+        continue
+    if not isinstance(value, str):
+        continue
+    if "/" in value:
+        errors.append(f"{key}: {value} — must be a bare filename, not a path")
+
+if errors:
+    print("Absolute/relative paths in _CONFIG_FILE (must be bare filenames):")
+    for e in errors:
+        print(f"  ✗ {e}")
+    print(f"\nMegaLinter resolves via LINTER_RULES_PATH: {data.get('LINTER_RULES_PATH', '(not set)')}")
+    print("Use just the filename (e.g., ruff.toml not /opt/.../ruff.toml)")
+    sys.exit(1)
