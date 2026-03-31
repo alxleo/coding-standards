@@ -110,11 +110,13 @@ def extract_rego_rules(policy_dir: Path, _kind: str) -> list[dict]:
 
 def _find_lint_configs(root: Path) -> Path:
     """Find lint-configs directory (different name locally vs in container)."""
+    tried: list[Path] = []
     for name in ("lint-configs-626465", "configs"):
         p = root / name
         if p.is_dir():
             return p
-    msg = f"Cannot find lint configs directory under {root}"
+        tried.append(p)
+    msg = f"Cannot find lint configs directory under {root}; tried: {', '.join(str(p) for p in tried)}"
     raise FileNotFoundError(msg)
 
 
