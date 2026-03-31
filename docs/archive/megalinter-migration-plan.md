@@ -405,7 +405,7 @@ Once Phase 2 is complete, these become obsolete:
 
 What stays:
 
-- `lint-configs-626465/` — linter config files (referenced by MegaLinter via `*_CONFIG_FILE` env vars)
+- `lint-configs/` — linter config files (referenced by MegaLinter via `*_CONFIG_FILE` env vars)
 - `scripts/hooks/` — custom hook scripts (now invoked by MegaLinter plugins instead of pre-commit)
 - `scripts/report-statuses.py` — rewritten to read MegaLinter JSON
 - `test/` — updated for new architecture
