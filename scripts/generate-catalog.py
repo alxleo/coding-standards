@@ -40,7 +40,12 @@ def extract_linters(root: Path) -> tuple[list[str], list[str]]:
                 enable.append(name)
             else:
                 disable_errors.append(name)
-        elif current and not line.strip().startswith("#") and line.strip() and not line.startswith(" "):
+        elif (
+            current
+            and not line.strip().startswith("#")
+            and line.strip()
+            and not line.startswith(" ")
+        ):
             current = None
 
     error_tier = [l for l in enable if l not in disable_errors]
@@ -57,12 +62,14 @@ def extract_semgrep_rules(root: Path) -> list[dict]:
         data = yaml.safe_load(f.read_text())
         for rule in data.get("rules", []):
             msg = rule.get("message", "").strip().split("\n")[0].strip()
-            rules.append({
-                "file": f.name,
-                "id": rule["id"],
-                "severity": rule.get("severity", "WARNING"),
-                "message": msg,
-            })
+            rules.append(
+                {
+                    "file": f.name,
+                    "id": rule["id"],
+                    "severity": rule.get("severity", "WARNING"),
+                    "message": msg,
+                }
+            )
     return rules
 
 
@@ -75,19 +82,22 @@ def extract_rego_rules(policy_dir: Path, kind: str) -> list[dict]:
         text = f.read_text()
         # Match msg := concat(..., ["first line", ...]) or msg := sprintf("...", ...)  or msg := "..."
         for match in re.finditer(
-            r'(warn|deny)\s+contains\s+msg\s+if\s*\{.*?msg\s*:=\s*'
+            r"(warn|deny)\s+contains\s+msg\s+if\s*\{.*?msg\s*:=\s*"
             r'(?:concat\([^[]*\[\s*"([^"]+)"'
             r'|sprintf\(\s*"([^"]+)"'
             r'|"([^"]+)")',
-            text, re.DOTALL,
+            text,
+            re.DOTALL,
         ):
             level = match.group(1)
             msg = match.group(2) or match.group(3) or match.group(4)
-            rules.append({
-                "file": f.name,
-                "level": level,
-                "message": msg.strip(),
-            })
+            rules.append(
+                {
+                    "file": f.name,
+                    "level": level,
+                    "message": msg.strip(),
+                }
+            )
     return rules
 
 
@@ -161,7 +171,9 @@ def generate(root: Path) -> str:
     lines.append("")
 
     # Repo standards
-    standards = extract_rego_rules(root / "policies" / "repo-standards", "repo-standards")
+    standards = extract_rego_rules(
+        root / "policies" / "repo-standards", "repo-standards"
+    )
     lines.append(f"## Repo standards ({len(standards)})")
     lines.append("")
     for r in standards:
@@ -182,7 +194,9 @@ if __name__ == "__main__":
             sys.exit(1)
         existing = catalog.read_text()
         if existing != content:
-            print("docs/catalog.md is out of date — regenerate with: python3 scripts/generate-catalog.py")
+            print(
+                "docs/catalog.md is out of date — regenerate with: python3 scripts/generate-catalog.py"
+            )
             sys.exit(1)
         print("docs/catalog.md is up to date")
     else:

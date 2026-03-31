@@ -96,7 +96,9 @@ def check_pyproject_dep(root: Path, dep_name: str) -> bool:
     return any(dep_re.match(dep) for deps in dep_lists for dep in deps)
 
 
-def _count_large_shell(root: Path, threshold: int, skip_paths: set[str] | None = None) -> int:
+def _count_large_shell(
+    root: Path, threshold: int, skip_paths: set[str] | None = None
+) -> int:
     """Count shell scripts exceeding threshold lines, skipping acknowledged paths."""
     count = 0
     for f in root.rglob("*.sh"):
@@ -230,8 +232,7 @@ def _acknowledged_paths(acknowledged: dict, check_id: str) -> set[str]:
     if not isinstance(value, list):
         return set()
     return {
-        entry["path"] for entry in value
-        if isinstance(entry, dict) and "path" in entry
+        entry["path"] for entry in value if isinstance(entry, dict) and "path" in entry
     }
 
 
@@ -319,7 +320,9 @@ def generate(root: Path) -> dict:
             "zod": check_package_json_dep(root, "zod"),
             "pydantic": check_pyproject_dep(root, "pydantic"),
             "import_linter": check_pyproject_dep(root, "import-linter"),
-            "import_linter_configured": _has_toml_section(root / "pyproject.toml", "tool", "importlinter"),
+            "import_linter_configured": _has_toml_section(
+                root / "pyproject.toml", "tool", "importlinter"
+            ),
             "hypothesis": check_pyproject_dep(root, "hypothesis"),
             "stryker": check_package_json_dep(root, "@stryker-mutator/core"),
         },

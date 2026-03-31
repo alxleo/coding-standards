@@ -70,4 +70,3 @@ warn contains msg if {
 		"  Shell scripts are hard to test; Python scripts get pytest for free.",
 	]), [input.content.shell_scripts_over_50_lines])
 }
-

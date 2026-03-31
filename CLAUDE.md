@@ -71,7 +71,8 @@ EXTENDS:
   - https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml
 ```
 
-Full consumer guide: https://github.com/alxleo/coding-standards/blob/main/docs/consumer-guide.md
+Full consumer guide: [docs/consumer-guide.md](https://github.com/alxleo/coding-standards/blob/main/docs/consumer-guide.md)
+Decision rationale: [docs/config-decisions.md](https://github.com/alxleo/coding-standards/blob/main/docs/config-decisions.md)
 
 ## Repository layout
 
@@ -105,6 +106,7 @@ docs/
   catalog.md                        # GENERATED — full inventory of all checks
   consumer-guide.md                 # Getting started + customization + contributing
   config-decisions.md               # Every decision with rationale
+  archive/                          # Historical: migration plan, old architecture decisions
 
 .ci.json                            # Data-driven smoke tests (tool --version + policy tests)
 .github/workflows/

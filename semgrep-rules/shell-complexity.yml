@@ -1,3 +1,6 @@
+# Note: nested control flow (for+if) and complex awk can't be reliably
+# expressed in semgrep's bash parser. The shell-scripts-over-50-lines
+# repo-standard catches the consequence (scripts that outgrew shell).
 rules:
   - id: shell-json-parsing
     pattern-either:
@@ -12,6 +15,3 @@ rules:
     metadata:
       category: maintainability
       technology: [bash]
-  # Note: nested control flow (for+if) and complex awk can't be reliably
-  # expressed in semgrep's bash parser. The shell-scripts-over-50-lines
-  # repo-standard catches the consequence (scripts that outgrew shell).
