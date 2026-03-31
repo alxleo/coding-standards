@@ -9,4 +9,4 @@ rules:
     ignore:
       # Pre-commit + UV caches: deterministic tool installs keyed on lock file hashes.
       # Not build artifacts — cache poisoning risk is negligible.
-      - ci.yml
+      - .github/workflows/ci.yml

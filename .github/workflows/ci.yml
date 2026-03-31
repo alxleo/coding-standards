@@ -57,7 +57,6 @@ jobs:
         with:
           path: ~/.cache/pre-commit
           key: pre-commit-${{ hashFiles('lint-configs-626465/.pre-commit-config.yaml') }}
-          restore-keys: pre-commit-
 
       - name: just check
         run: just check
@@ -163,7 +162,7 @@ jobs:
             failed=0
             while IFS= read -r cmd; do
               printf "  → %s\n" "$cmd"
-              if ! eval "$cmd" > /dev/null 2>&1; then
+              if ! eval "$cmd" 2>&1; then
                 printf "    FAIL: %s\n" "$cmd"
                 failed=1
               fi
