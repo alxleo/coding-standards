@@ -130,16 +130,32 @@ docs/
 
 ## Contributing new checks
 
-1. **Where does it live?**
-   - File/config presence → `policies/repo-standards/` + manifest field
-   - Code pattern → `semgrep-rules/`
-   - Config content validation → `policies/compose/`
-   - Code quality rule → `lint-configs-626465/ruff.toml`
+### Where does it live?
 
-2. **Add the check** (Rego policy, semgrep rule, or ruff category)
-3. **Add tests** (`conftest verify`, `semgrep --validate`)
-4. **Regenerate catalog**: `python3 scripts/generate-catalog.py`
-5. **Test against a real repo**: `python3 scripts/generate-repo-manifest.py ~/path/to/repo`
+| Check type | Files to touch | Auto-detection |
+|---|---|---|
+| **Repo setup** (file/dep presence) | manifest field in `generate-repo-manifest.py` + `manifest_schema.py` + `policies/repo-standards/*.rego` + `*_test.rego` + `test/test_generate_repo_manifest.py` | Manifest scans repo |
+| **Code pattern** (anti-pattern in source) | `semgrep-rules/*.yml` | Semgrep matches patterns |
+| **Config content** (compose/YAML validation) | `policies/compose/*.rego` + `*_test.rego` | Conftest parses files |
+| **Code quality rule** | `lint-configs-626465/ruff.toml` (add category) | Ruff runs on .py files |
+| **New linter tool** | `Dockerfile` (install) + `plugins/*.yml` (descriptor) + `.mega-linter-default.yml` (3 places: ENABLE + DISABLE_ERRORS + PLUGINS) + `.ci.json` (smoke test) | MegaLinter orchestrates |
+| **ESLint rule** | `lint-configs-626465/eslint.config.mjs` | ESLint runs on .js/.ts |
+
+### What's automated
+
+- `docs/catalog.md` regenerates via `scripts/hooks/regenerate-catalog` pre-commit hook when source files change
+- Pydantic schema in `manifest_schema.py` validates manifest structure — wrong field name is a runtime error
+- `conftest verify` in `.ci.json` catches broken Rego policies in Docker build
+- `semgrep --validate` in `.ci.json` catches broken semgrep rules in Docker build
+
+### Checklist for adding a new linter tool
+
+1. Install in `Dockerfile` (pip/npm + version pin)
+2. Create `plugins/<tool>.megalinter-descriptor.yml`
+3. Add to `.mega-linter-default.yml`: `ENABLE_LINTERS` + `DISABLE_ERRORS_LINTERS` (warn tier) + `PLUGINS`
+4. Add `<tool> --version` to `.ci.json`
+5. Pre-commit runs `generate-catalog.py` automatically
+6. Test: `docker build` + entrypoint commands
 
 ## Developing the image
 
