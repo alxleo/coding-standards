@@ -105,8 +105,8 @@ COPY semgrep-rules/ /opt/coding-standards/semgrep-rules/
 COPY policies/ /opt/coding-standards/policies/
 
 # ── Mechanism scripts + reporting ─────────────────────────────
-COPY scripts/ci/check-drift.sh scripts/ci/check-expiry.py scripts/report-statuses.py /opt/coding-standards/scripts/
-RUN chmod +x /opt/coding-standards/scripts/check-drift.sh
+COPY scripts/ci/check-drift.sh scripts/ci/check-expiry.py scripts/report-statuses.py scripts/generate-repo-manifest.py /opt/coding-standards/scripts/
+RUN chmod +x /opt/coding-standards/scripts/check-drift.sh /opt/coding-standards/scripts/generate-repo-manifest.py
 
 # ── Linter config files ──────────────────────────────────────
 # Baked into image at /opt/coding-standards/configs

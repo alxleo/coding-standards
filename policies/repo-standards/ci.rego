@@ -26,18 +26,18 @@ warn contains msg if {
 }
 
 warn contains msg if {
-	input.directories.github_workflows
+	helpers.has_ci_workflows
 	not input.ci.workflow_uses_composite_action
 	not helpers.acknowledged("composite_action")
 	msg := concat("\n", [
 		"No workflow references coding-standards/docker-action",
 		"  The composite action is the standard way to run MegaLinter in CI.",
-		"  Fix: add uses: alxleo/coding-standards/docker-action@v1 to your lint workflow",
+		"  Fix: add uses: alxleo/coding-standards/docker-action@<sha> # v1 — SHA-pin for supply chain safety",
 	])
 }
 
 warn contains msg if {
-	input.directories.github_workflows
+	helpers.has_ci_workflows
 	not input.ci.workflow_fetch_depth_zero
 	not helpers.acknowledged("fetch_depth")
 	msg := concat("\n", [
@@ -48,14 +48,14 @@ warn contains msg if {
 }
 
 warn contains msg if {
-	input.directories.github_workflows
+	helpers.has_ci_workflows
 	not input.ci.workflow_persist_credentials_false
 	not helpers.acknowledged("persist_credentials")
 	msg := "persist-credentials: false not set in checkout — security best practice"
 }
 
 warn contains msg if {
-	input.directories.github_workflows
+	helpers.has_ci_workflows
 	not input.ci.workflow_actions_sha_pinned
 	not helpers.acknowledged("sha_pinned")
 	msg := concat("\n", [

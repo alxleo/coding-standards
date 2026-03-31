@@ -1,6 +1,6 @@
 descriptor_id: REPOSITORY
 descriptor_type: other
-lint_all_files: false
+lint_all_files: true
 linters:
   - linter_name: repo-standards
     name: REPOSITORY_REPO_STANDARDS

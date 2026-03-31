@@ -7,3 +7,12 @@ import rego.v1
 acknowledged(check_id) if {
 	input.acknowledged[check_id]
 }
+
+# True when the repo has workflow files in either GitHub or Gitea location.
+has_ci_workflows if {
+	input.directories.github_workflows
+}
+
+has_ci_workflows if {
+	input.directories.gitea_workflows
+}
