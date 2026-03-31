@@ -22,6 +22,32 @@ warn contains msg if {
 }
 
 warn contains msg if {
+	input.files.pre_commit_config
+	not _has_hook("gitleaks")
+	not helpers.acknowledged("pre_commit_gitleaks")
+	msg := concat("\n", [
+		"pre-commit config missing gitleaks hook",
+		"  Secrets committed to git are leaked forever (even after removal).",
+		"  Fix: add gitleaks hook to .pre-commit-config.yaml",
+	])
+}
+
+warn contains msg if {
+	input.files.pre_commit_config
+	not _has_hook("detect-private-key")
+	not helpers.acknowledged("pre_commit_detect_private_key")
+	msg := concat("\n", [
+		"pre-commit config missing detect-private-key hook",
+		"  Private keys (.pem, .key) must never reach git history.",
+		"  Fix: add detect-private-key from pre-commit-hooks to .pre-commit-config.yaml",
+	])
+}
+
+_has_hook(hook_id) if {
+	hook_id == input.content.pre_commit_hooks[_]
+}
+
+warn contains msg if {
 	not input.files.commitlint_config
 	not helpers.acknowledged("commitlint_config")
 	msg := "No commitlint config found — conventional commits make history readable"

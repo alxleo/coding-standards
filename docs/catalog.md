@@ -144,7 +144,7 @@ Generated from config files — this IS the source of truth.
 - **warn**: service '%s' exposes port %s to all interfaces — bind to 127.0.0.1 unless intentionally public (security.rego)
 - **deny**: service '%s' mounts sensitive host path '%s' (security.rego)
 
-## Repo standards (45)
+## Repo standards (47)
 
 - **warn**: .mega-linter.yml not found (ci.rego)
 - **warn**: .mega-linter.yml exists but has no EXTENDS URL (ci.rego)
@@ -181,6 +181,8 @@ Generated from config files — this IS the source of truth.
 - **warn**: hypothesis not in dependencies (python.rego)
 - **warn**: No CI workflow directory found (.github/workflows/ or .gitea/workflows/) (quality.rego)
 - **warn**: .pre-commit-config.yaml not found (quality.rego)
+- **warn**: pre-commit config missing gitleaks hook (quality.rego)
+- **warn**: pre-commit config missing detect-private-key hook (quality.rego)
 - **warn**: No commitlint config found — conventional commits make history readable (quality.rego)
 - **warn**: .envrc not found (quality.rego)
 - **warn**: %d suppression comments found across codebase (quality.rego)

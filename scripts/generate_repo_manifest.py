@@ -19,6 +19,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 EXCLUDES = {
     ".git",
     ".worktrees",
@@ -149,6 +151,26 @@ def check_package_json_dep(root: Path, dep_name: str) -> bool:
         return False
     text = pkg.read_text(errors="replace")
     return dep_name in text
+
+
+def _extract_pre_commit_hooks(root: Path) -> list[str]:
+    """Extract hook IDs from .pre-commit-config.yaml."""
+    pc = root / ".pre-commit-config.yaml"
+    if not pc.exists():
+        return []
+    try:
+        data = yaml.safe_load(pc.read_text(errors="replace"))
+    except (yaml.YAMLError, OSError):
+        return []
+    if not isinstance(data, dict):
+        return []
+    hooks = []
+    for repo in data.get("repos") or []:
+        for hook in repo.get("hooks") or []:
+            hook_id = hook.get("id", "")
+            if hook_id:
+                hooks.append(hook_id)
+    return sorted(hooks)
 
 
 def extract_extends_url(root: Path) -> str | None:
@@ -417,6 +439,7 @@ def generate(root: Path) -> dict[str, Any]:
                 for _ in root.rglob("Dockerfile*")
                 if not _is_excluded(_.relative_to(root))
             ),
+            "pre_commit_hooks": _extract_pre_commit_hooks(root),
         },
         "dependencies": {
             "pytest_randomly": check_pyproject_dep(root, "pytest-randomly"),

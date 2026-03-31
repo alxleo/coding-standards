@@ -52,6 +52,7 @@ class ManifestContent(BaseModel):
     shell_scripts_over_50_lines: int
     dockerfile_files: int
     python_files_with_hyphens: int
+    pre_commit_hooks: list[str]
 
 
 class ManifestDependencies(BaseModel):
