@@ -6,7 +6,7 @@ config path, and checks if the workspace root contains a local file that would
 shadow (override) the baked config.
 
 Usage:
-    show-config.py [workspace] [--mega-linter-yml PATH]
+    show_config.py [workspace] [--mega-linter-yml PATH]
     # default workspace: current directory
     # default yml: /opt/coding-standards/.mega-linter-default.yml
 """
@@ -54,12 +54,19 @@ _SHADOW_NAMES: dict[str, list[str]] = {
 }
 
 
-def _extract_config_entries(yml_path: Path) -> list[dict[str, str]]:
-    """Parse _CONFIG_FILE entries from the MegaLinter YAML config.
+def _parse_yml(yml_path: Path) -> dict:
+    """Parse MegaLinter YAML config with None guard."""
+    data = yaml.safe_load(yml_path.read_text())
+    if not isinstance(data, dict):
+        return {}
+    return data
+
+
+def _extract_config_entries(data: dict) -> list[dict[str, str]]:
+    """Extract _CONFIG_FILE entries from parsed MegaLinter config.
 
     Returns a list of dicts with keys: linter, config_path, config_basename.
     """
-    data = yaml.safe_load(yml_path.read_text())
     entries = []
     for key, value in sorted(data.items()):
         if key.endswith("_CONFIG_FILE") and isinstance(value, str):
@@ -85,8 +92,8 @@ def show_config(workspace: Path, yml_path: Path) -> list[dict[str, str]]:
 
     Returns list of dicts with: linter, config_file, tier, shadow.
     """
-    entries = _extract_config_entries(yml_path)
-    data = yaml.safe_load(yml_path.read_text())
+    data = _parse_yml(yml_path)
+    entries = _extract_config_entries(data)
     warn_linters = set(data.get("DISABLE_ERRORS_LINTERS", []))
 
     rows = []

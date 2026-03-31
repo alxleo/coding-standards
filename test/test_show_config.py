@@ -23,6 +23,7 @@ _spec.loader.exec_module(_mod)
 show_config = _mod.show_config
 main = _mod.main
 _extract_config_entries = _mod._extract_config_entries
+_parse_yml = _mod._parse_yml
 _find_shadows = _mod._find_shadows
 
 
@@ -66,20 +67,20 @@ def workspace_with_ruff(tmp_path: Path) -> Path:
 
 class TestExtractConfigEntries:
     def test_extracts_config_file_keys(self, sample_yml: Path) -> None:
-        entries = _extract_config_entries(sample_yml)
+        entries = _extract_config_entries(_parse_yml(sample_yml))
         linters = [e["linter"] for e in entries]
         assert "PYTHON_RUFF" in linters
         assert "BASH_SHELLCHECK" in linters
         assert "YAML_YAMLLINT" in linters
 
     def test_extracts_basenames(self, sample_yml: Path) -> None:
-        entries = _extract_config_entries(sample_yml)
+        entries = _extract_config_entries(_parse_yml(sample_yml))
         basenames = {e["linter"]: e["config_basename"] for e in entries}
         assert basenames["PYTHON_RUFF"] == "ruff.toml"
         assert basenames["BASH_SHELLCHECK"] == ".shellcheckrc"
 
     def test_ignores_non_config_keys(self, sample_yml: Path) -> None:
-        entries = _extract_config_entries(sample_yml)
+        entries = _extract_config_entries(_parse_yml(sample_yml))
         # ENABLE_LINTERS and DISABLE_ERRORS_LINTERS should NOT appear
         linters = [e["linter"] for e in entries]
         assert "ENABLE_LINTERS" not in linters
