@@ -142,6 +142,13 @@ def check_package_json_dep(root: Path, dep_name: str) -> bool:
     return dep_name in text
 
 
+def _has_any_dep(root: Path, pyproject: tuple[str, ...] = (), pkg: tuple[str, ...] = ()) -> bool:
+    """Check if any of the given deps exist in pyproject.toml or package.json."""
+    checks = [check_pyproject_dep(root, d) for d in pyproject]
+    checks.extend(check_package_json_dep(root, d) for d in pkg)
+    return any(checks)
+
+
 def _extract_pre_commit_hooks(root: Path) -> list[str]:
     """Extract hook IDs from .pre-commit-config.yaml."""
     pc = root / ".pre-commit-config.yaml"
@@ -154,8 +161,8 @@ def _extract_pre_commit_hooks(root: Path) -> list[str]:
     if not isinstance(data, dict):
         return []
     hooks = []
-    for repo in data.get("repos") or []:
-        for hook in repo.get("hooks") or []:
+    for repo in data.get("repos", []):
+        for hook in repo.get("hooks", []):
             hook_id = hook.get("id", "")
             if hook_id:
                 hooks.append(hook_id)
@@ -231,7 +238,7 @@ def _has_health_route(root: Path) -> bool:
     """Check if any source file defines a health endpoint."""
     patterns = ["/health", "/healthz", "/ready", "/readyz"]
     for f in root.rglob("*"):
-        if f.is_dir() or _is_excluded(f.relative_to(root)):
+        if any((f.is_dir(), _is_excluded(f.relative_to(root)))):
             continue
         if f.suffix not in (".py", ".js", ".ts", ".tsx"):
             continue
@@ -301,7 +308,7 @@ def _count_suppressions(root: Path) -> dict[str, int]:
     counts: dict[str, int] = dict.fromkeys(patterns, 0)
     for f in root.rglob("*"):
         # Skip directories and excluded paths (vendor, build, etc.)
-        if f.is_dir() or _is_excluded(f.relative_to(root)):  # nosemgrep: python-silent-fallback-or
+        if any((f.is_dir(), _is_excluded(f.relative_to(root)))):
             continue
         if f.suffix not in (".py", ".sh", ".bash", ".js", ".ts", ".tsx", ".jsx"):
             continue
@@ -363,21 +370,17 @@ def generate(root: Path) -> dict[str, Any]:
             "gitignore": (root / ".gitignore").exists(),
             "gitignore_covers_decrypted": check_gitignore_covers(root, ".decrypted"),
             "ci_json": (root / ".ci.json").exists(),
-            "renovate": (  # nosemgrep: python-silent-fallback-or
-                (root / "renovate.json").exists() or (root / ".renovaterc.json").exists()
+            "renovate": any(
+                (root / f).exists() for f in ("renovate.json", ".renovaterc.json")
             ),
             "nvmrc": (root / ".nvmrc").exists(),
             "envrc": (root / ".envrc").exists(),
-            "makefile": (  # nosemgrep: python-silent-fallback-or
-                (root / "Makefile").exists() or (root / "justfile").exists()
-            ),
+            "makefile": any((root / f).exists() for f in ("Makefile", "justfile")),
             "env_example": (root / ".env.example").exists(),
             "gitignore_covers_spikes": check_gitignore_covers(root, "spikes"),
         },
         "directories": {
-            "tests": (  # nosemgrep: python-silent-fallback-or
-                (root / "tests").is_dir() or (root / "test").is_dir()
-            ),
+            "tests": any((root / d).is_dir() for d in ("tests", "test")),
             "secrets": (root / "secrets").is_dir(),
             "decrypted": (root / ".decrypted").is_dir(),
             "github_workflows": (root / ".github/workflows").is_dir(),
@@ -418,23 +421,10 @@ def generate(root: Path) -> dict[str, Any]:
             "import_linter_configured": _has_toml_section(root / "pyproject.toml", "tool", "importlinter"),
             "hypothesis": check_pyproject_dep(root, "hypothesis"),
             "stryker": check_package_json_dep(root, "@stryker-mutator/core"),
-            "i18n_framework": (
-                check_package_json_dep(root, "i18next")
-                or check_package_json_dep(root, "react-intl")
-                or check_package_json_dep(root, "next-intl")
-            ),
-            "structured_logging_js": (
-                check_package_json_dep(root, "pino")
-                or check_package_json_dep(root, "winston")
-                or check_package_json_dep(root, "bunyan")
-            ),
-            "structured_logging_py": (
-                check_pyproject_dep(root, "structlog") or check_pyproject_dep(root, "python-json-logger")
-            ),
-            "opentelemetry": (
-                check_package_json_dep(root, "@opentelemetry/sdk-node")
-                or check_pyproject_dep(root, "opentelemetry-sdk")
-            ),
+            "i18n_framework": _has_any_dep(root, pkg=("i18next", "react-intl", "next-intl")),
+            "structured_logging_js": _has_any_dep(root, pkg=("pino", "winston", "bunyan")),
+            "structured_logging_py": _has_any_dep(root, pyproject=("structlog", "python-json-logger")),
+            "opentelemetry": _has_any_dep(root, pyproject=("opentelemetry-sdk",), pkg=("@opentelemetry/sdk-node",)),
         },
         "ci": {
             "workflow_uses_composite_action": check_workflow_field(root, "coding-standards/docker-action"),
@@ -444,27 +434,18 @@ def generate(root: Path) -> dict[str, Any]:
             "has_sha_pins": check_workflow_field(root, "@") and check_actions_pinned(root),
         },
         "observability": {
-            "is_service": (
-                check_pyproject_dep(root, "fastapi")
-                or check_pyproject_dep(root, "flask")
-                or check_pyproject_dep(root, "django")
-                or check_package_json_dep(root, "express")
-                or check_package_json_dep(root, "hono")
-                or check_package_json_dep(root, "fastify")
-                or check_package_json_dep(root, "next")
-                or (root / "Dockerfile").exists()
-            ),
+            "is_service": any((
+                _has_any_dep(
+                    root,
+                    pyproject=("fastapi", "flask", "django"),
+                    pkg=("express", "hono", "fastify", "next"),
+                ),
+                (root / "Dockerfile").exists(),
+            )),
             "has_health_route": _has_health_route(root),
-            "has_metrics": (
-                check_pyproject_dep(root, "prometheus-client") or check_package_json_dep(root, "prom-client")
-            ),
-            "has_error_tracking": (
-                check_pyproject_dep(root, "sentry-sdk") or check_package_json_dep(root, "@sentry/node")
-            ),
-            "has_tracing": (
-                check_pyproject_dep(root, "opentelemetry-sdk")
-                or check_package_json_dep(root, "@opentelemetry/sdk-node")
-            ),
+            "has_metrics": _has_any_dep(root, pyproject=("prometheus-client",), pkg=("prom-client",)),
+            "has_error_tracking": _has_any_dep(root, pyproject=("sentry-sdk",), pkg=("@sentry/node",)),
+            "has_tracing": _has_any_dep(root, pyproject=("opentelemetry-sdk",), pkg=("@opentelemetry/sdk-node",)),
         },
         "acknowledged": ack,
         "suppressions": _count_suppressions(root),

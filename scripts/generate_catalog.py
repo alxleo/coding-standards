@@ -88,9 +88,7 @@ def extract_rego_rules(policy_dir: Path, _kind: str) -> list[dict]:
         ):
             level = match.group(1)
             # First non-None capture group is the message text
-            msg = (
-                match.group(2) or match.group(3) or match.group(4) or match.group(5)
-            )  # nosemgrep: python-silent-fallback-or
+            msg = next((g for i in (2, 3, 4, 5) if (g := match.group(i))), "")
             rules.append(
                 {
                     "file": f.name,

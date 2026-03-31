@@ -39,7 +39,10 @@ select = [
 # ISC001 (single-line implicit concat) conflicts with ruff formatter —
 # formatter can produce code that ISC001 flags, creating a loop.
 # Ruff docs recommend this exclusion when using the formatter.
-extend-per-file-ignores = { "**" = ["ISC001"] }
+# FURB110 ("use or instead of ternary") contradicts our semgrep
+# python-silent-fallback-or rule which flags or-fallbacks. Semgrep's
+# rule has more nuance — it allows boolean or but flags value fallbacks.
+extend-per-file-ignores = { "**" = ["ISC001", "FURB110"] }
 
 [lint.per-file-ignores]
 # Test files: allow assert, /tmp, subprocess, magic values, unused args, imports

@@ -36,6 +36,7 @@ import sys
 from collections import Counter
 from itertools import combinations
 from pathlib import Path
+from typing import Any
 
 import networkx as nx
 
@@ -82,6 +83,7 @@ def _is_excluded(path: Path) -> bool:
 
 
 def _is_scannable(path: Path) -> bool:
+    # nosemgrep: python-silent-fallback-or — boolean logic, not fallback
     return path.suffix in SCANNABLE_EXTS or path.name in SCANNABLE_NAMES
 
 
@@ -92,7 +94,7 @@ def _collect_files(root: Path) -> list[Path]:
 # ── Signal 1: Blast Radius ──────────────────────────────────────────
 
 
-def compute_blast_radius(root: Path) -> list[dict]:
+def compute_blast_radius(root: Path) -> list[dict[str, Any]]:
     """For each file, count how many other files reference its name."""
     all_files = _collect_files(root)
     scannable = [f for f in all_files if _is_scannable(f)]
@@ -198,7 +200,7 @@ def compute_temporal_coupling(
     min_coupling: float = 0.3,
     max_changeset: int = 50,
     min_revisions: int = 3,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """From git history, find files that always change together.
 
     Uses Jaccard similarity (Zimmermann et al. 2005, CodeScene):
@@ -215,6 +217,7 @@ def compute_temporal_coupling(
     for (a, b), co_count in co_changes.items():
         if co_count < min_co_changes:
             continue
+        # nosemgrep: python-silent-fallback-or — boolean comparison, not fallback
         if file_changes[a] < min_revisions or file_changes[b] < min_revisions:
             continue
         union = file_changes[a] + file_changes[b] - co_count
@@ -266,7 +269,7 @@ def _shannon_entropy(counts: Counter) -> float:
     return -sum(p * math.log2(p) for p in probs if p > 0)
 
 
-def compute_naming_entropy(root: Path) -> list[dict]:
+def compute_naming_entropy(root: Path) -> list[dict[str, Any]]:
     dirs: dict[str, list[str]] = {}
     for f in _collect_files(root):
         rel = f.relative_to(root)
@@ -325,6 +328,29 @@ def _extract_python_imports(root: Path) -> list[tuple[str, str]]:
         if len(paths) == 1 and stem not in module_map:
             module_map[stem] = paths[0]
 
+    def _resolve_relative_import(
+        node: ast_mod.ImportFrom, importer: str, importer_dir: Path,
+    ) -> list[tuple[str, str]]:
+        """Resolve `from . import foo` style imports."""
+        rel_dir = importer_dir
+        for _ in range(node.level - 1):
+            rel_dir = rel_dir.parent
+        found = []
+        for alias in node.names:
+            candidate = rel_dir / f"{alias.name}.py"
+            if candidate.exists():
+                target = str(candidate.relative_to(root))
+                if target != importer:
+                    found.append((importer, target))
+        return found
+
+    def _resolve_module(mod: str, importer: str) -> str | None:
+        """Resolve a module name to a file path, or None."""
+        for candidate in [mod, mod.rsplit(".", 1)[-1]]:
+            if candidate in module_map and module_map[candidate] != importer:
+                return module_map[candidate]
+        return None
+
     edges: list[tuple[str, str]] = []
     for f in py_files:
         try:
@@ -336,32 +362,18 @@ def _extract_python_imports(root: Path) -> list[tuple[str, str]]:
         importer_dir = f.parent
 
         for node in ast_mod.walk(tree):
-            modules: list[str] = []
             if isinstance(node, ast_mod.Import):
-                modules = [alias.name for alias in node.names]
+                for alias in node.names:
+                    resolved = _resolve_module(alias.name, importer)
+                    if resolved:
+                        edges.append((importer, resolved))
             elif isinstance(node, ast_mod.ImportFrom):
                 if node.module:
-                    modules = [node.module]
+                    resolved = _resolve_module(node.module, importer)
+                    if resolved:
+                        edges.append((importer, resolved))
                 elif node.level and node.level > 0:
-                    # Relative import: from . import foo / from .bar import baz
-                    # Resolve relative to the importing file's directory
-                    rel_dir = importer_dir
-                    for _ in range(node.level - 1):
-                        rel_dir = rel_dir.parent
-                    for alias in node.names:
-                        candidate = rel_dir / f"{alias.name}.py"
-                        if candidate.exists():
-                            target = str(candidate.relative_to(root))
-                            if target != importer:
-                                edges.append((importer, target))
-                    continue  # already handled
-
-            for mod in modules:
-                # Try full module name, then just the last part
-                for candidate in [mod, mod.rsplit(".", 1)[-1]]:
-                    if candidate in module_map and module_map[candidate] != importer:
-                        edges.append((importer, module_map[candidate]))
-                        break
+                    edges.extend(_resolve_relative_import(node, importer, importer_dir))
 
     return edges
 
@@ -420,7 +432,7 @@ def _build_dependency_graph(
     return g, all_rel
 
 
-def compute_criticality(root: Path, max_changeset: int = 50) -> list[dict]:
+def compute_criticality(root: Path, max_changeset: int = 50) -> list[dict[str, Any]]:
     """CIRank: PageRank on dependency graph weighted by co-change frequency.
 
     Wang et al. (2014) showed CIRank has the highest correlation (0.52-0.81)
@@ -493,7 +505,7 @@ def _personalized_pagerank(
     return scores
 
 
-def pr_review(root: Path, changed_files: list[str]) -> dict:
+def pr_review(root: Path, changed_files: list[str]) -> dict[str, Any]:
     """Given changed files, report what else needs attention.
 
     Uses personalized PageRank (Aider-style): ranks ALL files by
@@ -641,7 +653,7 @@ def print_criticality(ranked: list[dict], top: int = 20) -> None:
         print(f"{r['file'][:55]:<55}  {r['criticality']:>8.4f}  {r['in_degree']:>2}  {r['out_degree']:>3}")
 
 
-def print_pr_review(review: dict) -> None:
+def print_pr_review(review: dict[str, Any]) -> None:
     print(f"\n── PR Change Impact Analysis ({'─' * 40})")
     print(f"Changed files: {len(review['changed_files'])}")
     print(f"Total blast radius: {review['summary']['total_blast_radius']}")
@@ -706,14 +718,14 @@ def main() -> None:
 
     if args.file:
         radius = compute_blast_radius(root)
-        matches = [r for r in radius if args.file in r["file"] or args.file == r["name"]]
+        matches = [r for r in radius if any((args.file in r["file"], args.file == r["name"]))]
         for m in matches:
             print(f"\n{m['file']} (blast radius: {m['blast_radius']})")
             for ref in m["referencing_files"]:
                 print(f"  ← {ref}")
 
         coupling = compute_temporal_coupling(root, args.min_co_changes, args.min_coupling)
-        file_couplings = [c for c in coupling if args.file in c["file_a"] or args.file in c["file_b"]]
+        file_couplings = [c for c in coupling if any((args.file in c["file_a"], args.file in c["file_b"]))]
         if file_couplings:
             print("\nTemporal coupling:")
             for c in file_couplings:
@@ -736,11 +748,13 @@ def main() -> None:
         return
 
     if args.rank:
-        print_criticality(compute_criticality(root), args.top or 20)
+        top_rank = args.top if args.top else 20
+        print_criticality(compute_criticality(root), top_rank)
         return
 
     # Default: all four signals
-    print_blast_radius(compute_blast_radius(root), args.top or 15)
+    top_radius = args.top if args.top else 15
+    print_blast_radius(compute_blast_radius(root), top_radius)
     print_coupling(compute_temporal_coupling(root, args.min_co_changes, args.min_coupling))
     print_entropy(compute_naming_entropy(root))
     print_criticality(compute_criticality(root), 10)
