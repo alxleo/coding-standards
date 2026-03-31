@@ -1,0 +1,25 @@
+descriptor_id: REPOSITORY
+descriptor_type: other
+lint_all_files: false
+linters:
+  - linter_name: repo-standards
+    name: REPOSITORY_REPO_STANDARDS
+    descriptor_flavors:
+      - cupcake
+    cli_lint_mode: project
+    linter_text: Validate repository setup against coding-standards baseline
+    linter_url: https://www.conftest.dev/
+    cli_executable: conftest
+    cli_lint_extra_args:
+      - test
+      - --all-namespaces
+      - --no-color
+      - -p
+      - /opt/coding-standards/policies/repo-standards/
+      - repo-manifest.json
+    cli_help_arg_name: --help
+    cli_version_arg_name: --version
+    files_sub_directory: ""
+    file_extensions: []
+    active_only_if_file_found:
+      - repo-manifest.json

@@ -44,6 +44,8 @@ ENABLE_LINTERS:
   - REPOSITORY_TRIVY_CUSTOM
   # Structural policy (Conftest/OPA)
   - REPOSITORY_CONFTEST
+  # Repo standards (setup validation via manifest)
+  - REPOSITORY_REPO_STANDARDS
   # GHA security
   - REPOSITORY_ZIZMOR
   # Commits
@@ -95,6 +97,7 @@ DISABLE_ERRORS_LINTERS:
   - JSON_V8R
   - YAML_V8R
   - DOCKERFILE_DCLINT
+  - REPOSITORY_REPO_STANDARDS
   - SQL_SQLFLUFF
   - ANSIBLE_ANSIBLE_LINT
   - KUBERNETES_KUBECONFORM
@@ -213,6 +216,11 @@ PRE_COMMANDS:
       git config --global core.autocrlf input
     cwd: workspace
     continue_if_failed: true
+  # Generate repo manifest for repo-standards validation
+  - command: >-
+      python3 /opt/coding-standards/scripts/generate-repo-manifest.py
+    cwd: workspace
+    continue_if_failed: true
   # Install JS deps if package-lock.json exists
   # (needed for knip, dep-cruiser, tsc)
   - command: >-
@@ -236,3 +244,4 @@ PLUGINS:
   - "file:///mega-linter-plugin-custom/tsc.megalinter-descriptor.yml"
   - "file:///mega-linter-plugin-custom/pmd-cpd.megalinter-descriptor.yml"
   - "file:///mega-linter-plugin-custom/conftest.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/repo-standards.megalinter-descriptor.yml"
