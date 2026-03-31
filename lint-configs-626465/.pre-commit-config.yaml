@@ -159,7 +159,7 @@ repos:
     hooks:
       - id: semgrep-validate
         name: Validate semgrep rules
-        entry: semgrep scan --config semgrep-rules/ --validate
+        entry: uvx semgrep scan --config semgrep-rules/ --validate
         language: system
         pass_filenames: false
         files: "semgrep-rules/"
