@@ -50,6 +50,9 @@ RUN npm install -g \
 # zizmor — GitHub Actions security scanner
 RUN pip install --no-cache-dir zizmor==1.23.1
 
+# Python project analysis tools
+RUN pip install --no-cache-dir vulture==2.14 deptry==0.22.0
+
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # PMD-CPD — copy-paste detector (replaces jscpd, ~50x faster)

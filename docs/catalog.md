@@ -4,7 +4,7 @@
 Complete inventory of what the coding-standards image checks.
 Generated from config files — this IS the source of truth.
 
-## Linters (44 total)
+## Linters (48 total)
 
 ### Error tier (24 — blocks build)
 
@@ -33,9 +33,10 @@ Generated from config files — this IS the source of truth.
 - REPOSITORY_JUST_FMT
 - REPOSITORY_GIT_DIFF
 
-### Warn tier (20 — reports only)
+### Warn tier (24 — reports only)
 
 - BASH_SHFMT
+- PYTHON_VULTURE
 - YAML_YAMLLINT
 - YAML_PRETTIER
 - YAML_V8R
@@ -50,11 +51,14 @@ Generated from config files — this IS the source of truth.
 - REPOSITORY_REPO_STANDARDS
 - JAVASCRIPT_PRETTIER
 - TYPESCRIPT_PRETTIER
+- REPOSITORY_DEPTRY
 - CSS_STYLELINT
 - SQL_SQLFLUFF
 - ANSIBLE_ANSIBLE_LINT
 - KUBERNETES_KUBECONFORM
 - REPOSITORY_LS_LINT
+- ENV_DOTENV_LINTER
+- MAKEFILE_CHECKMAKE
 
 ## Ruff rule categories (29)
 
