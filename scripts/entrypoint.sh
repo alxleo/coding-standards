@@ -3,7 +3,7 @@
 #
 # Usage:
 #   docker run ... ghcr.io/alxleo/coding-standards:latest              # full lint (MegaLinter)
-#   docker run ... ghcr.io/alxleo/coding-standards:latest lint ruff     # single linter
+#   docker run ... ghcr.io/alxleo/coding-standards:latest lint PYTHON_RUFF     # single linter
 #   docker run ... ghcr.io/alxleo/coding-standards:latest fix           # auto-fix all
 #   docker run ... ghcr.io/alxleo/coding-standards:latest standards     # repo-standards only
 #   docker run ... ghcr.io/alxleo/coding-standards:latest catalog       # show what's checked

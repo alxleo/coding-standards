@@ -91,7 +91,7 @@ The image has a command router — no setup needed:
 
 ```bash
 docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest              # full lint
-docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest lint ruff     # single linter
+docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest lint PYTHON_RUFF     # single linter
 docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest fix           # auto-fix all
 docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest standards     # repo-standards only
 docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest catalog       # show what's checked
@@ -101,7 +101,7 @@ docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest help   
 For shorter commands, copy `examples/justfile` into your repo root:
 
 ```bash
-just cs-lint ruff      # same as the docker run above
+just cs-lint PYTHON_RUFF      # same as the docker run above
 just cs-fix            # auto-fix
 just cs-standards      # repo-standards
 ```

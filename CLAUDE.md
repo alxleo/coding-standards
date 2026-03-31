@@ -78,7 +78,7 @@ EXTENDS:
 Local commands (no setup — the image is the CLI):
 
 ```bash
-docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest lint ruff
+docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest lint PYTHON_RUFF
 docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest fix
 docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest standards
 docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest help
