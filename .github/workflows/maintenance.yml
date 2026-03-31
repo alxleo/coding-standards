@@ -3,7 +3,7 @@ name: Maintenance
 
 on:
   schedule:
-    - cron: '23 3 * * 1'
+    - cron: "23 3 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -14,7 +14,9 @@ jobs:
   update-actions:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: true # needed for git push
 
       - name: Update actions
         run: npx --yes actions-up --yes
