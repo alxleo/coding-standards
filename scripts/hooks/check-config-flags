@@ -3,7 +3,7 @@
 
 Catches the exact bug where a pre-commit hook silently falls back to
 default config because the --config flag was omitted. Checks that
-every hook for a tool with a config in lint-configs-626465/ has an
+every hook for a tool with a config in lint-configs/ has an
 explicit --config, -c, or --config-file argument.
 
 Tools that don't use config files (check-yaml, detect-private-key, etc)
@@ -38,7 +38,7 @@ SKIP_HOOKS = {
     "caddy-fmt-check",
     "pytest",
     "catalog-drift",
-    # External tools without configs in lint-configs-626465/
+    # External tools without configs in lint-configs/
     "actionlint",
     "zizmor",
     # Validation hooks (check repo structure, not lint code)
@@ -71,13 +71,13 @@ def check(config_path: Path) -> list[str]:
             )
 
             if not has_config:
-                errors.append(f"Hook '{hook_id}' has no --config flag. Add --config lint-configs-626465/... to args.")
+                errors.append(f"Hook '{hook_id}' has no --config flag. Add --config lint-configs/... to args.")
 
     return errors
 
 
 if __name__ == "__main__":
-    config = Path("lint-configs-626465/.pre-commit-config.yaml")
+    config = Path("lint-configs/.pre-commit-config.yaml")
     if not config.exists():
         print(f"Not found: {config}")
         sys.exit(1)

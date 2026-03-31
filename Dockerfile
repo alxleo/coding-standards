@@ -118,12 +118,12 @@ COPY semgrep-rules/ /opt/coding-standards/semgrep-rules/
 COPY policies/ /opt/coding-standards/policies/
 
 # ── Mechanism scripts + reporting ─────────────────────────────
-COPY --chmod=755 scripts/ci/check-drift.sh scripts/ci/check-expiry.py scripts/megalinter_report_statuses.py scripts/generate_repo_manifest.py scripts/generate_catalog.py scripts/manifest_schema.py scripts/show_warnings.py scripts/blast_radius.py /opt/coding-standards/scripts/
+COPY --chmod=755 scripts/ci/check-drift.sh scripts/ci/check-expiry.py scripts/megalinter_report_statuses.py scripts/generate_repo_manifest.py scripts/generate_catalog.py scripts/manifest_schema.py scripts/show_warnings.py scripts/blast_radius.py scripts/show_config.py /opt/coding-standards/scripts/
 
 # ── Linter config files ──────────────────────────────────────
 # Baked into image at /opt/coding-standards/configs
 # LINTER_RULES_PATH in .mega-linter.yml points here
-COPY lint-configs-626465/ /opt/coding-standards/configs/
+COPY lint-configs/ /opt/coding-standards/configs/
 
 # ── Entrypoint (command router) ──────────────────────────────
 # Routes: lint [linter], fix, standards, catalog, help

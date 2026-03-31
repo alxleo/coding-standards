@@ -15,7 +15,7 @@
   },
   "knip": {
     "ignore": [
-      "lint-configs-626465/**"
+      "lint-configs/**"
     ],
     "ignoreDependencies": [
       "bats"

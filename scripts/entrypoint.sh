@@ -41,6 +41,11 @@ case "${1:-}" in
         cd "$WORKSPACE"
         python3 /opt/coding-standards/scripts/show_warnings.py
         ;;
+    show-config)
+        cd "$WORKSPACE"
+        python3 /opt/coding-standards/scripts/show_config.py . \
+            --mega-linter-yml /opt/coding-standards/.mega-linter-default.yml
+        ;;
     blast-radius)
         cd "$WORKSPACE"
         shift
@@ -55,6 +60,7 @@ case "${1:-}" in
         echo "  fix             Auto-fix all fixable issues"
         echo "  standards       Run repo-standards checks only"
         echo "  warnings        Show warnings from last run (grouped by linter)"
+        echo "  show-config     Show which config file each linter uses + local overrides"
         echo "  blast-radius    Change impact analysis (blast radius, coupling, criticality)"
         echo "  catalog         Show full catalog of checks"
         echo "  help            This message"

@@ -96,7 +96,7 @@ Current workflow installs ~50 MB of cached binaries total.
 - Gitea support becomes optional for this project
 - Custom hooks are absorbed into standard linters (unlikely)
 
-**Current role:** Local CLI use via `npx mega-linter-runner --flavor ci_light` (see `lint-configs-626465/.mega-linter.yml`). This provides a fast local scan with standard linters only — complementary to CI, not a replacement.
+**Current role:** Local CLI use via `npx mega-linter-runner --flavor ci_light` (see `lint-configs/.mega-linter.yml`). This provides a fast local scan with standard linters only — complementary to CI, not a replacement.
 
 ### super-linter
 

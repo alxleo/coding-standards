@@ -11,7 +11,7 @@ Sources:
   semgrep-rules/*.yml       → semgrep rule IDs + severity + message
   policies/compose/*.rego   → compose policy rules
   policies/repo-standards/*.rego → repo-standards checks
-  lint-configs-626465/ruff.toml  → ruff rule categories
+  lint-configs/ruff.toml  → ruff rule categories
 """
 
 import re
@@ -102,7 +102,7 @@ def extract_rego_rules(policy_dir: Path, _kind: str) -> list[dict]:
 def _find_lint_configs(root: Path) -> Path:
     """Find lint-configs directory (different name locally vs in container)."""
     tried: list[Path] = []
-    for name in ("lint-configs-626465", "configs"):
+    for name in ("lint-configs", "configs"):
         p = root / name
         if p.is_dir():
             return p
