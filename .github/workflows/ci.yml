@@ -77,7 +77,7 @@ jobs:
         run: |
           docker run --rm \
             -v "${{ github.workspace }}:/tmp/lint" \
-            -v "${{ github.workspace }}/lint-configs-626465:/opt/coding-standards/configs" \
+            -v "${{ github.workspace }}/lint-configs:/opt/coding-standards/configs" \
             -v "${{ github.workspace }}/semgrep-rules:/opt/coding-standards/semgrep-rules" \
             -v "${{ github.workspace }}/policies:/opt/coding-standards/policies" \
             -v "${{ github.workspace }}/plugins:/mega-linter-plugin-custom" \

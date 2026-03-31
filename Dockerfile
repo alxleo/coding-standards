@@ -120,7 +120,7 @@ RUN chmod +x /opt/coding-standards/scripts/check-drift.sh /opt/coding-standards/
 # ── Linter config files ──────────────────────────────────────
 # Baked into image at /opt/coding-standards/configs
 # LINTER_RULES_PATH in .mega-linter.yml points here
-COPY lint-configs-626465/ /opt/coding-standards/configs/
+COPY lint-configs/ /opt/coding-standards/configs/
 
 # ── Default config ────────────────────────────────────────────
 # Baked config used when no workspace .mega-linter.yml exists.

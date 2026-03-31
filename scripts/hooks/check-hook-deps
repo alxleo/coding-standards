@@ -116,7 +116,7 @@ STDLIB = {
 }
 
 root = Path(__file__).resolve().parent.parent.parent
-config_path = root / "lint-configs-626465" / ".pre-commit-config.yaml"
+config_path = root / "lint-configs" / ".pre-commit-config.yaml"
 
 # Parse pre-commit config for pytest hook's additional_dependencies
 config = yaml.safe_load(config_path.read_text())
