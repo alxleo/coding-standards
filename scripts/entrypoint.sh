@@ -28,7 +28,7 @@ case "${1:-}" in
         ;;
     standards)
         cd "$WORKSPACE"
-        uv run python3 /opt/coding-standards/scripts/generate_repo_manifest.py
+        python3 /opt/coding-standards/scripts/generate_repo_manifest.py
         conftest test repo-manifest.json \
             --all-namespaces --no-color \
             -p /opt/coding-standards/policies/repo-standards/
@@ -39,7 +39,7 @@ case "${1:-}" in
         ;;
     warnings)
         cd "$WORKSPACE"
-        uv run python3 /opt/coding-standards/scripts/show_warnings.py
+        python3 /opt/coding-standards/scripts/show_warnings.py
         ;;
     blast-radius)
         cd "$WORKSPACE"

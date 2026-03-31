@@ -53,6 +53,7 @@ RUN pip install --no-cache-dir \
   vulture==2.14 \
   deptry==0.22.0 \
   networkx==3.6.1 \
+  pydantic==2.12.5 \
   import-linter==2.4
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
