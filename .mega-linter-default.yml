@@ -266,17 +266,18 @@ PRE_COMMANDS:
     cwd: workspace
     continue_if_failed: true
   # Copy baked configs that tools discover via workspace root, not CLI flags.
-  # v8r: cosmiconfig (can't use _CONFIG_FILE — built-in descriptor injects -c as --catalogs)
-  # shfmt: reads .editorconfig from file's directory tree
-  # shellcheck: auto-discovers .shellcheckrc (built-in descriptor has no cli_config_arg_name)
+  # Tools that auto-discover from workspace root (can't use _CONFIG_FILE):
+  #   v8r (.v8rrc.yml)        — built-in descriptor injects -c as --catalogs
+  #   shfmt (.editorconfig)   — reads from file's directory tree
+  #   shellcheck (.shellcheckrc) — built-in has no cli_config_arg_name
+  # Tools that need root-level files for MegaLinter activation:
+  #   commitlint, codespell, ls-lint — active_only_if_file_found checks root
   # Uses cp (not symlinks) — prettier rejects symlinks.
   - command: >-
-      test ! -f .v8rrc.yml &&
-      cp /opt/coding-standards/configs/.v8rrc.yml .v8rrc.yml || true;
-      test ! -f .editorconfig &&
-      cp /opt/coding-standards/configs/.editorconfig .editorconfig || true;
-      test ! -f .shellcheckrc &&
-      cp /opt/coding-standards/configs/.shellcheckrc .shellcheckrc || true
+      for f in .v8rrc.yml .editorconfig .shellcheckrc
+        commitlint.config.mjs .codespellrc .ls-lint.yml; do
+        test ! -f "$f" && cp "/opt/coding-standards/configs/$f" "$f" 2>/dev/null || true;
+      done
     cwd: workspace
     continue_if_failed: true
   # Install JS deps if package-lock.json exists

@@ -79,7 +79,15 @@ RUN PMD_VERSION="7.12.0" && \
     -o /tmp/conftest.tar.gz && \
   echo "${CONFTEST_SHA256}  /tmp/conftest.tar.gz" | sha256sum -c - && \
   tar xzf /tmp/conftest.tar.gz -C /usr/local/bin conftest && \
-  rm /tmp/conftest.tar.gz
+  rm /tmp/conftest.tar.gz && \
+  SHFMT_VERSION="3.13.0" && \
+  SHFMT_SHA256_amd64="70aa99784703a8d6569bbf0b1e43e1a91906a4166bf1a79de42050a6d0de7551" && \
+  SHFMT_SHA256_arm64="2091a31afd47742051a77bf7cfd175533ab07e924c20ef3151cd108fa1cab5b0" && \
+  SHFMT_SHA256=$([ "$TARGETARCH" = "arm64" ] && echo "$SHFMT_SHA256_arm64" || echo "$SHFMT_SHA256_amd64") && \
+  curl -fsSL "https://github.com/mvdan/sh/releases/download/v${SHFMT_VERSION}/shfmt_v${SHFMT_VERSION}_linux_${TARGETARCH}" \
+    -o /usr/local/bin/shfmt && \
+  echo "${SHFMT_SHA256}  /usr/local/bin/shfmt" | sha256sum -c - && \
+  chmod +x /usr/local/bin/shfmt
 
 # ── Schema download (parallel) ───────────────────────────────
 COPY scripts/download-schemas.sh /tmp/download-schemas.sh
