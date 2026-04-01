@@ -99,6 +99,7 @@ ENABLE_LINTERS:
 # Tier 1: everything not listed below BLOCKS the build
 # Tier 2: warn but don't fail
 DISABLE_ERRORS_LINTERS:
+  - BASH_SHELLCHECK # MegaLinter passes -c flag (v0.9), shellcheck v0.11 removed it. Upstream bug.
   - JAVASCRIPT_PRETTIER
   - TYPESCRIPT_PRETTIER
   - JSON_PRETTIER
@@ -137,10 +138,6 @@ DISABLE_ERRORS_LINTERS:
 # v8r is the exception — it uses cosmiconfig discovery, not a CLI flag.)
 #
 # Consumer repos override by setting <LINTER>_CONFIG_FILE in their .mega-linter.yml.
-# shellcheck uses auto-discovery (.shellcheckrc at root), not a CLI config flag.
-# Override MegaLinter's built-in cli_config_arg_name which passes unsupported -c flag.
-BASH_SHELLCHECK_CLI_LINT_MODE: list_of_files
-BASH_SHELLCHECK_ARGUMENTS: []
 
 PYTHON_PYRIGHT_CONFIG_FILE: pyrightconfig.json
 # Pyright exits non-zero on errors only (not warnings) by default, but --level
