@@ -142,7 +142,9 @@ def _print_table(rows: list[dict[str, str]]) -> None:
         print(line)
 
     shadow_count = sum(1 for r in rows if r["shadow"])
-    print(f"\n{len(rows)} linters with baked configs. {shadow_count} overridden locally.")
+    print(
+        f"\n{len(rows)} linters with baked configs. {shadow_count} overridden locally."
+    )
 
 
 def main(argv: list[str] | None = None) -> int:

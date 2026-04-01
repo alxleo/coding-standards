@@ -23,9 +23,13 @@ def show_warnings(report_path: Path) -> int:
     total = 0
 
     for linter in report.get("linters", []):
-        errors = linter.get("total_number_errors", 0) or 0  # nosemgrep: python-silent-fallback-or
+        errors = (
+            linter.get("total_number_errors", 0) or 0
+        )  # nosemgrep: python-silent-fallback-or
         # Skip linters with no findings or that hard-failed (error-tier)
-        if errors == 0 or linter.get("status") == "error":  # nosemgrep: python-silent-fallback-or
+        if (
+            errors == 0 or linter.get("status") == "error"
+        ):  # nosemgrep: python-silent-fallback-or
             continue
 
         print(f"\n⚠  {linter['name']} ({errors} warnings)")
@@ -52,5 +56,9 @@ def show_warnings(report_path: Path) -> int:
 
 
 if __name__ == "__main__":
-    path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("megalinter-reports/mega-linter-report.json")
+    path = (
+        Path(sys.argv[1])
+        if len(sys.argv) > 1
+        else Path("megalinter-reports/mega-linter-report.json")
+    )
     sys.exit(show_warnings(path))
