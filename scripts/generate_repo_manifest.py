@@ -305,7 +305,9 @@ def check_run_blocks_have_groups(root: Path) -> bool:
                     continue
                 # Only check multi-line run blocks (single-line too short to need groups)
                 if "\n" in run_block.strip():
-                    if "::group::" not in run_block or "::endgroup::" not in run_block:
+                    has_group = "::group::" in run_block
+                    has_endgroup = "::endgroup::" in run_block
+                    if not has_group or not has_endgroup:
                         return False
     return True
 
