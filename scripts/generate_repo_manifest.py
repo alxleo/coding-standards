@@ -53,16 +53,13 @@ def _is_excluded(rel: Path) -> bool:
         return True
     rel_str = rel.as_posix()
     return any(
-        rel_str == prefix
-        or rel_str.startswith(prefix + "/")  # nosemgrep: python-silent-fallback-or
+        rel_str == prefix or rel_str.startswith(prefix + "/")  # nosemgrep: python-silent-fallback-or
         for prefix in _EXCLUDE_PREFIXES
     )
 
 
 def count_files(root: Path, suffix: str) -> int:
-    return sum(
-        1 for f in root.rglob(f"*{suffix}") if not _is_excluded(f.relative_to(root))
-    )
+    return sum(1 for f in root.rglob(f"*{suffix}") if not _is_excluded(f.relative_to(root)))
 
 
 def _load_toml(path: Path) -> dict[str, Any]:
@@ -92,24 +89,18 @@ def check_pyproject_dep(root: Path, dep_name: str) -> bool:
     project = data.get("project", {})
     dep_lists.append(project.get("dependencies", []))
     # optional-dependencies may be absent; default to empty dict for .values()
-    dep_lists.extend(
-        (project.get("optional-dependencies") or {}).values()
-    )  # nosemgrep: python-silent-fallback-or
+    dep_lists.extend((project.get("optional-dependencies") or {}).values())  # nosemgrep: python-silent-fallback-or
     dep_lists.extend(
         [e for e in group if isinstance(e, str)]
         # dependency-groups may be absent; default to empty dict for .values()
-        for group in (
-            data.get("dependency-groups") or {}
-        ).values()  # nosemgrep: python-silent-fallback-or
+        for group in (data.get("dependency-groups") or {}).values()  # nosemgrep: python-silent-fallback-or
     )
     # Check each dependency spec for an exact package name match
     dep_re = re.compile(rf"^{re.escape(dep_name)}(\s*[\[><=!~;@]|$)", re.IGNORECASE)
     return any(dep_re.match(dep) for deps in dep_lists for dep in deps)
 
 
-def _count_large_shell(
-    root: Path, threshold: int, skip_paths: set[str] | None = None
-) -> int:
+def _count_large_shell(root: Path, threshold: int, skip_paths: set[str] | None = None) -> int:
     """Count shell scripts exceeding threshold lines, skipping acknowledged paths."""
     count = 0
     for f in root.rglob("*.sh"):
@@ -135,9 +126,7 @@ def _has_toml_section(path: Path, *keys: str) -> bool:
         data = _load_toml(path)
         for key in keys:
             # Guard: TOML values may be non-dict at any nesting level
-            if (
-                not isinstance(data, dict) or key not in data
-            ):  # nosemgrep: python-silent-fallback-or
+            if not isinstance(data, dict) or key not in data:  # nosemgrep: python-silent-fallback-or
                 return False
             data = data[key]
         return True
@@ -153,9 +142,7 @@ def check_package_json_dep(root: Path, dep_name: str) -> bool:
     return dep_name in text
 
 
-def _has_any_dep(
-    root: Path, pyproject: tuple[str, ...] = (), pkg: tuple[str, ...] = ()
-) -> bool:
+def _has_any_dep(root: Path, pyproject: tuple[str, ...] = (), pkg: tuple[str, ...] = ()) -> bool:
     """Check if any of the given deps exist in pyproject.toml or package.json."""
     checks = [check_pyproject_dep(root, d) for d in pyproject]
     checks.extend(check_package_json_dep(root, d) for d in pkg)
@@ -201,9 +188,7 @@ def extract_extends_url(root: Path) -> str | None:
             while j < len(lines):
                 next_line = lines[j].strip()
                 # Skip blank lines and YAML comments between EXTENDS: and list items
-                if not next_line or next_line.startswith(
-                    "#"
-                ):  # nosemgrep: python-silent-fallback-or
+                if not next_line or next_line.startswith("#"):  # nosemgrep: python-silent-fallback-or
                     j += 1
                     continue
                 if next_line.startswith("-"):
@@ -231,9 +216,7 @@ def _workflow_files(root: Path):
 
 def check_workflow_field(root: Path, pattern: str) -> bool:
     """Check if any workflow file contains a pattern."""
-    return any(
-        pattern in wf.read_text(errors="replace") for wf in _workflow_files(root)
-    )
+    return any(pattern in wf.read_text(errors="replace") for wf in _workflow_files(root))
 
 
 def check_ci_delegates_to_runner(root: Path) -> bool:
@@ -376,8 +359,7 @@ def check_github_token_workaround(root: Path) -> bool:
             continue
         text = wf.read_text(errors="replace")
         has_github_actions = any(
-            "uses:" in line and ("actions/" in line or "github.com" in line)
-            for line in text.splitlines()
+            "uses:" in line and ("actions/" in line or "github.com" in line) for line in text.splitlines()
         )
         if has_github_actions and "REAL_GITHUB_TOKEN" not in text:
             return False
@@ -429,9 +411,7 @@ def load_acknowledged(root: Path) -> dict[str, Any]:
                 try:
                     expires = date.fromisoformat(str(value["expires"]))
                     if expires < today:
-                        print(
-                            f"repo-standards: acknowledged '{key}' expired on {expires}"
-                        )
+                        print(f"repo-standards: acknowledged '{key}' expired on {expires}")
                         continue
                 except (ValueError, TypeError):
                     pass
@@ -446,9 +426,7 @@ def _acknowledged_paths(acknowledged: dict[str, Any], check_id: str) -> set[str]
     value = acknowledged.get(check_id)
     if not isinstance(value, list):
         return set()
-    return {
-        entry["path"] for entry in value if isinstance(entry, dict) and "path" in entry
-    }
+    return {entry["path"] for entry in value if isinstance(entry, dict) and "path" in entry}
 
 
 def _count_suppressions(root: Path) -> dict[str, int]:
@@ -474,14 +452,10 @@ def _count_suppressions(root: Path) -> dict[str, int]:
             counts[name] += len(re.findall(pattern, text))
     # File-level suppressions
     counts["trivyignore"] = (
-        len((root / ".trivyignore").read_text().splitlines())
-        if (root / ".trivyignore").exists()
-        else 0
+        len((root / ".trivyignore").read_text().splitlines()) if (root / ".trivyignore").exists() else 0
     )
     counts["gitleaksignore"] = (
-        len((root / ".gitleaksignore").read_text().splitlines())
-        if (root / ".gitleaksignore").exists()
-        else 0
+        len((root / ".gitleaksignore").read_text().splitlines()) if (root / ".gitleaksignore").exists() else 0
     )
     counts["total"] = sum(counts.values())
     return counts
@@ -527,9 +501,7 @@ def generate(root: Path) -> dict[str, Any]:
             "gitignore": (root / ".gitignore").exists(),
             "gitignore_covers_decrypted": check_gitignore_covers(root, ".decrypted"),
             "ci_json": (root / ".ci.json").exists(),
-            "renovate": any(
-                (root / f).exists() for f in ("renovate.json", ".renovaterc.json")
-            ),
+            "renovate": any((root / f).exists() for f in ("renovate.json", ".renovaterc.json")),
             "nvmrc": (root / ".nvmrc").exists(),
             "envrc": (root / ".envrc").exists(),
             "makefile": any((root / f).exists() for f in ("Makefile", "justfile")),
@@ -563,15 +535,9 @@ def generate(root: Path) -> dict[str, Any]:
                 root, 50, _acknowledged_paths(ack, "large_shell_scripts")
             ),
             "python_files_with_hyphens": sum(
-                1
-                for f in root.rglob("*.py")
-                if not _is_excluded(f.relative_to(root)) and "-" in f.stem
+                1 for f in root.rglob("*.py") if not _is_excluded(f.relative_to(root)) and "-" in f.stem
             ),
-            "dockerfile_files": sum(
-                1
-                for _ in root.rglob("Dockerfile*")
-                if not _is_excluded(_.relative_to(root))
-            ),
+            "dockerfile_files": sum(1 for _ in root.rglob("Dockerfile*") if not _is_excluded(_.relative_to(root))),
             "pre_commit_hooks": _extract_pre_commit_hooks(root),
         },
         "dependencies": {
@@ -581,37 +547,22 @@ def generate(root: Path) -> dict[str, Any]:
             "zod": check_package_json_dep(root, "zod"),
             "pydantic": check_pyproject_dep(root, "pydantic"),
             "import_linter": check_pyproject_dep(root, "import-linter"),
-            "import_linter_configured": _has_toml_section(
-                root / "pyproject.toml", "tool", "importlinter"
-            ),
+            "import_linter_configured": _has_toml_section(root / "pyproject.toml", "tool", "importlinter"),
             "hypothesis": check_pyproject_dep(root, "hypothesis"),
             "stryker": check_package_json_dep(root, "@stryker-mutator/core"),
-            "i18n_framework": _has_any_dep(
-                root, pkg=("i18next", "react-intl", "next-intl")
-            ),
-            "structured_logging_js": _has_any_dep(
-                root, pkg=("pino", "winston", "bunyan")
-            ),
-            "structured_logging_py": _has_any_dep(
-                root, pyproject=("structlog", "python-json-logger")
-            ),
-            "opentelemetry": _has_any_dep(
-                root, pyproject=("opentelemetry-sdk",), pkg=("@opentelemetry/sdk-node",)
-            ),
+            "i18n_framework": _has_any_dep(root, pkg=("i18next", "react-intl", "next-intl")),
+            "structured_logging_js": _has_any_dep(root, pkg=("pino", "winston", "bunyan")),
+            "structured_logging_py": _has_any_dep(root, pyproject=("structlog", "python-json-logger")),
+            "opentelemetry": _has_any_dep(root, pyproject=("opentelemetry-sdk",), pkg=("@opentelemetry/sdk-node",)),
         },
         "ci": {
-            "workflow_uses_composite_action": check_workflow_field(
-                root, "coding-standards/docker-action"
-            ),
+            "workflow_uses_composite_action": check_workflow_field(root, "coding-standards/docker-action"),
             "workflow_fetch_depth_zero": check_workflow_field(root, "fetch-depth: 0"),
-            "workflow_persist_credentials_false": check_workflow_field(
-                root, "persist-credentials: false"
-            ),
+            "workflow_persist_credentials_false": check_workflow_field(root, "persist-credentials: false"),
             "workflow_actions_sha_pinned": check_actions_pinned(root),
             "ci_delegates_to_runner": check_ci_delegates_to_runner(root),
             "ci_mixes_schedule_and_push": check_ci_mixes_schedule(root),
-            "has_sha_pins": check_workflow_field(root, "@")
-            and check_actions_pinned(root),
+            "has_sha_pins": check_workflow_field(root, "@") and check_actions_pinned(root),
             "run_blocks_have_groups": check_run_blocks_have_groups(root),
             "push_trigger_all_branches": check_push_trigger_all_branches(root),
             "github_token_workaround": check_github_token_workaround(root),
@@ -628,15 +579,9 @@ def generate(root: Path) -> dict[str, Any]:
                 )
             ),
             "has_health_route": _has_health_route(root),
-            "has_metrics": _has_any_dep(
-                root, pyproject=("prometheus-client",), pkg=("prom-client",)
-            ),
-            "has_error_tracking": _has_any_dep(
-                root, pyproject=("sentry-sdk",), pkg=("@sentry/node",)
-            ),
-            "has_tracing": _has_any_dep(
-                root, pyproject=("opentelemetry-sdk",), pkg=("@opentelemetry/sdk-node",)
-            ),
+            "has_metrics": _has_any_dep(root, pyproject=("prometheus-client",), pkg=("prom-client",)),
+            "has_error_tracking": _has_any_dep(root, pyproject=("sentry-sdk",), pkg=("@sentry/node",)),
+            "has_tracing": _has_any_dep(root, pyproject=("opentelemetry-sdk",), pkg=("@opentelemetry/sdk-node",)),
         },
         "acknowledged": ack,
         "suppressions": _count_suppressions(root),

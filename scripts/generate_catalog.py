@@ -60,9 +60,7 @@ def extract_rego_rules(policy_dir: Path, _kind: str) -> list[dict]:
     rules = []
     for f in sorted(policy_dir.glob("*.rego")):
         # Skip test files and shared helper module
-        if (
-            "_test" in f.name or f.name == "helpers.rego"
-        ):  # nosemgrep: python-silent-fallback-or
+        if "_test" in f.name or f.name == "helpers.rego":  # nosemgrep: python-silent-fallback-or
             continue
         text = f.read_text()
         # Match msg := concat/sprintf/string patterns, extract first quoted string
@@ -157,10 +155,7 @@ def generate(root: Path) -> str:
     lines.append("")
     lines.append("| Rule | Severity | Source | Description |")
     lines.append("|------|----------|--------|-------------|")
-    lines.extend(
-        f"| {r['id']} | {r['severity']} | {r['file']} | {r['message']} |"
-        for r in semgrep
-    )
+    lines.extend(f"| {r['id']} | {r['severity']} | {r['file']} | {r['message']} |" for r in semgrep)
     lines.append("")
 
     # Compose policies
@@ -171,9 +166,7 @@ def generate(root: Path) -> str:
     lines.append("")
 
     # Repo standards
-    standards = extract_rego_rules(
-        root / "policies" / "repo-standards", "repo-standards"
-    )
+    standards = extract_rego_rules(root / "policies" / "repo-standards", "repo-standards")
     lines.append(f"## Repo standards ({len(standards)})")
     lines.append("")
     lines.extend(f"- **{r['level']}**: {r['message']} ({r['file']})" for r in standards)
@@ -192,9 +185,7 @@ if __name__ == "__main__":
             sys.exit(1)
         existing = catalog.read_text()
         if existing != content:
-            print(
-                "docs/catalog.md is out of date — regenerate with: python3 scripts/generate_catalog.py"
-            )
+            print("docs/catalog.md is out of date — regenerate with: python3 scripts/generate_catalog.py")
             sys.exit(1)
         print("docs/catalog.md is up to date")
     else:
