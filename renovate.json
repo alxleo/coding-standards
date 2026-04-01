@@ -16,6 +16,11 @@
       "groupName": "npm tools"
     },
     {
+      "description": "Group all pre-commit hook updates",
+      "matchManagers": ["pre-commit"],
+      "groupName": "pre-commit hooks"
+    },
+    {
       "description": "Trivy: pin to pre-compromise versions only",
       "matchPackageNames": ["ghcr.io/aquasecurity/trivy"],
       "allowedVersions": "<=0.69.3"

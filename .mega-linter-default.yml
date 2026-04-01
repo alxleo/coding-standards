@@ -138,7 +138,18 @@ DISABLE_ERRORS_LINTERS:
 #
 # Consumer repos override by setting <LINTER>_CONFIG_FILE in their .mega-linter.yml.
 
-BASH_SHELLCHECK_CONFIG_FILE: .shellcheckrc
+# shellcheck: built-in descriptor defaults cli_config_arg_name to -c (removed in v0.11).
+# Override via ARGUMENTS with --rcfile instead. No _CONFIG_FILE (would inject -c).
+BASH_SHELLCHECK_ARGUMENTS:
+  - "--rcfile"
+  - "/opt/coding-standards/configs/.shellcheckrc"
+# markdownlint: built-in descriptor runs markdownlint-cli (v1), which can't parse
+# .markdownlint-cli2.yaml format. Override executable to cli2 and pass --config
+# directly (cli2 uses --config, not -c). No _CONFIG_FILE (would inject -c).
+MARKDOWN_MARKDOWNLINT_CLI_EXECUTABLE: markdownlint-cli2
+MARKDOWN_MARKDOWNLINT_ARGUMENTS:
+  - "--config"
+  - "/opt/coding-standards/configs/.markdownlint-cli2.yaml"
 REPOSITORY_COMMITLINT_CONFIG_FILE: commitlint.config.mjs
 REPOSITORY_ZIZMOR_CONFIG_FILE: .zizmor.yml
 PYTHON_PYRIGHT_CONFIG_FILE: pyrightconfig.json
@@ -162,7 +173,6 @@ TSX_ESLINT_CONFIG_FILE: eslint.config.mjs
 TERRAFORM_TFLINT_CONFIG_FILE: .tflint.hcl
 YAML_YAMLLINT_CONFIG_FILE: .yamllint
 DOCKERFILE_HADOLINT_CONFIG_FILE: .hadolint.yaml
-MARKDOWN_MARKDOWNLINT_CONFIG_FILE: .markdownlint-cli2.yaml
 JSON_PRETTIER_CONFIG_FILE: .prettierrc
 YAML_PRETTIER_CONFIG_FILE: .prettierrc
 JAVASCRIPT_PRETTIER_CONFIG_FILE: .prettierrc
@@ -302,5 +312,3 @@ PLUGINS:
   - "file:///mega-linter-plugin-custom/type-coverage.megalinter-descriptor.yml"
   - "file:///mega-linter-plugin-custom/publint.megalinter-descriptor.yml"
   - "file:///mega-linter-plugin-custom/attw.megalinter-descriptor.yml"
-  - "file:///mega-linter-plugin-custom/markdownlint-cli2.megalinter-descriptor.yml"
-  - "file:///mega-linter-plugin-custom/shellcheck.megalinter-descriptor.yml"
