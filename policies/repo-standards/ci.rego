@@ -92,6 +92,17 @@ warn contains msg if {
 	])
 }
 
+warn contains msg if {
+	helpers.has_ci_workflows
+	input.ci.ci_run_blocks_over_10_lines > 0
+	not helpers.acknowledged("large_ci_run_blocks")
+	msg := sprintf(concat("\n", [
+		"%d CI workflow run: block(s) exceed 10 lines",
+		"  Orchestration files delegate — they don't implement.",
+		"  Fix: extract long run: blocks into scripts/ and call by path.",
+	]), [input.ci.ci_run_blocks_over_10_lines])
+}
+
 # ── Gitea CI patterns ─────────────────────────────────────────
 
 warn contains msg if {

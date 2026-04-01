@@ -115,11 +115,11 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 - Most linters: `_CONFIG_FILE` pointing to baked config. MegaLinter auto-passes it via `cli_config_arg_name`.
 - Consumer repos override via `<LINTER>_CONFIG_FILE: myconfig.toml` — one line, works correctly.
 - Exceptions (tools where `_CONFIG_FILE` injects the wrong flag):
-  - **JSON v8r**: built-in descriptor's `-c` means `--catalogs`, not config. Copied to workspace via PRE_COMMANDS; cosmiconfig discovers it.
-  - **shellcheck**: built-in descriptor inherits default `-c` which shellcheck has never accepted. Copied to workspace via PRE_COMMANDS; auto-discovery finds it.
+  - **JSON v8r**: built-in descriptor's `-c` means `--catalogs`, not config. Config copied to workspace via PRE_COMMANDS; cosmiconfig discovers it.
+  - **shellcheck**: built-in descriptor inherits default `-c` which shellcheck has never accepted (uses `--rcfile` since v0.10, auto-discovery since v0.7). Config copied to workspace via PRE_COMMANDS.
   - **shfmt**: reads `.editorconfig` from file's directory tree. Symlinked at repo root, copied to workspace via PRE_COMMANDS.
-  - **editorconfig-checker**: built-in `-config` expects `.ecrc` (tool JSON config), not `.editorconfig`. Auto-discovers from workspace.
-- PRE_COMMANDS copies use `test ! -f` guards — consumer files at workspace root take precedence.
+  - **editorconfig-checker**: built-in `-config` expects `.ecrc` (tool JSON config), not `.editorconfig`. Auto-discovers `.editorconfig` from workspace.
+- PRE_COMMANDS copies use `test ! -f` guards — consumer files at workspace root take precedence over baked defaults.
 
 ### Config distribution: baked + override
 
@@ -149,7 +149,7 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 ### PRE_COMMANDS
 
 - git safe.directory + autocrlf fix (Docker UID mismatch).
-- Copy baked configs to workspace root for auto-discovery tools (v8r, shellcheck, shfmt, editorconfig-checker, commitlint, codespell, ls-lint). Uses `cp` not symlinks (prettier rejects symlinks). NOTE: activation checks run before PRE_COMMANDS — copies provide config, not activation.
+- Copy baked configs to workspace root for tools that auto-discover (v8r, shellcheck, shfmt, editorconfig-checker, codespell, ls-lint). Uses `cp` not symlinks (prettier rejects symlinks). NOTE: MegaLinter checks `active_only_if_file_found` BEFORE PRE_COMMANDS, so these copies provide config, not activation. commitlint excluded — needs git history (HEAD~1) which Docker-mounted workspaces lack.
 - npm ci guard (runs only if package-lock.json exists).
 
 ### Self-lint: MEGALINTER_CONFIG override

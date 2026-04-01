@@ -5,18 +5,18 @@ requires-python = ">=3.11"
 dependencies = [
     "networkx>=3.0",
     "pydantic>=2.0",
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
 test = [
     "pytest",
     "pytest-randomly",
-    "pyyaml",
 ]
 
 [tool.deptry]
 # manifest_schema: local module in scripts/, not an installable package
-known_first_party = ["manifest_schema"]
+known_first_party = ["manifest_schema", "blast_radius"]
 # pyyaml installs as 'yaml', pytest-randomly activates via entry point
 package_module_name_map = {pyyaml = "yaml"}
 per_rule_ignores = {DEP002 = ["pytest-randomly"]}

@@ -118,6 +118,73 @@ def _count_large_shell(root: Path, threshold: int, skip_paths: set[str] | None =
     return count
 
 
+def _count_large_ci_run_blocks(root: Path, threshold: int, skip_paths: set[str] | None = None) -> int:
+    """Count CI workflow run: blocks exceeding threshold lines, skipping acknowledged paths."""
+    count = 0
+    for wf in _workflow_files(root):
+        rel = wf.relative_to(root)
+        if skip_paths and rel.as_posix() in skip_paths:
+            continue
+        try:
+            data = yaml.safe_load(wf.read_text(errors="replace"))
+            if not isinstance(data, dict):
+                continue
+            jobs = data.get("jobs")  # YAML `jobs:` with no value → None
+            if not isinstance(jobs, dict):
+                continue
+            for job in jobs.values():
+                if not isinstance(job, dict):
+                    continue
+                steps = job.get("steps")
+                if not isinstance(steps, list):
+                    continue
+                for step in steps:
+                    if not isinstance(step, dict):
+                        continue
+                    run_block = step.get("run", "")
+                    if isinstance(run_block, str) and len(run_block.splitlines()) > threshold:
+                        count += 1
+        except (yaml.YAMLError, OSError):
+            pass
+    return count
+
+
+def _count_large_justfile_recipes(root: Path, threshold: int) -> int:
+    """Count justfile recipes exceeding threshold lines."""
+    justfile = root / "justfile"
+    if not justfile.exists():
+        # Also check Justfile (capital J)
+        justfile = root / "Justfile"
+        if not justfile.exists():
+            return 0
+    count = 0
+    body_lines = 0
+    in_recipe = False
+    try:
+        for line in justfile.read_text(errors="replace").splitlines():
+            # Recipe body lines are indented (spaces or tabs)
+            if in_recipe and (line.startswith((" ", "\t"))):
+                body_lines += 1
+            else:
+                # End of previous recipe — check threshold
+                if in_recipe and body_lines > threshold:
+                    count += 1
+                # New recipe starts with unindented name containing ':'
+                # Skip comments, blank lines, variable assignments (`:=`)
+                stripped = line.strip()
+                if stripped and not stripped.startswith("#") and ":" in stripped and ":=" not in stripped:
+                    in_recipe = True
+                    body_lines = 0
+                else:
+                    in_recipe = False
+        # Final recipe
+        if in_recipe and body_lines > threshold:
+            count += 1
+    except OSError:
+        pass
+    return count
+
+
 def _has_toml_section(path: Path, *keys: str) -> bool:
     """Check if a nested section exists in a TOML file."""
     if not path.exists():
@@ -147,6 +214,28 @@ def _has_any_dep(root: Path, pyproject: tuple[str, ...] = (), pkg: tuple[str, ..
     checks = [check_pyproject_dep(root, d) for d in pyproject]
     checks.extend(check_package_json_dep(root, d) for d in pkg)
     return any(checks)
+
+
+def _max_blast_radius(root: Path) -> int:
+    """Highest blast radius (filename reference count) in the repo."""
+    try:
+        from blast_radius import compute_blast_radius
+
+        data = compute_blast_radius(root)
+        return max((r["blast_radius"] for r in data), default=0)
+    except (ImportError, OSError, ValueError):
+        return 0
+
+
+def _max_naming_entropy(root: Path) -> float:
+    """Highest naming convention entropy across directories."""
+    try:
+        from blast_radius import compute_naming_entropy
+
+        data = compute_naming_entropy(root)
+        return max((r["entropy"] for r in data), default=0.0)
+    except (ImportError, OSError, ValueError):
+        return 0.0
 
 
 def _extract_pre_commit_hooks(root: Path) -> list[str]:
@@ -541,11 +630,14 @@ def generate(root: Path) -> dict[str, Any]:
             "shell_scripts_over_50_lines": _count_large_shell(
                 root, 50, _acknowledged_paths(ack, "large_shell_scripts")
             ),
+            "justfile_recipes_over_10_lines": _count_large_justfile_recipes(root, 10),
             "python_files_with_hyphens": sum(
                 1 for f in root.rglob("*.py") if not _is_excluded(f.relative_to(root)) and "-" in f.stem
             ),
             "dockerfile_files": sum(1 for _ in root.rglob("Dockerfile*") if not _is_excluded(_.relative_to(root))),
             "pre_commit_hooks": _extract_pre_commit_hooks(root),
+            "max_blast_radius": _max_blast_radius(root),
+            "max_naming_entropy": _max_naming_entropy(root),
         },
         "dependencies": {
             "pytest_randomly": check_pyproject_dep(root, "pytest-randomly"),
@@ -570,6 +662,9 @@ def generate(root: Path) -> dict[str, Any]:
             "ci_delegates_to_runner": check_ci_delegates_to_runner(root),
             "ci_mixes_schedule_and_push": check_ci_mixes_schedule(root),
             "has_sha_pins": check_workflow_field(root, "@") and check_actions_pinned(root),
+            "ci_run_blocks_over_10_lines": _count_large_ci_run_blocks(
+                root, 10, _acknowledged_paths(ack, "large_ci_run_blocks")
+            ),
             "run_blocks_have_groups": check_run_blocks_have_groups(root),
             "push_trigger_all_branches": check_push_trigger_all_branches(root),
             "github_token_workaround": check_github_token_workaround(root),
