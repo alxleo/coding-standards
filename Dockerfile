@@ -30,10 +30,10 @@ RUN --mount=type=cache,target=/root/.npm \
   eslint-plugin-testing-library@7.16.2 \
   oxlint@1.57.0 \
   type-coverage@2.29.7 \
-  typescript-coverage-report@1.1.1 \
   publint@0.3.18 \
   @arethetypeswrong/cli@0.18.2 \
-  eslint-plugin-i18next@6.1.3 && \
+  eslint-plugin-i18next@6.1.3 \
+  markdownlint-cli2@0.21.0 && \
   find /usr/local/lib/node_modules -type d \( -name "test" -o -name "tests" -o -name "docs" \) -exec rm -rf {} + && \
   find /usr/local/lib/node_modules -type f \( -name "*.md" -o -name "*.markdown" -o -name "LICENSE*" -o -name "CHANGELOG*" \) -exec rm -f {} +
 
