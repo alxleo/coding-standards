@@ -8,9 +8,9 @@ Built on MegaLinter. Runs identically on Gitea Actions and GitHub Actions.
 
 ### 1. Enforcement (linters + security)
 
-57 linters in two tiers:
-- **Error tier** (24): blocks build — security, type checking, correctness
-- **Warn tier** (33): reports only — formatting, style, schemas
+54 linters in two tiers:
+- **Error tier** (25): blocks build — security, type checking, correctness
+- **Warn tier** (29): reports only — formatting, style, schemas
 
 See `docs/catalog.md` for the full generated inventory.
 
