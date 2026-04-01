@@ -129,10 +129,16 @@ def _count_large_ci_run_blocks(root: Path, threshold: int, skip_paths: set[str] 
             data = yaml.safe_load(wf.read_text(errors="replace"))
             if not isinstance(data, dict):
                 continue
-            for job in data.get("jobs", {}).values():
+            jobs = data.get("jobs")  # YAML `jobs:` with no value → None
+            if not isinstance(jobs, dict):
+                continue
+            for job in jobs.values():
                 if not isinstance(job, dict):
                     continue
-                for step in job.get("steps", []):
+                steps = job.get("steps")
+                if not isinstance(steps, list):
+                    continue
+                for step in steps:
                     if not isinstance(step, dict):
                         continue
                     run_block = step.get("run", "")

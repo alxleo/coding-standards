@@ -149,7 +149,7 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 ### PRE_COMMANDS
 
 - git safe.directory + autocrlf fix (Docker UID mismatch).
-- Copy baked configs to workspace root for tools that auto-discover (v8r, shellcheck, shfmt, editorconfig-checker, commitlint, codespell, ls-lint). Uses `cp` not symlinks (prettier rejects symlinks). NOTE: MegaLinter checks `active_only_if_file_found` BEFORE PRE_COMMANDS, so these copies provide config, not activation.
+- Copy baked configs to workspace root for tools that auto-discover (v8r, shellcheck, shfmt, editorconfig-checker, codespell, ls-lint). Uses `cp` not symlinks (prettier rejects symlinks). NOTE: MegaLinter checks `active_only_if_file_found` BEFORE PRE_COMMANDS, so these copies provide config, not activation. commitlint excluded — needs git history (HEAD~1) which Docker-mounted workspaces lack.
 - npm ci guard (runs only if package-lock.json exists).
 
 ### Self-lint: MEGALINTER_CONFIG override
