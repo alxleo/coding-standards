@@ -12,8 +12,11 @@
 # renovate: datasource=docker depName=oxsecurity/megalinter-cupcake
 FROM oxsecurity/megalinter-cupcake:v9@sha256:e4ac6e253ef839c448cfe36a4659c8a56c7244d93c41124801511ba2ef5e08b9 AS builder
 
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
 # npm-based tools (pinned versions, single layer)
 # Pruning node_modules of non-essential files (READMEs, tests, docs)
+# hadolint ignore=DL3059
 RUN --mount=type=cache,target=/root/.npm \
   npm install -g \
   @commitlint/cli@20.5.0 \
