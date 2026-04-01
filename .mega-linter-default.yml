@@ -265,13 +265,10 @@ PRE_COMMANDS:
       python3 /opt/coding-standards/scripts/generate_repo_manifest.py
     cwd: workspace
     continue_if_failed: true
-  # Copy baked configs that tools discover via workspace root, not CLI flags.
-  # Tools that auto-discover from workspace root (can't use _CONFIG_FILE):
-  #   v8r (.v8rrc.yml)        — built-in descriptor injects -c as --catalogs
-  #   shfmt (.editorconfig)   — reads from file's directory tree
-  #   shellcheck (.shellcheckrc) — built-in has no cli_config_arg_name
-  # Tools that need root-level files for MegaLinter activation:
-  #   commitlint, codespell, ls-lint — active_only_if_file_found checks root
+  # Copy baked configs to workspace root for tools that auto-discover there.
+  # NOTE: MegaLinter checks active_only_if_file_found BEFORE PRE_COMMANDS,
+  # so these copies provide config, not activation. Consumer repos that have
+  # these files at root activate the linters naturally.
   # Uses cp (not symlinks) — prettier rejects symlinks.
   - command: >-
       for f in .v8rrc.yml .editorconfig .shellcheckrc
