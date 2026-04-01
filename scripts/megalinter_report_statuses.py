@@ -34,9 +34,7 @@ def main() -> None:
     gitea_url = os.environ.get("GITEA_URL", "")
     github_api = os.environ.get("GITHUB_API_URL", "https://api.github.com")
     # Gitea token takes precedence; fall back to GitHub token
-    token = os.environ.get("GITEA_TOKEN") or os.environ.get(
-        "GITHUB_TOKEN", ""
-    )  # nosemgrep: python-silent-fallback-or
+    token = os.environ.get("GITEA_TOKEN") or os.environ.get("GITHUB_TOKEN", "")  # nosemgrep: python-silent-fallback-or
     repo = os.environ.get("GITHUB_REPOSITORY", "")
     sha = os.environ.get("GITHUB_SHA", "")
     run_id = os.environ.get("GITHUB_RUN_ID", "")

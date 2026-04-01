@@ -120,6 +120,9 @@ config_path = root / "lint-configs" / ".pre-commit-config.yaml"
 
 # Parse pre-commit config for pytest hook's additional_dependencies
 config = yaml.safe_load(config_path.read_text())
+if not isinstance(config, dict):
+    print(f"Invalid pre-commit config: {config_path}")
+    sys.exit(1)
 hook_deps: set[str] = set()
 for repo in config.get("repos", []):
     for hook in repo.get("hooks", []):

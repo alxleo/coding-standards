@@ -88,11 +88,7 @@ def _is_scannable(path: Path) -> bool:
 
 
 def _collect_files(root: Path) -> list[Path]:
-    return [
-        p
-        for p in root.rglob("*")
-        if p.is_file() and not _is_excluded(p.relative_to(root))
-    ]
+    return [p for p in root.rglob("*") if p.is_file() and not _is_excluded(p.relative_to(root))]
 
 
 # ── Signal 1: Blast Radius ──────────────────────────────────────────
@@ -123,13 +119,9 @@ def compute_blast_radius(root: Path) -> list[dict[str, Any]]:
         patterns = [re.escape(rel)]
         if "/" in rel:
             # Also match bare filename with word boundary (catches loose references)
-            patterns.append(
-                r"(?<![a-zA-Z0-9_/\-])" + re.escape(name) + r"(?![a-zA-Z0-9_\-])"
-            )
+            patterns.append(r"(?<![a-zA-Z0-9_/\-])" + re.escape(name) + r"(?![a-zA-Z0-9_\-])")
         else:
-            patterns.append(
-                r"(?<![a-zA-Z0-9_/\-])" + re.escape(name) + r"(?![a-zA-Z0-9_\-])"
-            )
+            patterns.append(r"(?<![a-zA-Z0-9_/\-])" + re.escape(name) + r"(?![a-zA-Z0-9_\-])")
         combined = "|".join(patterns)
 
         referencing = [
@@ -315,11 +307,7 @@ def _extract_python_imports(root: Path) -> list[tuple[str, str]]:
     """
     import ast as ast_mod
 
-    py_files = [
-        f
-        for f in _collect_files(root)
-        if f.suffix == ".py" and not _is_excluded(f.relative_to(root))
-    ]
+    py_files = [f for f in _collect_files(root) if f.suffix == ".py" and not _is_excluded(f.relative_to(root))]
 
     # Build module name → file path mapping
     # Use dotted path as primary key to avoid stem collisions
@@ -430,7 +418,9 @@ def _build_dependency_graph(
         for scanner_rel, content in file_contents.items():
             if scanner_rel == target_rel:
                 continue
-            if re.search(re.escape(name), content):
+            # Word-boundary match (same pattern as compute_blast_radius)
+            pattern = re.escape(target_rel) + "|" + r"(?<![a-zA-Z0-9_/\-])" + re.escape(name) + r"(?![a-zA-Z0-9_\-])"
+            if re.search(pattern, content):
                 a, b = sorted([scanner_rel, target_rel])
                 co_count = co_changes.get((a, b), 0)
                 weight = max(co_count, 1)
@@ -590,9 +580,7 @@ def pr_review(root: Path, changed_files: list[str]) -> dict[str, Any]:
         "possibly_missing": missing_files,
         "most_relevant_outside_pr": relevant_outside,
         "summary": {
-            "total_blast_radius": sum(
-                radius_map.get(f, {}).get("blast_radius", 0) for f in changed_files
-            ),
+            "total_blast_radius": sum(radius_map.get(f, {}).get("blast_radius", 0) for f in changed_files),
             "files_at_risk": len(high_risk),
             "possibly_missing_count": len(missing_files),
         },
@@ -640,9 +628,7 @@ def print_coupling(couplings: list[dict]) -> None:
     print(f"{'─' * 45}  {'─' * 45}  ──────  ───────")
 
     for c in couplings[:20]:
-        print(
-            f"{c['file_a'][:45]:<45}  {c['file_b'][:45]:<45}  {c['co_changes']:>6}  {c['coupling']:>7.1%}"
-        )
+        print(f"{c['file_a'][:45]:<45}  {c['file_b'][:45]:<45}  {c['co_changes']:>6}  {c['coupling']:>7.1%}")
 
 
 def print_entropy(entries: list[dict]) -> None:
@@ -668,9 +654,7 @@ def print_criticality(ranked: list[dict], top: int = 20) -> None:
     print(f"{'─' * 55}  ────────  ──  ───")
 
     for r in ranked[:top]:
-        print(
-            f"{r['file'][:55]:<55}  {r['criticality']:>8.4f}  {r['in_degree']:>2}  {r['out_degree']:>3}"
-        )
+        print(f"{r['file'][:55]:<55}  {r['criticality']:>8.4f}  {r['in_degree']:>2}  {r['out_degree']:>3}")
 
 
 def print_pr_review(review: dict[str, Any]) -> None:
@@ -691,9 +675,7 @@ def print_pr_review(review: dict[str, Any]) -> None:
     if review["possibly_missing"]:
         print("\nFiles NOT in PR that usually change with these files:")
         for m in review["possibly_missing"]:
-            print(
-                f"  {m['missing']} ↔ {m['coupled_to']} ({m['coupling']:.0%} coupling, {m['co_changes']} co-changes)"
-            )
+            print(f"  {m['missing']} ↔ {m['coupled_to']} ({m['coupling']:.0%} coupling, {m['co_changes']} co-changes)")
     else:
         print("\nNo missing coupled files detected.")
 
@@ -704,12 +686,8 @@ def main() -> None:
     )
     parser.add_argument("--top", type=int, help="Show top N files")
     parser.add_argument("--file", help="Deep dive on a specific file")
-    parser.add_argument(
-        "--pr", nargs="+", metavar="FILE", help="PR review mode: list changed files"
-    )
-    parser.add_argument(
-        "--coupling", action="store_true", help="Show temporal coupling"
-    )
+    parser.add_argument("--pr", nargs="+", metavar="FILE", help="PR review mode: list changed files")
+    parser.add_argument("--coupling", action="store_true", help="Show temporal coupling")
     parser.add_argument("--entropy", action="store_true", help="Show naming entropy")
     parser.add_argument("--rank", action="store_true", help="Show CIRank criticality")
     parser.add_argument("--json", action="store_true", help="JSON output (all signals)")
@@ -745,43 +723,29 @@ def main() -> None:
 
     if args.file:
         radius = compute_blast_radius(root)
-        matches = [
-            r for r in radius if any((args.file in r["file"], args.file == r["name"]))
-        ]
+        matches = [r for r in radius if any((args.file in r["file"], args.file == r["name"]))]
         for m in matches:
             print(f"\n{m['file']} (blast radius: {m['blast_radius']})")
             for ref in m["referencing_files"]:
                 print(f"  ← {ref}")
 
-        coupling = compute_temporal_coupling(
-            root, args.min_co_changes, args.min_coupling
-        )
-        file_couplings = [
-            c
-            for c in coupling
-            if any((args.file in c["file_a"], args.file in c["file_b"]))
-        ]
+        coupling = compute_temporal_coupling(root, args.min_co_changes, args.min_coupling)
+        file_couplings = [c for c in coupling if any((args.file in c["file_a"], args.file in c["file_b"]))]
         if file_couplings:
             print("\nTemporal coupling:")
             for c in file_couplings:
                 other = c["file_b"] if args.file in c["file_a"] else c["file_a"]
-                print(
-                    f"  ↔ {other} ({c['coupling']:.0%}, {c['co_changes']} co-changes)"
-                )
+                print(f"  ↔ {other} ({c['coupling']:.0%}, {c['co_changes']} co-changes)")
 
         crit = compute_criticality(root)
         file_crit = [r for r in crit if args.file in r["file"]]
         if file_crit:
             c = file_crit[0]
-            print(
-                f"\nCriticality: {c['criticality']:.6f} (in:{c['in_degree']} out:{c['out_degree']})"
-            )
+            print(f"\nCriticality: {c['criticality']:.6f} (in:{c['in_degree']} out:{c['out_degree']})")
         return
 
     if args.coupling:
-        print_coupling(
-            compute_temporal_coupling(root, args.min_co_changes, args.min_coupling)
-        )
+        print_coupling(compute_temporal_coupling(root, args.min_co_changes, args.min_coupling))
         return
 
     if args.entropy:
@@ -796,9 +760,7 @@ def main() -> None:
     # Default: all four signals
     top_radius = args.top if args.top else 15
     print_blast_radius(compute_blast_radius(root), top_radius)
-    print_coupling(
-        compute_temporal_coupling(root, args.min_co_changes, args.min_coupling)
-    )
+    print_coupling(compute_temporal_coupling(root, args.min_co_changes, args.min_coupling))
     print_entropy(compute_naming_entropy(root))
     print_criticality(compute_criticality(root), 10)
 
