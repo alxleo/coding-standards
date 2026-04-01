@@ -106,3 +106,13 @@ warn contains msg if {
 		"  Shell scripts are hard to test; Python scripts get pytest for free.",
 	]), [input.content.shell_scripts_over_50_lines])
 }
+
+warn contains msg if {
+	input.content.justfile_recipes_over_10_lines > 0
+	not helpers.acknowledged("large_justfile_recipes")
+	msg := sprintf(concat("\n", [
+		"%d justfile recipe(s) exceed 10 lines",
+		"  Orchestration files delegate — they don't implement.",
+		"  Fix: extract long recipes into scripts/ and call by path.",
+	]), [input.content.justfile_recipes_over_10_lines])
+}

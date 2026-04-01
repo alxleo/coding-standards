@@ -118,6 +118,67 @@ def _count_large_shell(root: Path, threshold: int, skip_paths: set[str] | None =
     return count
 
 
+def _count_large_ci_run_blocks(root: Path, threshold: int) -> int:
+    """Count CI workflow run: blocks exceeding threshold lines."""
+    count = 0
+    for wf in _workflow_files(root):
+        try:
+            data = yaml.safe_load(wf.read_text(errors="replace"))
+            if not isinstance(data, dict):
+                continue
+            for job in (data.get("jobs") or {}).values():
+                if not isinstance(job, dict):
+                    continue
+                for step in job.get("steps") or []:
+                    if isinstance(step, dict) and isinstance(step.get("run"), str):
+                        if len(step["run"].splitlines()) > threshold:
+                            count += 1
+        except (yaml.YAMLError, OSError):
+            pass
+    return count
+
+
+def _count_large_justfile_recipes(root: Path, threshold: int) -> int:
+    """Count justfile recipes exceeding threshold lines."""
+    justfile = root / "justfile"
+    if not justfile.exists():
+        # Also check Justfile (capital J)
+        justfile = root / "Justfile"
+        if not justfile.exists():
+            return 0
+    count = 0
+    body_lines = 0
+    in_recipe = False
+    try:
+        for line in justfile.read_text(errors="replace").splitlines():
+            # Recipe body lines are indented (spaces or tabs)
+            if in_recipe and (line.startswith(" ") or line.startswith("\t")):
+                body_lines += 1
+            else:
+                # End of previous recipe — check threshold
+                if in_recipe and body_lines > threshold:
+                    count += 1
+                # New recipe starts with unindented name containing ':'
+                # Skip comments, blank lines, variable assignments (`:=`)
+                stripped = line.strip()
+                if (
+                    stripped
+                    and not stripped.startswith("#")
+                    and ":" in stripped
+                    and ":=" not in stripped
+                ):
+                    in_recipe = True
+                    body_lines = 0
+                else:
+                    in_recipe = False
+        # Final recipe
+        if in_recipe and body_lines > threshold:
+            count += 1
+    except OSError:
+        pass
+    return count
+
+
 def _has_toml_section(path: Path, *keys: str) -> bool:
     """Check if a nested section exists in a TOML file."""
     if not path.exists():
@@ -431,6 +492,8 @@ def generate(root: Path) -> dict[str, Any]:
             "shell_scripts_over_50_lines": _count_large_shell(
                 root, 50, _acknowledged_paths(ack, "large_shell_scripts")
             ),
+            "justfile_recipes_over_10_lines": _count_large_justfile_recipes(root, 10
+            ),
             "python_files_with_hyphens": sum(
                 1 for f in root.rglob("*.py") if not _is_excluded(f.relative_to(root)) and "-" in f.stem
             ),
@@ -460,6 +523,7 @@ def generate(root: Path) -> dict[str, Any]:
             "ci_delegates_to_runner": check_ci_delegates_to_runner(root),
             "ci_mixes_schedule_and_push": check_ci_mixes_schedule(root),
             "has_sha_pins": check_workflow_field(root, "@") and check_actions_pinned(root),
+            "ci_run_blocks_over_10_lines": _count_large_ci_run_blocks(root, 10),
         },
         "observability": {
             "is_service": any(

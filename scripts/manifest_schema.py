@@ -50,6 +50,7 @@ class ManifestContent(BaseModel):
     shell_files: int
     compose_files: int
     shell_scripts_over_50_lines: int
+    justfile_recipes_over_10_lines: int
     dockerfile_files: int
     python_files_with_hyphens: int
     pre_commit_hooks: list[str]
@@ -79,6 +80,7 @@ class ManifestCI(BaseModel):
     has_sha_pins: bool
     ci_delegates_to_runner: bool
     ci_mixes_schedule_and_push: bool
+    ci_run_blocks_over_10_lines: int
 
 
 class ManifestSuppressions(BaseModel):

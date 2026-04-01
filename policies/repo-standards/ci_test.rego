@@ -50,6 +50,16 @@ test_no_warn_separated_schedules if {
 	not any_contains(result, "schedule triggers")
 }
 
+test_warn_large_ci_run_blocks if {
+	result := ci.warn with input as {"files": {"mega_linter": true, "mega_linter_extends_url": "https://example.com"}, "directories": {"github_workflows": true}, "ci": {"workflow_uses_composite_action": true, "workflow_fetch_depth_zero": true, "workflow_persist_credentials_false": true, "workflow_actions_sha_pinned": true, "ci_delegates_to_runner": true, "ci_mixes_schedule_and_push": false, "ci_run_blocks_over_10_lines": 2}}
+	any_contains(result, "run: block")
+}
+
+test_no_warn_small_ci_run_blocks if {
+	result := ci.warn with input as {"files": {"mega_linter": true, "mega_linter_extends_url": "https://example.com"}, "directories": {"github_workflows": true}, "ci": {"workflow_uses_composite_action": true, "workflow_fetch_depth_zero": true, "workflow_persist_credentials_false": true, "workflow_actions_sha_pinned": true, "ci_delegates_to_runner": true, "ci_mixes_schedule_and_push": false, "ci_run_blocks_over_10_lines": 0}}
+	not any_contains(result, "run: block")
+}
+
 any_contains(set, substring) if {
 	some msg in set
 	contains(msg, substring)

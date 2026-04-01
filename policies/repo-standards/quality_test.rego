@@ -44,6 +44,16 @@ test_no_warn_pre_commit_has_detect_private_key if {
 	not any_contains(result, "detect-private-key")
 }
 
+test_warn_large_justfile_recipes if {
+	result := quality.warn with input as {"content": {"justfile_recipes_over_10_lines": 2}}
+	any_contains(result, "justfile recipe")
+}
+
+test_no_warn_small_justfile_recipes if {
+	result := quality.warn with input as {"content": {"justfile_recipes_over_10_lines": 0}}
+	not any_contains(result, "justfile recipe")
+}
+
 any_contains(set, substring) if {
 	some msg in set
 	contains(msg, substring)

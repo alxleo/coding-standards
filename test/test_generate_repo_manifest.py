@@ -142,3 +142,43 @@ def test_compose_files_recursive(tmp_path: Path) -> None:
     (infra / "docker-compose.prod.yml").write_text("services:\n")
     manifest = generate(tmp_path)
     assert manifest["content"]["compose_files"] == 2
+
+
+def test_large_ci_run_blocks_counted(tmp_path: Path) -> None:
+    wf_dir = tmp_path / ".github" / "workflows"
+    wf_dir.mkdir(parents=True)
+    (wf_dir / "ci.yml").write_text(
+        "on: push\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n"
+        "      - name: big step\n        run: |\n"
+        + "".join(f"          echo line {i}\n" for i in range(15))
+    )
+    manifest = generate(tmp_path)
+    assert manifest["ci"]["ci_run_blocks_over_10_lines"] == 1
+
+
+def test_small_ci_run_blocks_not_counted(tmp_path: Path) -> None:
+    wf_dir = tmp_path / ".github" / "workflows"
+    wf_dir.mkdir(parents=True)
+    (wf_dir / "ci.yml").write_text(
+        "on: push\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n"
+        "      - name: small step\n        run: |\n"
+        + "".join(f"          echo line {i}\n" for i in range(5))
+    )
+    manifest = generate(tmp_path)
+    assert manifest["ci"]["ci_run_blocks_over_10_lines"] == 0
+
+
+def test_large_justfile_recipes_counted(tmp_path: Path) -> None:
+    (tmp_path / "justfile").write_text(
+        "big-recipe:\n" + "".join(f"    echo line {i}\n" for i in range(15))
+    )
+    manifest = generate(tmp_path)
+    assert manifest["content"]["justfile_recipes_over_10_lines"] == 1
+
+
+def test_small_justfile_recipes_not_counted(tmp_path: Path) -> None:
+    (tmp_path / "justfile").write_text(
+        "small-recipe:\n" + "".join(f"    echo line {i}\n" for i in range(5))
+    )
+    manifest = generate(tmp_path)
+    assert manifest["content"]["justfile_recipes_over_10_lines"] == 0
