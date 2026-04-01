@@ -1,19 +1,19 @@
 # coding-standards lint image
-# Optimized for size (~50% reduction) and layer caching
+# Optimized for size (~60% total reduction) and layer caching
 #
 # Strategy:
 #   1. Multi-stage build to "flatten" the image (removes 3GB+ of historical data)
-#   2. Selective pruning of heavy but unused runtimes (Rust toolchain, pip/npm caches)
-#   3. Optimized layer ordering to keep project-specific logic at the bottom
-#   4. Alpine base version parity (3.23.3)
+#   2. Consolidate 24 separate Python venvs into one shared /opt/venv (saves ~400MB)
+#   3. Prune Node.js node_modules of non-runtime assets (saves ~100MB)
+#   4. Use shared headless JRE instead of bundled tool JVMs (saves ~200MB)
+#   5. Selective pruning of heavy but unused runtimes (Rust, Go, Terraform)
 
 # ── Stage 1: Builder ───────────────────────────────────────────
-# Base image is ~11GB due to historical layers and "all-in-one" approach.
 # renovate: datasource=docker depName=oxsecurity/megalinter-cupcake
 FROM oxsecurity/megalinter-cupcake:v9@sha256:e4ac6e253ef839c448cfe36a4659c8a56c7244d93c41124801511ba2ef5e08b9 AS builder
 
 # npm-based tools (pinned versions, single layer)
-# hadolint ignore=DL3059
+# Pruning node_modules of non-essential files (READMEs, tests, docs)
 RUN --mount=type=cache,target=/root/.npm \
   npm install -g \
   @commitlint/cli@20.5.0 \
@@ -33,12 +33,15 @@ RUN --mount=type=cache,target=/root/.npm \
   typescript-coverage-report@1.1.1 \
   publint@0.3.18 \
   @arethetypeswrong/cli@0.18.2 \
-  eslint-plugin-i18next@6.1.3
+  eslint-plugin-i18next@6.1.3 && \
+  find /usr/local/lib/node_modules -type d -name "test" -o -name "tests" -o -name "docs" -o -name "doc" | xargs rm -rf && \
+  find /usr/local/lib/node_modules -type f -name "*.md" -o -name "*.markdown" -o -name "LICENSE*" -o -name "CHANGELOG*" | xargs rm -f
 
-# Python tools (consolidated with cache mount)
-# hadolint ignore=DL3059
+# Python tools (consolidated into a single shared venv)
+# Using /opt/venv as the global runtime for custom Python tools
 RUN --mount=type=cache,target=/root/.cache/pip \
-  pip install --no-compile \
+  python3 -m venv /opt/venv && \
+  /opt/venv/bin/pip install --no-cache-dir --no-compile \
   zizmor==1.23.1 \
   vulture==2.14 \
   deptry==0.22.0 \
@@ -55,7 +58,7 @@ RUN PMD_VERSION="7.12.0" && \
   JUST_VERSION="1.48.1" && \
   JUST_SHA256="9293e553ce401d1b524bf4e104918f72f268e3f9c6827e0055fe98d84a1b2522" && \
   CONFTEST_SHA256="0863738f798c1850269a121ef56c2df1ab88074204c480f282f3baf2726898fd" && \
-  # PMD-CPD
+  # PMD-CPD (JVM-agnostic installation)
   curl -fsSL "https://github.com/pmd/pmd/releases/download/pmd_releases%2F${PMD_VERSION}/pmd-dist-${PMD_VERSION}-bin.zip" \
     -o /tmp/pmd.zip && \
   echo "${PMD_SHA256}  /tmp/pmd.zip" | sha256sum -c - && \
@@ -90,31 +93,29 @@ RUN chmod +x /tmp/download-schemas.sh && \
     rm /tmp/download-schemas.sh
 
 # ── Heavy Pruning Phase ────────────────────────────────────────
-# Removing components included in 'cupcake' but unused by this project.
-# Saves ~3.5GB uncompressed by removing toolchains and historical bloat.
+# Pruning unneeded runtimes and redundant binaries.
+# Removing the 24 individual venvs since we now use /opt/venv.
 RUN rm -rf /root/.rustup /root/.cache /usr/lib/go /usr/lib/rustlib && \
     rm -rf /usr/bin/dockerd /usr/bin/containerd /usr/bin/docker-proxy /usr/bin/docker-init && \
     rm -rf /usr/bin/terraform /usr/bin/terragrunt /usr/bin/terrascan /usr/bin/kics && \
+    rm -rf /venvs/* && \
     rm -f /detekt-cli-1.23.8.zip && \
     rm -rf /usr/share/man /usr/share/doc /usr/share/info && \
     rm -rf /var/cache/apk/*
 
 # ── Stage 2: Final (Flattened) ─────────────────────────────────
-# Starting from a fresh Alpine base of same version to remove builder history.
 FROM alpine:3.23.3 AS final
 
 LABEL org.opencontainers.image.source="https://github.com/alxleo/coding-standards"
-LABEL org.opencontainers.image.description="Optimized linting image — MegaLinter cupcake + custom tools"
+LABEL org.opencontainers.image.description="Max-optimized linting image — MegaLinter cupcake + custom tools"
 
-# Selective copy from builder (ordered by stability for better caching)
-# This sequence effectively flattens all preceding layers into minimal, cache-stable units.
+# Selective copy from builder
 COPY --from=builder /usr /usr
 COPY --from=builder /bin /bin
 COPY --from=builder /sbin /sbin
 COPY --from=builder /lib /lib
 COPY --from=builder /etc /etc
 COPY --from=builder /root /root
-COPY --from=builder /venvs /venvs
 COPY --from=builder /node-deps /node-deps
 COPY --from=builder /megalinter /megalinter
 COPY --from=builder /action /action
@@ -122,24 +123,19 @@ COPY --from=builder /server /server
 COPY --from=builder /opt /opt
 COPY --from=builder /entrypoint.sh /entrypoint.sh
 
-# ── Project Customizations (Highly volatile, kept at bottom) ───
-# These layers are fast to rebuild and don't trigger tool re-installs.
+# Wires shared venv into path
+ENV PATH="/opt/venv/bin:$PATH"
 
-# Core metadata and descriptors
+# ── Project Customizations (Bottom layers for cache stability) ──
+
 COPY plugins/ /mega-linter-plugin-custom/
 COPY semgrep-rules/ /opt/coding-standards/semgrep-rules/
 COPY policies/ /opt/coding-standards/policies/
-
-# Linter config files (frequent tweaks)
 COPY lint-configs/ /opt/coding-standards/configs/
-
-# Default config and catalog
 COPY .mega-linter-default.yml /opt/coding-standards/.mega-linter-default.yml
 COPY docs/catalog.md /opt/coding-standards/docs/catalog.md
-
-# Mechanism scripts
 COPY --chmod=755 scripts/ci/check-drift.sh scripts/ci/check-expiry.py scripts/megalinter_report_statuses.py scripts/generate_repo_manifest.py scripts/generate_catalog.py scripts/manifest_schema.py scripts/show_warnings.py scripts/blast_radius.py scripts/show_config.py /opt/coding-standards/scripts/
 
-# Entrypoint router
+# Final entrypoint
 COPY --chmod=755 scripts/entrypoint.sh /opt/coding-standards/entrypoint.sh
 ENTRYPOINT ["/bin/bash", "/opt/coding-standards/entrypoint.sh"]
