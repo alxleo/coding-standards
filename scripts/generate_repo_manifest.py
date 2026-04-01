@@ -210,6 +210,28 @@ def _has_any_dep(root: Path, pyproject: tuple[str, ...] = (), pkg: tuple[str, ..
     return any(checks)
 
 
+def _max_blast_radius(root: Path) -> int:
+    """Highest blast radius (filename reference count) in the repo."""
+    try:
+        from blast_radius import compute_blast_radius
+
+        data = compute_blast_radius(root)
+        return max((r["blast_radius"] for r in data), default=0)
+    except (ImportError, OSError, ValueError):
+        return 0
+
+
+def _max_naming_entropy(root: Path) -> float:
+    """Highest naming convention entropy across directories."""
+    try:
+        from blast_radius import compute_naming_entropy
+
+        data = compute_naming_entropy(root)
+        return max((r["entropy"] for r in data), default=0.0)
+    except (ImportError, OSError, ValueError):
+        return 0.0
+
+
 def _extract_pre_commit_hooks(root: Path) -> list[str]:
     """Extract hook IDs from .pre-commit-config.yaml."""
     pc = root / ".pre-commit-config.yaml"
@@ -608,6 +630,8 @@ def generate(root: Path) -> dict[str, Any]:
             ),
             "dockerfile_files": sum(1 for _ in root.rglob("Dockerfile*") if not _is_excluded(_.relative_to(root))),
             "pre_commit_hooks": _extract_pre_commit_hooks(root),
+            "max_blast_radius": _max_blast_radius(root),
+            "max_naming_entropy": _max_naming_entropy(root),
         },
         "dependencies": {
             "pytest_randomly": check_pyproject_dep(root, "pytest-randomly"),

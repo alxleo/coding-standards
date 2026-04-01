@@ -144,7 +144,7 @@ Generated from config files — this IS the source of truth.
 - **warn**: service '%s' exposes port %s to all interfaces — bind to 127.0.0.1 unless intentionally public (security.rego)
 - **deny**: service '%s' mounts sensitive host path '%s' (security.rego)
 
-## Repo standards (54)
+## Repo standards (56)
 
 - **warn**: .mega-linter.yml not found (ci.rego)
 - **warn**: .mega-linter.yml exists but has no EXTENDS URL (ci.rego)
@@ -196,6 +196,8 @@ Generated from config files — this IS the source of truth.
 - **warn**: No tests/ directory but Python scripts present (quality.rego)
 - **warn**: %d shell script(s) exceed 50 lines (quality.rego)
 - **warn**: %d justfile recipe(s) exceed 10 lines (quality.rego)
+- **warn**: High blast radius: a file is referenced by %d others (quality.rego)
+- **warn**: High naming entropy (%.2f) — mixed conventions in a directory (quality.rego)
 - **warn**: .gitleaks.toml not found (security.rego)
 - **warn**: trivy.yaml not found (security.rego)
 - **warn**: .sops.yaml not found (security.rego)
