@@ -42,7 +42,7 @@ for pid in "${pids[@]}"; do
   fi
 done
 
-if [ "$failed" -ne 0 ]; then
+if [[ "$failed" -ne 0 ]]; then
   echo "ERROR: Some schema downloads failed"
   exit 1
 fi

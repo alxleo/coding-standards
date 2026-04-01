@@ -99,7 +99,6 @@ ENABLE_LINTERS:
 # Tier 1: everything not listed below BLOCKS the build
 # Tier 2: warn but don't fail
 DISABLE_ERRORS_LINTERS:
-  - BASH_SHELLCHECK # .shellcheckrc enables extra rules — fix scripts before promoting to error
   - JAVASCRIPT_PRETTIER
   - TYPESCRIPT_PRETTIER
   - JSON_PRETTIER

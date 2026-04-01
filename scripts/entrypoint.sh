@@ -16,7 +16,7 @@ case "${1:-}" in
         # Single linter: lint <name> or lint (full suite)
         # Accepts short names (ruff, shellcheck) or full IDs (PYTHON_RUFF)
         shift
-        if [ $# -gt 0 ]; then
+        if [[ $# -gt 0 ]]; then
             ENABLE_LINTERS="$(echo "$1" | tr '[:lower:]' '[:upper:]')"
             export ENABLE_LINTERS
         fi

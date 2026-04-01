@@ -12,6 +12,7 @@ set -uo pipefail
 is_shell() {
     case "$1" in
         *.sh|*.bash) return 0 ;;
+        *) ;;
     esac
     head -1 "$1" 2>/dev/null | grep -qE '^#!.*\b(ba)?sh\b'
 }
@@ -22,7 +23,7 @@ for f in "$@"; do
     if is_shell "$f"; then
         # 1. Forbid bare python/python3 (uv run is required)
         matches=$(grep -nE "(^|[[:space:]])python3?[[:space:]]" "$f" | grep -v "uv run" || true)
-        if [ -n "$matches" ]; then
+        if [[ -n "$matches" ]]; then
             echo "$f: bare python/python3 — use 'uv run python3' instead:"
             while IFS= read -r line; do printf '  %s\n' "$line"; done <<< "$matches"
             rc=1
@@ -38,9 +39,10 @@ for f in "$@"; do
     # 3. Unpinned npx versions (shell scripts only — skip YAML rule definitions)
     case "$f" in
         *.yml|*.yaml) continue ;;
+        *) ;;
     esac
     matches=$(grep -nE "npx [a-z]" "$f" | grep -vE "npx (--yes|--no|-)|@[0-9]|#.*npx|^[^:]*:.*name:" || true)
-    if [ -n "$matches" ]; then
+    if [[ -n "$matches" ]]; then
         echo "$f: unpinned npx — pin versions (e.g. npx tool@1.2.3):"
         while IFS= read -r line; do printf '  %s\n' "$line"; done <<< "$matches"
         rc=1
