@@ -1,0 +1,22 @@
+descriptor_id: MARKDOWN
+descriptor_type: tooling_format
+lint_all_files: true
+linters:
+  - linter_name: rumdl
+    name: MARKDOWN_RUMDL
+    descriptor_flavors:
+      - cupcake
+    cli_lint_mode: list_of_files
+    linter_text: Fast Markdown linter (Rust) — markdownlint-compatible rules + extras
+    linter_url: https://github.com/rvben/rumdl
+    cli_executable: rumdl
+    cli_lint_extra_args:
+      - check
+    cli_config_arg_name: "--config"
+    config_file_name: .markdownlint-cli2.yaml
+    cli_help_arg_name: --help
+    cli_version_arg_name: version
+    file_extensions:
+      - .md
+      - .mdx
+      - .markdown

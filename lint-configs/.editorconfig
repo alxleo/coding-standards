@@ -10,7 +10,12 @@ charset = utf-8
 indent_style = space
 indent_size = 2
 
-[*.sh]
+[*.{sh,bash}]
+indent_style = space
+indent_size = 4
+
+# Extensionless scripts in hooks directories (detected by shebang, not extension)
+[scripts/hooks/*]
 indent_style = space
 indent_size = 4
 

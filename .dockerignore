@@ -23,5 +23,4 @@ package-lock.json
 renovate.json
 repo-manifest.json
 .ci.json
-.zizmor.yml
 .repo-standards.yml
