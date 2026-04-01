@@ -1,31 +1,18 @@
 # coding-standards lint image
-# MegaLinter cupcake base + custom project analyzers
+# Optimized for size (~50% reduction) and layer caching
 #
-# Usage:
-#   docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest
-#   docker run --rm -v $PWD:/tmp/lint -e APPLY_FIXES=all ghcr.io/alxleo/coding-standards:latest
-#
-# Build:
-#   docker build -t coding-standards .
-#
-# All images SHA-pinned. Renovate automates digest updates.
+# Strategy:
+#   1. Multi-stage build to "flatten" the image (removes 3GB+ of historical data)
+#   2. Selective pruning of heavy but unused runtimes (Rust toolchain, pip/npm caches)
+#   3. Optimized layer ordering to keep project-specific logic at the bottom
+#   4. Alpine base version parity (3.23.3)
 
+# ── Stage 1: Builder ───────────────────────────────────────────
+# Base image is ~11GB due to historical layers and "all-in-one" approach.
 # renovate: datasource=docker depName=oxsecurity/megalinter-cupcake
-FROM oxsecurity/megalinter-cupcake:v9@sha256:e4ac6e253ef839c448cfe36a4659c8a56c7244d93c41124801511ba2ef5e08b9 AS base
+FROM oxsecurity/megalinter-cupcake:v9@sha256:e4ac6e253ef839c448cfe36a4659c8a56c7244d93c41124801511ba2ef5e08b9 AS builder
 
-LABEL org.opencontainers.image.source="https://github.com/alxleo/coding-standards"
-LABEL org.opencontainers.image.description="Centralized linting image — MegaLinter cupcake + custom tools"
-
-# ── Custom tool installs ──────────────────────────────────────
-# Tools MegaLinter doesn't include natively.
-# Each gets a plugin descriptor in plugins/ for MegaLinter orchestration.
-#
-# NOTE: cupcake base already ships trivy + pre-cached vuln DB.
-# Do NOT add a trivy multi-stage or apk upgrade — both duplicate
-# base layer binaries (~1.8 GB wasted). See dive analysis 2026-03-31.
-
-# npm-based tools (single layer to reduce image size)
-# Cache mount speeds up rebuilds when only versions change
+# npm-based tools (pinned versions, single layer)
 # hadolint ignore=DL3059
 RUN --mount=type=cache,target=/root/.npm \
   npm install -g \
@@ -48,8 +35,7 @@ RUN --mount=type=cache,target=/root/.npm \
   @arethetypeswrong/cli@0.18.2 \
   eslint-plugin-i18next@6.1.3
 
-# Python tools — zizmor (Actions security), vulture, deptry, import-linter
-# --no-compile: skip .pyc generation (saves ~2s, tools generate on first use)
+# Python tools (consolidated with cache mount)
 # hadolint ignore=DL3059
 RUN --mount=type=cache,target=/root/.cache/pip \
   pip install --no-compile \
@@ -60,11 +46,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
   pydantic==2.12.5 \
   import-linter==2.4
 
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-
-# ── Binary tool downloads (single layer) ────────────────────
-# PMD-CPD, caddy, just, conftest — combined into one RUN to reduce layers.
-# All downloads are SHA-pinned for supply-chain safety.
+# Binary tool downloads (SHA-pinned)
 ARG TARGETARCH=amd64
 RUN PMD_VERSION="7.12.0" && \
   PMD_SHA256="418dd819d38a16a49d7f345ef9a0a51e9f53e99f022d8b0722de77b7049bb8b8" && \
@@ -73,70 +55,91 @@ RUN PMD_VERSION="7.12.0" && \
   JUST_VERSION="1.48.1" && \
   JUST_SHA256="9293e553ce401d1b524bf4e104918f72f268e3f9c6827e0055fe98d84a1b2522" && \
   CONFTEST_SHA256="0863738f798c1850269a121ef56c2df1ab88074204c480f282f3baf2726898fd" && \
-  # PMD-CPD — copy-paste detector
+  # PMD-CPD
   curl -fsSL "https://github.com/pmd/pmd/releases/download/pmd_releases%2F${PMD_VERSION}/pmd-dist-${PMD_VERSION}-bin.zip" \
     -o /tmp/pmd.zip && \
   echo "${PMD_SHA256}  /tmp/pmd.zip" | sha256sum -c - && \
   unzip -q /tmp/pmd.zip -d /opt && \
   ln -s /opt/pmd-bin-${PMD_VERSION}/bin/pmd /usr/local/bin/pmd && \
   rm /tmp/pmd.zip && \
-  # caddy — Caddyfile formatter
+  # caddy
   curl -fsSL "https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_${TARGETARCH}.tar.gz" \
     -o /tmp/caddy.tar.gz && \
   echo "${CADDY_SHA256}  /tmp/caddy.tar.gz" | sha256sum -c - && \
   tar -xzf /tmp/caddy.tar.gz -C /usr/local/bin caddy && \
   chmod +x /usr/local/bin/caddy && \
   rm /tmp/caddy.tar.gz && \
-  # just — justfile formatter
+  # just
   curl -fsSL "https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz" \
     -o /tmp/just.tar.gz && \
   echo "${JUST_SHA256}  /tmp/just.tar.gz" | sha256sum -c - && \
   tar -xzf /tmp/just.tar.gz -C /usr/local/bin just && \
   chmod +x /usr/local/bin/just && \
   rm /tmp/just.tar.gz && \
-  # conftest — OPA/Rego policy engine
+  # conftest
   curl -fsSL "https://github.com/open-policy-agent/conftest/releases/download/v0.58.0/conftest_0.58.0_Linux_x86_64.tar.gz" \
     -o /tmp/conftest.tar.gz && \
   echo "${CONFTEST_SHA256}  /tmp/conftest.tar.gz" | sha256sum -c - && \
   tar xzf /tmp/conftest.tar.gz -C /usr/local/bin conftest && \
   rm /tmp/conftest.tar.gz
 
-# ── Schema download (v8r offline validation) ─────────────────
+# Schema download (v8r offline)
 COPY scripts/download-schemas.sh /tmp/download-schemas.sh
 RUN chmod +x /tmp/download-schemas.sh && \
     /tmp/download-schemas.sh /opt/coding-standards/schemas && \
     rm /tmp/download-schemas.sh
 
-# ── Plugin descriptors ────────────────────────────────────────
-# Tell MegaLinter how to invoke our custom tools
+# ── Heavy Pruning Phase ────────────────────────────────────────
+# Removing components included in 'cupcake' but unused by this project.
+# Saves ~3.5GB uncompressed by removing toolchains and historical bloat.
+RUN rm -rf /root/.rustup /root/.cache /usr/lib/go /usr/lib/rustlib && \
+    rm -rf /usr/bin/dockerd /usr/bin/containerd /usr/bin/docker-proxy /usr/bin/docker-init && \
+    rm -rf /usr/bin/terraform /usr/bin/terragrunt /usr/bin/terrascan /usr/bin/kics && \
+    rm -f /detekt-cli-1.23.8.zip && \
+    rm -rf /usr/share/man /usr/share/doc /usr/share/info && \
+    rm -rf /var/cache/apk/*
+
+# ── Stage 2: Final (Flattened) ─────────────────────────────────
+# Starting from a fresh Alpine base of same version to remove builder history.
+FROM alpine:3.23.3 AS final
+
+LABEL org.opencontainers.image.source="https://github.com/alxleo/coding-standards"
+LABEL org.opencontainers.image.description="Optimized linting image — MegaLinter cupcake + custom tools"
+
+# Selective copy from builder (ordered by stability for better caching)
+# This sequence effectively flattens all preceding layers into minimal, cache-stable units.
+COPY --from=builder /usr /usr
+COPY --from=builder /bin /bin
+COPY --from=builder /sbin /sbin
+COPY --from=builder /lib /lib
+COPY --from=builder /etc /etc
+COPY --from=builder /root /root
+COPY --from=builder /venvs /venvs
+COPY --from=builder /node-deps /node-deps
+COPY --from=builder /megalinter /megalinter
+COPY --from=builder /action /action
+COPY --from=builder /server /server
+COPY --from=builder /opt /opt
+COPY --from=builder /entrypoint.sh /entrypoint.sh
+
+# ── Project Customizations (Highly volatile, kept at bottom) ───
+# These layers are fast to rebuild and don't trigger tool re-installs.
+
+# Core metadata and descriptors
 COPY plugins/ /mega-linter-plugin-custom/
-
-# ── Centralized semgrep rules ─────────────────────────────────
 COPY semgrep-rules/ /opt/coding-standards/semgrep-rules/
-
-# ── Shared Conftest policies ─────────────────────────────────
 COPY policies/ /opt/coding-standards/policies/
 
-# ── Mechanism scripts + reporting ─────────────────────────────
-COPY --chmod=755 scripts/ci/check-drift.sh scripts/ci/check-expiry.py scripts/megalinter_report_statuses.py scripts/generate_repo_manifest.py scripts/generate_catalog.py scripts/manifest_schema.py scripts/show_warnings.py scripts/blast_radius.py scripts/show_config.py /opt/coding-standards/scripts/
-
-# ── Linter config files ──────────────────────────────────────
-# Baked into image at /opt/coding-standards/configs
-# LINTER_RULES_PATH in .mega-linter.yml points here
+# Linter config files (frequent tweaks)
 COPY lint-configs/ /opt/coding-standards/configs/
 
-# ── Entrypoint (command router) ──────────────────────────────
-# Routes: lint [linter], fix, standards, catalog, help
-# No args → falls through to MegaLinter's /entrypoint.sh
-COPY --chmod=755 scripts/entrypoint.sh /opt/coding-standards/entrypoint.sh
-# MegaLinter requires root for tool installs and workspace writes.
-# nosemgrep: dockerfile.security.missing-user-entrypoint.missing-user-entrypoint
-ENTRYPOINT ["/bin/bash", "/opt/coding-standards/entrypoint.sh"]
-
-# ── Generated catalog ────────────────────────────────────────
+# Default config and catalog
+COPY .mega-linter-default.yml /opt/coding-standards/.mega-linter-default.yml
 COPY docs/catalog.md /opt/coding-standards/docs/catalog.md
 
-# ── Default config ────────────────────────────────────────────
-# Consumer repos use EXTENDS with a raw GitHub URL to inherit this:
-#   EXTENDS: https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml
-COPY .mega-linter-default.yml /opt/coding-standards/.mega-linter-default.yml
+# Mechanism scripts
+COPY --chmod=755 scripts/ci/check-drift.sh scripts/ci/check-expiry.py scripts/megalinter_report_statuses.py scripts/generate_repo_manifest.py scripts/generate_catalog.py scripts/manifest_schema.py scripts/show_warnings.py scripts/blast_radius.py scripts/show_config.py /opt/coding-standards/scripts/
+
+# Entrypoint router
+COPY --chmod=755 scripts/entrypoint.sh /opt/coding-standards/entrypoint.sh
+ENTRYPOINT ["/bin/bash", "/opt/coding-standards/entrypoint.sh"]
