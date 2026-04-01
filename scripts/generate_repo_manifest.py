@@ -273,14 +273,14 @@ def check_run_blocks_have_groups(root: Path) -> bool:
     for wf in _workflow_files(root):
         try:
             data = yaml.safe_load(wf.read_text(errors="replace"))
-        except Exception:
+        except (yaml.YAMLError, OSError):
             continue
         if not isinstance(data, dict):
             continue
-        for job in (data.get("jobs") or {}).values():
+        for job in data.get("jobs", {}).values():
             if not isinstance(job, dict):
                 continue
-            for step in job.get("steps") or []:
+            for step in job.get("steps", []):
                 if not isinstance(step, dict):
                     continue
                 run_block = step.get("run", "")
@@ -301,11 +301,11 @@ def check_push_trigger_all_branches(root: Path) -> bool:
     for wf in _workflow_files(root):
         try:
             data = yaml.safe_load(wf.read_text(errors="replace"))
-        except Exception:
+        except (yaml.YAMLError, OSError):
             continue
         if not isinstance(data, dict):
             continue
-        triggers = data.get(True) or data.get("on") or {}  # YAML parses `on:` as True
+        triggers = next((data.get(k) for k in (True, "on") if data.get(k)), {})  # YAML parses `on:` as True
         if not isinstance(triggers, dict):
             continue
         push = triggers.get("push")
@@ -331,8 +331,7 @@ def check_github_token_workaround(root: Path) -> bool:
         if "push:" not in text:
             continue
         has_github_actions = any(
-            "uses:" in line and ("actions/" in line or "github.com" in line)
-            for line in text.splitlines()
+            "uses:" in line and ("actions/" in line or "github.com" in line) for line in text.splitlines()
         )
         if has_github_actions and "REAL_GITHUB_TOKEN" not in text:
             return False
