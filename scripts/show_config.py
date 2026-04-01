@@ -37,7 +37,12 @@ _SHADOW_NAMES: dict[str, list[str]] = {
         ".markdownlint.json",
         ".markdownlint.yaml",
     ],
-    ".prettierrc": [".prettierrc", ".prettierrc.json", ".prettierrc.yml", "prettier.config.js"],
+    ".prettierrc": [
+        ".prettierrc",
+        ".prettierrc.json",
+        ".prettierrc.yml",
+        "prettier.config.js",
+    ],
     ".gitleaks.toml": [".gitleaks.toml"],
     ".editorconfig": [".editorconfig"],
     ".codespellrc": [".codespellrc", ".codespell", "setup.cfg"],
@@ -119,7 +124,12 @@ def _print_table(rows: list[dict[str, str]]) -> None:
         print("No _CONFIG_FILE entries found.")
         return
 
-    headers = {"linter": "Linter", "config_file": "Config", "tier": "Tier", "shadow": "Local Override"}
+    headers = {
+        "linter": "Linter",
+        "config_file": "Config",
+        "tier": "Tier",
+        "shadow": "Local Override",
+    }
     cols = ["linter", "config_file", "tier", "shadow"]
     widths = {col: max(len(headers[col]), *(len(r[col]) for r in rows)) for col in cols}
 

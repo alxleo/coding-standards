@@ -418,7 +418,9 @@ def _build_dependency_graph(
         for scanner_rel, content in file_contents.items():
             if scanner_rel == target_rel:
                 continue
-            if re.search(re.escape(name), content):
+            # Word-boundary match (same pattern as compute_blast_radius)
+            pattern = re.escape(target_rel) + "|" + r"(?<![a-zA-Z0-9_/\-])" + re.escape(name) + r"(?![a-zA-Z0-9_\-])"
+            if re.search(pattern, content):
                 a, b = sorted([scanner_rel, target_rel])
                 co_count = co_changes.get((a, b), 0)
                 weight = max(co_count, 1)

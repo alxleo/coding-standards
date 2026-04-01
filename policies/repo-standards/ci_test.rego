@@ -50,6 +50,38 @@ test_no_warn_separated_schedules if {
 	not any_contains(result, "schedule triggers")
 }
 
+# ── Gitea CI patterns ─────────────────────────────────────────
+
+test_warn_missing_group_markers if {
+	result := ci.warn with input as {"files": {"mega_linter": true, "mega_linter_extends_url": "https://example.com"}, "directories": {"github_workflows": true}, "ci": {"workflow_uses_composite_action": true, "workflow_fetch_depth_zero": true, "workflow_persist_credentials_false": true, "workflow_actions_sha_pinned": true, "ci_delegates_to_runner": true, "ci_mixes_schedule_and_push": false, "run_blocks_have_groups": false, "push_trigger_all_branches": true, "github_token_workaround": true}}
+	any_contains(result, "::group::")
+}
+
+test_no_warn_group_markers_present if {
+	result := ci.warn with input as {"files": {"mega_linter": true, "mega_linter_extends_url": "https://example.com"}, "directories": {"github_workflows": true}, "ci": {"workflow_uses_composite_action": true, "workflow_fetch_depth_zero": true, "workflow_persist_credentials_false": true, "workflow_actions_sha_pinned": true, "ci_delegates_to_runner": true, "ci_mixes_schedule_and_push": false, "run_blocks_have_groups": true, "push_trigger_all_branches": true, "github_token_workaround": true}}
+	not any_contains(result, "::group::")
+}
+
+test_warn_push_branch_filter if {
+	result := ci.warn with input as {"files": {"mega_linter": true, "mega_linter_extends_url": "https://example.com"}, "directories": {"github_workflows": true}, "ci": {"workflow_uses_composite_action": true, "workflow_fetch_depth_zero": true, "workflow_persist_credentials_false": true, "workflow_actions_sha_pinned": true, "ci_delegates_to_runner": true, "ci_mixes_schedule_and_push": false, "run_blocks_have_groups": true, "push_trigger_all_branches": false, "github_token_workaround": true}}
+	any_contains(result, "push trigger filters")
+}
+
+test_no_warn_push_all_branches if {
+	result := ci.warn with input as {"files": {"mega_linter": true, "mega_linter_extends_url": "https://example.com"}, "directories": {"github_workflows": true}, "ci": {"workflow_uses_composite_action": true, "workflow_fetch_depth_zero": true, "workflow_persist_credentials_false": true, "workflow_actions_sha_pinned": true, "ci_delegates_to_runner": true, "ci_mixes_schedule_and_push": false, "run_blocks_have_groups": true, "push_trigger_all_branches": true, "github_token_workaround": true}}
+	not any_contains(result, "push trigger filters")
+}
+
+test_warn_missing_github_token_workaround if {
+	result := ci.warn with input as {"files": {"mega_linter": true, "mega_linter_extends_url": "https://example.com"}, "directories": {"github_workflows": true}, "ci": {"workflow_uses_composite_action": true, "workflow_fetch_depth_zero": true, "workflow_persist_credentials_false": true, "workflow_actions_sha_pinned": true, "ci_delegates_to_runner": true, "ci_mixes_schedule_and_push": false, "run_blocks_have_groups": true, "push_trigger_all_branches": true, "github_token_workaround": false}}
+	any_contains(result, "GITHUB_TOKEN workaround")
+}
+
+test_no_warn_github_token_workaround_present if {
+	result := ci.warn with input as {"files": {"mega_linter": true, "mega_linter_extends_url": "https://example.com"}, "directories": {"github_workflows": true}, "ci": {"workflow_uses_composite_action": true, "workflow_fetch_depth_zero": true, "workflow_persist_credentials_false": true, "workflow_actions_sha_pinned": true, "ci_delegates_to_runner": true, "ci_mixes_schedule_and_push": false, "run_blocks_have_groups": true, "push_trigger_all_branches": true, "github_token_workaround": true}}
+	not any_contains(result, "GITHUB_TOKEN workaround")
+}
+
 any_contains(set, substring) if {
 	some msg in set
 	contains(msg, substring)

@@ -263,6 +263,116 @@ def check_actions_pinned(root: Path) -> bool:
     return found_any
 
 
+def check_run_blocks_have_groups(root: Path) -> bool:
+    """Check that multi-line run: blocks use ::group:: markers for log structuring.
+
+    Gitea Actions and gitea-ci parse ::group::/::endgroup:: markers for per-step
+    log visibility. Without them, all step output merges into one blob.
+    Single-line run: blocks are exempt (too short to benefit).
+    """
+    for wf in _workflow_files(root):
+        try:
+            data = yaml.safe_load(wf.read_text(errors="replace"))
+        except (yaml.YAMLError, OSError):
+            continue
+        if not isinstance(data, dict):
+            continue
+        for job in data.get("jobs", {}).values():
+            if not isinstance(job, dict):
+                continue
+            for step in job.get("steps", []):
+                if not isinstance(step, dict):
+                    continue
+                run_block = step.get("run", "")
+                if not isinstance(run_block, str):
+                    continue
+                # Only check multi-line run blocks (single-line too short to need groups)
+                if "\n" in run_block.strip():
+                    has_group = "::group::" in run_block
+                    has_endgroup = "::endgroup::" in run_block
+                    if not (has_group and has_endgroup):
+                        return False
+    return True
+
+
+def _get_triggers(data: dict[str | bool, Any]) -> dict[str, Any]:
+    """Extract the triggers dict from a parsed workflow, handling YAML `on:` → True.
+
+    YAML spec parses the bare keyword `on:` as boolean True, so the parsed
+    dict has {True: {...}} not {"on": {...}}. We check both keys.
+    """
+    triggers = data.get(True)
+    if triggers is None:
+        triggers = data.get("on")
+    if triggers is None:
+        return {}
+    if isinstance(triggers, str):
+        return {triggers: None}
+    if isinstance(triggers, list):
+        return dict.fromkeys(triggers)
+    if isinstance(triggers, dict):
+        return triggers
+    return {}
+
+
+def _has_push_trigger(data: dict[str | bool, Any]) -> bool:
+    """Check if a parsed workflow has a push trigger (any form)."""
+    return "push" in _get_triggers(data)
+
+
+def check_push_trigger_all_branches(root: Path) -> bool:
+    """Check that push triggers don't filter by branch.
+
+    The CI-on-every-commit model (Gitea) needs all branches to trigger CI.
+    Both `branches` and `branches-ignore` are branch restrictions.
+    """
+    for wf in _workflow_files(root):
+        try:
+            data = yaml.safe_load(wf.read_text(errors="replace"))
+        except (yaml.YAMLError, OSError):
+            continue
+        if not isinstance(data, dict):
+            continue
+        triggers = _get_triggers(data)
+        push = triggers.get("push")
+        if isinstance(push, dict) and ("branches" in push or "branches-ignore" in push):
+            return False
+    return True
+
+
+def check_github_token_workaround(root: Path) -> bool:
+    """Check that push-triggered workflows using github.com actions have the fix.
+
+    Gitea overrides GITHUB_TOKEN with a Gitea-scoped token. Workflows that run
+    on Gitea (push-triggered) and call github.com APIs need the workaround:
+        echo "GITHUB_TOKEN=$REAL_GITHUB_TOKEN" >> "$GITHUB_ENV"
+
+    Returns True if no push-triggered workflows use github.com actions,
+    or if those that do have the workaround step.
+    Skips schedule/dispatch-only workflows (GitHub-only, no Gitea).
+    """
+    for wf in _workflow_files(root):
+        try:
+            data = yaml.safe_load(wf.read_text(errors="replace"))
+        except (yaml.YAMLError, OSError):
+            continue
+        if not isinstance(data, dict):
+            continue
+        if not _has_push_trigger(data):
+            continue
+        text = wf.read_text(errors="replace")
+        # Any uses: with owner/repo@ref pattern is a GitHub-hosted action.
+        # Exclude local actions (./) and docker:// references.
+        has_github_actions = any(
+            "uses:" in line and "./" not in line.split("uses:")[-1] and "docker://" not in line.split("uses:")[-1]
+            for line in text.splitlines()
+            if "uses:" in line
+        )
+        if has_github_actions and "REAL_GITHUB_TOKEN" not in text:
+            return False
+    return True
+
+
 def _has_health_route(root: Path) -> bool:
     """Check if any source file defines a health endpoint."""
     patterns = ["/health", "/healthz", "/ready", "/readyz"]
@@ -460,6 +570,9 @@ def generate(root: Path) -> dict[str, Any]:
             "ci_delegates_to_runner": check_ci_delegates_to_runner(root),
             "ci_mixes_schedule_and_push": check_ci_mixes_schedule(root),
             "has_sha_pins": check_workflow_field(root, "@") and check_actions_pinned(root),
+            "run_blocks_have_groups": check_run_blocks_have_groups(root),
+            "push_trigger_all_branches": check_push_trigger_all_branches(root),
+            "github_token_workaround": check_github_token_workaround(root),
         },
         "observability": {
             "is_service": any(

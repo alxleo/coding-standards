@@ -38,7 +38,7 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 - v8r: include with bundled schemas. Soft-fail (endpoints go down).
 - npm-package-json-lint: no universal baseline.
 - markdown-table-formatter: cosmetic, conflicts with LLM tables.
-- markdownlint-cli vs cli2: MegaLinter ships cli1. Verify config compat.
+- markdownlint replaced by rumdl: MegaLinter ships markdownlint-cli (v1) which can't parse cli2 config format, and cli2 silently treats `-c` as a glob. rumdl reads existing `.markdownlint-cli2.yaml` natively, has `--config` that works with `_CONFIG_FILE`, and is 23x faster (Rust).
 
 ### Spelling: codespell (warn tier)
 
@@ -110,13 +110,16 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 - Default: APPLY_FIXES=none (check only).
 - `-e APPLY_FIXES=all` to auto-fix. Explicit, no surprises.
 
-### Config paths: `_CONFIG_FILE` only, never `_ARGUMENTS`
+### Config paths: `_CONFIG_FILE` preferred, PRE_COMMANDS for auto-discovery tools
 
-- Every linter with a config file gets `_CONFIG_FILE` pointing to baked path.
-- MegaLinter auto-passes `_CONFIG_FILE` as the correct CLI flag via `cli_config_arg_name` in each descriptor.
-- `_ARGUMENTS` with config paths is harmful: it short-circuits consumer `_CONFIG_FILE` overrides (MegaLinter sees the flag already in cmd and skips injection).
+- Most linters: `_CONFIG_FILE` pointing to baked config. MegaLinter auto-passes it via `cli_config_arg_name`.
 - Consumer repos override via `<LINTER>_CONFIG_FILE: myconfig.toml` — one line, works correctly.
-- Exception: v8r uses cosmiconfig, not CLI flags. `_CONFIG_FILE` tells MegaLinter; v8r auto-discovers.
+- Exceptions (tools where `_CONFIG_FILE` injects the wrong flag):
+  - **JSON v8r**: built-in descriptor's `-c` means `--catalogs`, not config. Copied to workspace via PRE_COMMANDS; cosmiconfig discovers it.
+  - **shellcheck**: built-in descriptor inherits default `-c` which shellcheck has never accepted. Copied to workspace via PRE_COMMANDS; auto-discovery finds it.
+  - **shfmt**: reads `.editorconfig` from file's directory tree. Symlinked at repo root, copied to workspace via PRE_COMMANDS.
+  - **editorconfig-checker**: built-in `-config` expects `.ecrc` (tool JSON config), not `.editorconfig`. Auto-discovers from workspace.
+- PRE_COMMANDS copies use `test ! -f` guards — consumer files at workspace root take precedence.
 
 ### Config distribution: baked + override
 
@@ -146,7 +149,19 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 ### PRE_COMMANDS
 
 - git safe.directory + autocrlf fix (Docker UID mismatch).
+- Copy baked configs to workspace root for auto-discovery tools (v8r, shellcheck, shfmt, editorconfig-checker, commitlint, codespell, ls-lint). Uses `cp` not symlinks (prettier rejects symlinks). NOTE: activation checks run before PRE_COMMANDS — copies provide config, not activation.
 - npm ci guard (runs only if package-lock.json exists).
+
+### Self-lint: MEGALINTER_CONFIG override
+
+- CI self-lint uses `MEGALINTER_CONFIG=/opt/coding-standards/.mega-linter-default.yml` — the baked image config, not the workspace `.mega-linter.yml` (which uses EXTENDS from a stale main branch).
+- This ensures the self-lint validates the config that consumers will actually get.
+
+### `_CONFIG_FILE` must be relative (bare filenames)
+
+- MegaLinter concatenates `LINTER_RULES_PATH + _CONFIG_FILE`. Absolute paths break silently.
+- Enforced by `check-megalinter-config-paths` pre-commit hook.
+- All `_CONFIG_FILE` values are bare filenames: `ruff.toml`, `.hadolint.yaml`, etc.
 
 ### Supply chain
 
