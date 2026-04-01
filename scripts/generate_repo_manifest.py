@@ -263,6 +263,82 @@ def check_actions_pinned(root: Path) -> bool:
     return found_any
 
 
+def check_run_blocks_have_groups(root: Path) -> bool:
+    """Check that multi-line run: blocks use ::group:: markers for log structuring.
+
+    Gitea Actions and gitea-ci parse ::group::/::endgroup:: markers for per-step
+    log visibility. Without them, all step output merges into one blob.
+    Single-line run: blocks are exempt (too short to benefit).
+    """
+    for wf in _workflow_files(root):
+        try:
+            data = yaml.safe_load(wf.read_text(errors="replace"))
+        except Exception:
+            continue
+        if not isinstance(data, dict):
+            continue
+        for job in (data.get("jobs") or {}).values():
+            if not isinstance(job, dict):
+                continue
+            for step in job.get("steps") or []:
+                if not isinstance(step, dict):
+                    continue
+                run_block = step.get("run", "")
+                if not isinstance(run_block, str):
+                    continue
+                # Only check multi-line run blocks (single-line too short to need groups)
+                if "\n" in run_block.strip() and "::group::" not in run_block:
+                    return False
+    return True
+
+
+def check_push_trigger_all_branches(root: Path) -> bool:
+    """Check that push triggers don't filter by branch.
+
+    The CI-on-every-commit model (Gitea) needs all branches to trigger CI.
+    A `push: branches: [main]` filter breaks this — only main gets CI.
+    """
+    for wf in _workflow_files(root):
+        try:
+            data = yaml.safe_load(wf.read_text(errors="replace"))
+        except Exception:
+            continue
+        if not isinstance(data, dict):
+            continue
+        triggers = data.get(True) or data.get("on") or {}  # YAML parses `on:` as True
+        if not isinstance(triggers, dict):
+            continue
+        push = triggers.get("push")
+        if isinstance(push, dict) and "branches" in push:
+            return False
+    return True
+
+
+def check_github_token_workaround(root: Path) -> bool:
+    """Check that push-triggered workflows using github.com actions have the fix.
+
+    Gitea overrides GITHUB_TOKEN with a Gitea-scoped token. Workflows that run
+    on Gitea (push-triggered) and call github.com APIs need the workaround:
+        echo "GITHUB_TOKEN=$REAL_GITHUB_TOKEN" >> "$GITHUB_ENV"
+
+    Returns True if no push-triggered workflows use github.com actions,
+    or if those that do have the workaround step.
+    Skips schedule/dispatch-only workflows (GitHub-only, no Gitea).
+    """
+    for wf in _workflow_files(root):
+        text = wf.read_text(errors="replace")
+        # Only check workflows with push triggers (the ones that run on Gitea)
+        if "push:" not in text:
+            continue
+        has_github_actions = any(
+            "uses:" in line and ("actions/" in line or "github.com" in line)
+            for line in text.splitlines()
+        )
+        if has_github_actions and "REAL_GITHUB_TOKEN" not in text:
+            return False
+    return True
+
+
 def _has_health_route(root: Path) -> bool:
     """Check if any source file defines a health endpoint."""
     patterns = ["/health", "/healthz", "/ready", "/readyz"]
@@ -460,6 +536,9 @@ def generate(root: Path) -> dict[str, Any]:
             "ci_delegates_to_runner": check_ci_delegates_to_runner(root),
             "ci_mixes_schedule_and_push": check_ci_mixes_schedule(root),
             "has_sha_pins": check_workflow_field(root, "@") and check_actions_pinned(root),
+            "run_blocks_have_groups": check_run_blocks_have_groups(root),
+            "push_trigger_all_branches": check_push_trigger_all_branches(root),
+            "github_token_workaround": check_github_token_workaround(root),
         },
         "observability": {
             "is_service": any(
