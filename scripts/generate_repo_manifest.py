@@ -310,9 +310,14 @@ def check_run_blocks_have_groups(root: Path) -> bool:
     return True
 
 
-def _get_triggers(data: dict) -> dict:
+def _get_triggers(data: dict[str, Any]) -> dict[str, Any]:
     """Extract the triggers dict from a parsed workflow, handling YAML `on:` → True."""
-    triggers = data.get(True) or data.get("on") or {}
+    # YAML parses `on:` as boolean True key. Try both.
+    triggers = data.get(True)
+    if triggers is None:
+        triggers = data.get("on")
+    if triggers is None:
+        return {}
     if isinstance(triggers, str):
         return {triggers: None}
     if isinstance(triggers, list):
@@ -322,7 +327,7 @@ def _get_triggers(data: dict) -> dict:
     return {}
 
 
-def _has_push_trigger(data: dict) -> bool:
+def _has_push_trigger(data: dict[str, Any]) -> bool:
     """Check if a parsed workflow has a push trigger (any form)."""
     return "push" in _get_triggers(data)
 
