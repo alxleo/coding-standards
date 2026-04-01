@@ -118,10 +118,15 @@ def _count_large_shell(root: Path, threshold: int, skip_paths: set[str] | None =
     return count
 
 
-def _count_large_ci_run_blocks(root: Path, threshold: int) -> int:
-    """Count CI workflow run: blocks exceeding threshold lines."""
+def _count_large_ci_run_blocks(
+    root: Path, threshold: int, skip_paths: set[str] | None = None
+) -> int:
+    """Count CI workflow run: blocks exceeding threshold lines, skipping acknowledged paths."""
     count = 0
     for wf in _workflow_files(root):
+        rel = wf.relative_to(root)
+        if skip_paths and rel.as_posix() in skip_paths:
+            continue
         try:
             data = yaml.safe_load(wf.read_text(errors="replace"))
             if not isinstance(data, dict):
@@ -523,7 +528,9 @@ def generate(root: Path) -> dict[str, Any]:
             "ci_delegates_to_runner": check_ci_delegates_to_runner(root),
             "ci_mixes_schedule_and_push": check_ci_mixes_schedule(root),
             "has_sha_pins": check_workflow_field(root, "@") and check_actions_pinned(root),
-            "ci_run_blocks_over_10_lines": _count_large_ci_run_blocks(root, 10),
+            "ci_run_blocks_over_10_lines": _count_large_ci_run_blocks(
+                root, 10, _acknowledged_paths(ack, "large_ci_run_blocks")
+            ),
         },
         "observability": {
             "is_service": any(
