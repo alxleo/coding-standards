@@ -171,7 +171,8 @@ YAML_PRETTIER_CONFIG_FILE: .prettierrc
 JAVASCRIPT_PRETTIER_CONFIG_FILE: .prettierrc
 TYPESCRIPT_PRETTIER_CONFIG_FILE: .prettierrc
 REPOSITORY_GITLEAKS_CONFIG_FILE: .gitleaks.toml
-EDITORCONFIG_EDITORCONFIG_CHECKER_CONFIG_FILE: .editorconfig
+# editorconfig-checker: _CONFIG_FILE expects an .ecrc (tool config), not .editorconfig.
+# The tool auto-discovers .editorconfig from the workspace root (copied via PRE_COMMANDS).
 SPELL_CODESPELL_CONFIG_FILE: .codespellrc
 # v8r: uses cosmiconfig auto-discovery, not CLI flags.
 # YAML_V8R works via _CONFIG_FILE (descriptor has no cli_config_arg_name).
