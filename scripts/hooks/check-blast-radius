@@ -43,13 +43,12 @@ if not staged:
 warnings = []
 try:
     radius_data = compute_blast_radius(root)
-    for entry in radius_data:
-        if entry["file"] in staged and entry["blast_radius"] >= BLAST_THRESHOLD:
-            warnings.append(
-                f"  {entry['file']} — blast radius {entry['blast_radius']}"
-                f" ({len(entry['referencing_files'])} files reference this)"
-            )
-except Exception:
+    warnings.extend(
+        f"  {e['file']} — blast radius {e['blast_radius']} ({len(e['referencing_files'])} files reference this)"
+        for e in radius_data
+        if e["file"] in staged and e["blast_radius"] >= BLAST_THRESHOLD
+    )
+except (OSError, ValueError):
     pass  # Don't block on analysis errors
 
 # Check naming entropy of directories containing staged files
@@ -59,10 +58,8 @@ try:
     for entry in entropy_data:
         if entry["directory"] in staged_dirs and entry["entropy"] > ENTROPY_THRESHOLD:
             convs = ", ".join(f"{k}:{v}" for k, v in entry["conventions"].items())
-            warnings.append(
-                f"  {entry['directory']}/ — naming entropy {entry['entropy']:.2f} ({convs})"
-            )
-except Exception:
+            warnings.append(f"  {entry['directory']}/ — naming entropy {entry['entropy']:.2f} ({convs})")
+except (OSError, ValueError):
     pass
 
 if warnings:
