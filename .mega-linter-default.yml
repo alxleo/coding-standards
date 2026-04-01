@@ -272,7 +272,7 @@ PRE_COMMANDS:
   # these files at root activate the linters naturally.
   # Uses cp (not symlinks) — prettier rejects symlinks.
   - command: >-
-      for f in .v8rrc.yml .editorconfig .shellcheckrc commitlint.config.mjs .codespellrc .ls-lint.yml; do
+      for f in .v8rrc.yml .editorconfig .shellcheckrc .codespellrc .ls-lint.yml; do
         test ! -f "$f" && cp "/opt/coding-standards/configs/$f" "$f" 2>/dev/null || true;
       done
     cwd: workspace
