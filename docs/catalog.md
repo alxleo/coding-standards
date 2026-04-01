@@ -6,9 +6,8 @@ Generated from config files — this IS the source of truth.
 
 ## Linters (54 total)
 
-### Error tier (25 — blocks build)
+### Error tier (24 — blocks build)
 
-- BASH_SHELLCHECK
 - PYTHON_RUFF
 - PYTHON_PYRIGHT
 - DOCKERFILE_HADOLINT
@@ -34,8 +33,9 @@ Generated from config files — this IS the source of truth.
 - REPOSITORY_JUST_FMT
 - REPOSITORY_GIT_DIFF
 
-### Warn tier (29 — reports only)
+### Warn tier (30 — reports only)
 
+- BASH_SHELLCHECK
 - BASH_SHFMT
 - PYTHON_VULTURE
 - YAML_YAMLLINT

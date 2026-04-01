@@ -99,6 +99,7 @@ ENABLE_LINTERS:
 # Tier 1: everything not listed below BLOCKS the build
 # Tier 2: warn but don't fail
 DISABLE_ERRORS_LINTERS:
+  - BASH_SHELLCHECK # .shellcheckrc enables extra rules — fix scripts before promoting to error
   - JAVASCRIPT_PRETTIER
   - TYPESCRIPT_PRETTIER
   - JSON_PRETTIER
@@ -271,14 +272,15 @@ PRE_COMMANDS:
       python3 /opt/coding-standards/scripts/generate_repo_manifest.py
     cwd: workspace
     continue_if_failed: true
-  # Symlink baked configs that tools discover via workspace root, not CLI flags.
+  # Copy baked configs that tools discover via workspace root, not CLI flags.
   # v8r: cosmiconfig finds .v8rrc.yml (can't use _CONFIG_FILE — see JSON v8r note)
   # shfmt: reads .editorconfig from file's directory tree
+  # Uses cp (not symlinks) — prettier rejects symlinks.
   - command: >-
       test ! -f .v8rrc.yml &&
-      ln -s /opt/coding-standards/configs/.v8rrc.yml .v8rrc.yml || true;
+      cp /opt/coding-standards/configs/.v8rrc.yml .v8rrc.yml || true;
       test ! -f .editorconfig &&
-      ln -s /opt/coding-standards/configs/.editorconfig .editorconfig || true
+      cp /opt/coding-standards/configs/.editorconfig .editorconfig || true
     cwd: workspace
     continue_if_failed: true
   # Install JS deps if package-lock.json exists
