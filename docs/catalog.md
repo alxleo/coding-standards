@@ -6,7 +6,7 @@ Generated from config files — this IS the source of truth.
 
 ## Linters (54 total)
 
-### Error tier (24 — blocks build)
+### Error tier (25 — blocks build)
 
 - BASH_SHELLCHECK
 - PYTHON_RUFF
@@ -29,11 +29,12 @@ Generated from config files — this IS the source of truth.
 - REPOSITORY_DEPENDENCY_CRUISER
 - REPOSITORY_NPM_AUDIT
 - REPOSITORY_LICENSE_CHECKER
+- REPOSITORY_DEPTRY
 - REPOSITORY_CADDY_FMT
 - REPOSITORY_JUST_FMT
 - REPOSITORY_GIT_DIFF
 
-### Warn tier (30 — reports only)
+### Warn tier (29 — reports only)
 
 - BASH_SHFMT
 - PYTHON_VULTURE
@@ -55,7 +56,6 @@ Generated from config files — this IS the source of truth.
 - REPOSITORY_OXLINT
 - REPOSITORY_PUBLINT
 - REPOSITORY_ATTW
-- REPOSITORY_DEPTRY
 - REPOSITORY_IMPORT_LINTER
 - CSS_STYLELINT
 - SQL_SQLFLUFF

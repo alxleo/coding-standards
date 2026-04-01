@@ -51,6 +51,9 @@ if missing:
 dockerfile_stale = []
 for line in dockerfile.read_text().splitlines():
     if line.strip().startswith("COPY "):
+        # Skip multi-stage COPY (COPY --from=builder ...)
+        if "--from=" in line:
+            continue
         parts = line.strip().split()
         # COPY src1 src2 ... dest/ — all but last are sources
         sources = parts[1:-1]

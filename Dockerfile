@@ -37,8 +37,8 @@ RUN --mount=type=cache,target=/root/.npm \
   publint@0.3.18 \
   @arethetypeswrong/cli@0.18.2 \
   eslint-plugin-i18next@6.1.3 && \
-  find /usr/local/lib/node_modules -type d -name "test" -o -name "tests" -o -name "docs" -o -name "doc" | xargs rm -rf && \
-  find /usr/local/lib/node_modules -type f -name "*.md" -o -name "*.markdown" -o -name "LICENSE*" -o -name "CHANGELOG*" | xargs rm -f
+  find /usr/local/lib/node_modules -type d \( -name "test" -o -name "tests" -o -name "docs" -o -name "doc" \) -exec rm -rf {} + && \
+  find /usr/local/lib/node_modules -type f \( -name "*.md" -o -name "*.markdown" -o -name "LICENSE*" -o -name "CHANGELOG*" \) -exec rm -f {} +
 
 # Python tools (consolidated into a single shared venv)
 # Using /opt/venv as the global runtime for custom Python tools
