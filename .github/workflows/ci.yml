@@ -2,13 +2,12 @@
 # CI pipeline — single workflow with dependency graph.
 #
 # Graph:
-#   fast-checks ──→ self-lint
-#                ──→ build ──→ push (main only)
+#   fast-checks ──→ build ──→ self-lint ──→ push (main only)
 #
 # fast-checks: `just check` — same as local dev
-# self-lint: MegaLinter image with branch configs mounted
 # build: Docker image build + smoke tests + catalog drift
-# push: tag + push to GHCR (only on main/schedule/dispatch)
+# self-lint: runs the just-built ci-test image (not stale :latest)
+# push: tag + push to GHCR (only on main/dispatch)
 name: CI
 
 on:
@@ -64,47 +63,7 @@ jobs:
           trap 'echo "::endgroup::"' EXIT
           just check
 
-  # ── Stage 2a: self-lint (needs fast-checks) ─────────────────
-  self-lint:
-    needs: fast-checks
-    if: >-
-      github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.pull_request.draft == false &&
-       github.actor != 'dependabot[bot]')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Self-lint (image + branch configs)
-        run: |
-          echo "::group::Self-lint (image + branch configs)"
-          trap 'echo "::endgroup::"' EXIT
-          docker run --rm \
-            -v "${{ github.workspace }}:/tmp/lint" \
-            -v "${{ github.workspace }}/lint-configs:/opt/coding-standards/configs" \
-            -v "${{ github.workspace }}/semgrep-rules:/opt/coding-standards/semgrep-rules" \
-            -v "${{ github.workspace }}/policies:/opt/coding-standards/policies" \
-            -v "${{ github.workspace }}/plugins:/mega-linter-plugin-custom" \
-            -v "${{ github.workspace }}/scripts:/opt/coding-standards/scripts" \
-            -v "${{ github.workspace }}/.mega-linter-default.yml:/opt/coding-standards/.mega-linter-default.yml" \
-            -e DEFAULT_WORKSPACE=/tmp/lint \
-            ghcr.io/alxleo/coding-standards:latest
-
-      - name: Upload MegaLinter report
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: megalinter-report
-          path: megalinter-reports/
-          retention-days: 2
-
-  # ── Stage 2b: Docker build (needs fast-checks) ─────────────
+  # ── Stage 2: build + self-lint + push (needs fast-checks) ───
   build:
     needs: fast-checks
     permissions:
@@ -206,6 +165,24 @@ jobs:
           img="${REGISTRY}/${IMAGE_NAME}:ci-test"
           docker run --rm --entrypoint="" "$img" \
             python3 /opt/coding-standards/scripts/generate_catalog.py --check
+
+      - name: Self-lint (built image against this repo)
+        run: |
+          echo "::group::Self-lint"
+          trap 'echo "::endgroup::"' EXIT
+          img="${REGISTRY}/${IMAGE_NAME}:ci-test"
+          docker run --rm \
+            -v "${{ github.workspace }}:/tmp/lint" \
+            -e DEFAULT_WORKSPACE=/tmp/lint \
+            "$img"
+
+      - name: Upload MegaLinter report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: megalinter-report
+          path: megalinter-reports/
+          retention-days: 2
 
       - name: Push image
         if: github.event_name != 'pull_request'
