@@ -46,11 +46,14 @@ repos:
         args: ["-c", "lint-configs/.zizmor.yml"]
 
   # ── Markdown linting ───────────────────────────────────────
-  - repo: https://github.com/DavidAnson/markdownlint-cli2
-    rev: v0.21.0
+  - repo: local
     hooks:
-      - id: markdownlint-cli2
-        args: [--config, lint-configs/.markdownlint-cli2.yaml]
+      - id: rumdl
+        name: rumdl
+        entry: rumdl check --config lint-configs/.markdownlint-cli2.yaml
+        language: python
+        additional_dependencies: [rumdl]
+        types: [markdown]
 
   # ── Commit message linting ─────────────────────────────────
   - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook

@@ -21,7 +21,7 @@ ENABLE_LINTERS:
   - JSON_PRETTIER
   - JSON_V8R
   # Markdown
-  - MARKDOWN_MARKDOWNLINT
+  - MARKDOWN_RUMDL
   # Dockerfile
   - DOCKERFILE_HADOLINT
   - DOCKERFILE_DCLINT
@@ -104,7 +104,7 @@ DISABLE_ERRORS_LINTERS:
   - JSON_PRETTIER
   - YAML_PRETTIER
   - BASH_SHFMT
-  - MARKDOWN_MARKDOWNLINT
+  - MARKDOWN_RUMDL
   - YAML_YAMLLINT
   - COPYPASTE_PMD_CPD
   - EDITORCONFIG_EDITORCONFIG_CHECKER
@@ -138,18 +138,11 @@ DISABLE_ERRORS_LINTERS:
 #
 # Consumer repos override by setting <LINTER>_CONFIG_FILE in their .mega-linter.yml.
 
-# shellcheck: built-in descriptor defaults cli_config_arg_name to -c (removed in v0.11).
-# Override via ARGUMENTS with --rcfile instead. No _CONFIG_FILE (would inject -c).
-BASH_SHELLCHECK_ARGUMENTS:
-  - "--rcfile"
-  - "/opt/coding-standards/configs/.shellcheckrc"
-# markdownlint: built-in descriptor runs markdownlint-cli (v1), which can't parse
-# .markdownlint-cli2.yaml format. Override executable to cli2 and pass --config
-# directly (cli2 uses --config, not -c). No _CONFIG_FILE (would inject -c).
-MARKDOWN_MARKDOWNLINT_CLI_EXECUTABLE: markdownlint-cli2
-MARKDOWN_MARKDOWNLINT_ARGUMENTS:
-  - "--config"
-  - "/opt/coding-standards/configs/.markdownlint-cli2.yaml"
+# shellcheck: built-in descriptor has no cli_config_arg_name, inheriting the
+# default -c which shellcheck has never accepted. Auto-discovery via .shellcheckrc
+# copied to workspace in PRE_COMMANDS (no _CONFIG_FILE needed).
+# rumdl: custom plugin with cli_config_arg_name: --config. Clean _CONFIG_FILE.
+MARKDOWN_RUMDL_CONFIG_FILE: .markdownlint-cli2.yaml
 REPOSITORY_COMMITLINT_CONFIG_FILE: commitlint.config.mjs
 REPOSITORY_ZIZMOR_CONFIG_FILE: .zizmor.yml
 PYTHON_PYRIGHT_CONFIG_FILE: pyrightconfig.json
@@ -272,14 +265,17 @@ PRE_COMMANDS:
     cwd: workspace
     continue_if_failed: true
   # Copy baked configs that tools discover via workspace root, not CLI flags.
-  # v8r: cosmiconfig finds .v8rrc.yml (can't use _CONFIG_FILE — see JSON v8r note)
+  # v8r: cosmiconfig (can't use _CONFIG_FILE — built-in descriptor injects -c as --catalogs)
   # shfmt: reads .editorconfig from file's directory tree
+  # shellcheck: auto-discovers .shellcheckrc (built-in descriptor has no cli_config_arg_name)
   # Uses cp (not symlinks) — prettier rejects symlinks.
   - command: >-
       test ! -f .v8rrc.yml &&
       cp /opt/coding-standards/configs/.v8rrc.yml .v8rrc.yml || true;
       test ! -f .editorconfig &&
-      cp /opt/coding-standards/configs/.editorconfig .editorconfig || true
+      cp /opt/coding-standards/configs/.editorconfig .editorconfig || true;
+      test ! -f .shellcheckrc &&
+      cp /opt/coding-standards/configs/.shellcheckrc .shellcheckrc || true
     cwd: workspace
     continue_if_failed: true
   # Install JS deps if package-lock.json exists
@@ -313,3 +309,4 @@ PLUGINS:
   - "file:///mega-linter-plugin-custom/type-coverage.megalinter-descriptor.yml"
   - "file:///mega-linter-plugin-custom/publint.megalinter-descriptor.yml"
   - "file:///mega-linter-plugin-custom/attw.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/rumdl.megalinter-descriptor.yml"
