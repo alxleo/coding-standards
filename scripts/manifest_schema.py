@@ -79,7 +79,7 @@ class ManifestCI(BaseModel):
     has_sha_pins: bool
     ci_delegates_to_runner: bool
     ci_mixes_schedule_and_push: bool
-    run_blocks_have_groups: bool = False
+    run_blocks_have_groups: bool = True
     push_trigger_all_branches: bool = True
     github_token_workaround: bool = True
 
