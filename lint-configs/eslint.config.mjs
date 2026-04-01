@@ -31,10 +31,7 @@ export default [
     },
     rules: {
       // ── Filename conventions ──────────────────────────────
-      "unicorn/filename-case": [
-        "warn",
-        { cases: { kebabCase: true, pascalCase: true } },
-      ],
+      "unicorn/filename-case": ["warn", { cases: { kebabCase: true, pascalCase: true } }],
 
       // ── Security ──────────────────────────────────────────
       "security/detect-eval-with-expression": "error",

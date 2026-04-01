@@ -152,6 +152,17 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 - Copy baked configs to workspace root for auto-discovery tools (v8r, shellcheck, shfmt, editorconfig-checker, commitlint, codespell, ls-lint). Uses `cp` not symlinks (prettier rejects symlinks). NOTE: activation checks run before PRE_COMMANDS — copies provide config, not activation.
 - npm ci guard (runs only if package-lock.json exists).
 
+### Self-lint: MEGALINTER_CONFIG override
+
+- CI self-lint uses `MEGALINTER_CONFIG=/opt/coding-standards/.mega-linter-default.yml` — the baked image config, not the workspace `.mega-linter.yml` (which uses EXTENDS from a stale main branch).
+- This ensures the self-lint validates the config that consumers will actually get.
+
+### `_CONFIG_FILE` must be relative (bare filenames)
+
+- MegaLinter concatenates `LINTER_RULES_PATH + _CONFIG_FILE`. Absolute paths break silently.
+- Enforced by `check-megalinter-config-paths` pre-commit hook.
+- All `_CONFIG_FILE` values are bare filenames: `ruff.toml`, `.hadolint.yaml`, etc.
+
 ### Supply chain
 
 - SHA-pin everything: Docker images by digest, binaries by checksum, npm by exact version.
