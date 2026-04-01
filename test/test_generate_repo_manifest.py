@@ -197,3 +197,154 @@ def test_small_justfile_recipes_not_counted(tmp_path: Path) -> None:
     )
     manifest = generate(tmp_path)
     assert manifest["content"]["justfile_recipes_over_10_lines"] == 0
+# ── Gitea CI policy scanner tests ─────────────────────────────
+
+
+def _write_workflow(tmp_path: Path, filename: str, content: str) -> None:
+    wf_dir = tmp_path / ".github" / "workflows"
+    wf_dir.mkdir(parents=True, exist_ok=True)
+    (wf_dir / filename).write_text(content)
+
+
+def test_run_blocks_have_groups_passes_with_markers(tmp_path: Path) -> None:
+    _write_workflow(
+        tmp_path,
+        "ci.yml",
+        """
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: check
+        run: |
+          echo "::group::check"
+          trap 'echo "::endgroup::"' EXIT
+          just check
+""",
+    )
+    manifest = generate(tmp_path)
+    assert manifest["ci"]["run_blocks_have_groups"] is True
+
+
+def test_run_blocks_have_groups_fails_without_markers(tmp_path: Path) -> None:
+    _write_workflow(
+        tmp_path,
+        "ci.yml",
+        """
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: check
+        run: |
+          just check
+          echo "done"
+""",
+    )
+    manifest = generate(tmp_path)
+    assert manifest["ci"]["run_blocks_have_groups"] is False
+
+
+def test_push_trigger_all_branches_passes(tmp_path: Path) -> None:
+    _write_workflow(
+        tmp_path,
+        "ci.yml",
+        "on: push\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps: []\n",
+    )
+    manifest = generate(tmp_path)
+    assert manifest["ci"]["push_trigger_all_branches"] is True
+
+
+def test_push_trigger_branches_filter_fails(tmp_path: Path) -> None:
+    _write_workflow(
+        tmp_path,
+        "ci.yml",
+        """
+on:
+  push:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps: []
+""",
+    )
+    manifest = generate(tmp_path)
+    assert manifest["ci"]["push_trigger_all_branches"] is False
+
+
+def test_push_trigger_branches_ignore_fails(tmp_path: Path) -> None:
+    _write_workflow(
+        tmp_path,
+        "ci.yml",
+        """
+on:
+  push:
+    branches-ignore: [dependabot/**]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps: []
+""",
+    )
+    manifest = generate(tmp_path)
+    assert manifest["ci"]["push_trigger_all_branches"] is False
+
+
+def test_github_token_workaround_not_needed_without_push(tmp_path: Path) -> None:
+    _write_workflow(
+        tmp_path,
+        "scheduled.yml",
+        """
+on:
+  schedule:
+    - cron: '0 3 * * 1'
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+""",
+    )
+    manifest = generate(tmp_path)
+    assert manifest["ci"]["github_token_workaround"] is True
+
+
+def test_github_token_workaround_needed_with_push(tmp_path: Path) -> None:
+    _write_workflow(
+        tmp_path,
+        "ci.yml",
+        """
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: extractions/setup-just@v2
+      - run: just check
+""",
+    )
+    manifest = generate(tmp_path)
+    assert manifest["ci"]["github_token_workaround"] is False
+
+
+def test_github_token_workaround_present(tmp_path: Path) -> None:
+    _write_workflow(
+        tmp_path,
+        "ci.yml",
+        """
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fix token
+        run: echo "GITHUB_TOKEN=$REAL_GITHUB_TOKEN" >> "$GITHUB_ENV"
+      - uses: extractions/setup-just@v2
+      - run: just check
+""",
+    )
+    manifest = generate(tmp_path)
+    assert manifest["ci"]["github_token_workaround"] is True

@@ -81,6 +81,9 @@ class ManifestCI(BaseModel):
     ci_delegates_to_runner: bool
     ci_mixes_schedule_and_push: bool
     ci_run_blocks_over_10_lines: int
+    run_blocks_have_groups: bool = True
+    push_trigger_all_branches: bool = True
+    github_token_workaround: bool = True
 
 
 class ManifestSuppressions(BaseModel):

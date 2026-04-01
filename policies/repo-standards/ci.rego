@@ -101,4 +101,44 @@ warn contains msg if {
 		"  Orchestration files delegate — they don't implement.",
 		"  Fix: extract long run: blocks into scripts/ and call by path.",
 	]), [input.ci.ci_run_blocks_over_10_lines])
+# ── Gitea CI patterns ─────────────────────────────────────────
+
+warn contains msg if {
+	helpers.has_ci_workflows
+	not input.ci.run_blocks_have_groups
+	not helpers.acknowledged("run_block_groups")
+	msg := concat("\n", [
+		"Workflow run: blocks missing ::group:: log markers",
+		"  Gitea Actions and gitea-ci parse ::group::/::endgroup:: markers",
+		"  for per-step log visibility. Without them, all step output merges",
+		"  into one blob, making failure diagnosis difficult.",
+		"  Fix: wrap multi-line run: blocks in echo \"::group::Step Name\" / echo \"::endgroup::\"",
+		"  Use trap to ensure endgroup emits on failure: trap 'echo \"::endgroup::\"' EXIT",
+	])
+}
+
+warn contains msg if {
+	helpers.has_ci_workflows
+	not input.ci.push_trigger_all_branches
+	not helpers.acknowledged("push_trigger_branches")
+	msg := concat("\n", [
+		"Workflow push trigger filters by branch",
+		"  The CI-on-every-commit model (Gitea) needs on: push: without branch",
+		"  restrictions. A branches: [main] filter means feature branches get",
+		"  no CI until they reach main — defeating the pre-push gate.",
+		"  Fix: use on: push: (all branches) instead of on: push: branches: [main]",
+	])
+}
+
+warn contains msg if {
+	helpers.has_ci_workflows
+	not input.ci.github_token_workaround
+	not helpers.acknowledged("github_token_workaround")
+	msg := concat("\n", [
+		"Workflow uses github.com actions but lacks GITHUB_TOKEN workaround",
+		"  Gitea overrides GITHUB_TOKEN with a Gitea-scoped token that can't",
+		"  reach github.com APIs. Actions like setup-just (GitHub Releases) fail.",
+		"  Fix: add early step: echo \"GITHUB_TOKEN=$REAL_GITHUB_TOKEN\" >> \"$GITHUB_ENV\"",
+		"  and pass token explicitly: github-token: ${{ env.GITHUB_TOKEN }}",
+	])
 }

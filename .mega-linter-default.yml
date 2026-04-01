@@ -99,6 +99,7 @@ ENABLE_LINTERS:
 # Tier 1: everything not listed below BLOCKS the build
 # Tier 2: warn but don't fail
 DISABLE_ERRORS_LINTERS:
+  - BASH_SHELLCHECK # MegaLinter passes -c flag (v0.9), shellcheck v0.11 removed it. Upstream bug.
   - JAVASCRIPT_PRETTIER
   - TYPESCRIPT_PRETTIER
   - JSON_PRETTIER

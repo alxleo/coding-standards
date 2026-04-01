@@ -6,9 +6,8 @@ Generated from config files — this IS the source of truth.
 
 ## Linters (54 total)
 
-### Error tier (25 — blocks build)
+### Error tier (24 — blocks build)
 
-- BASH_SHELLCHECK
 - PYTHON_RUFF
 - PYTHON_PYRIGHT
 - DOCKERFILE_HADOLINT
@@ -34,8 +33,9 @@ Generated from config files — this IS the source of truth.
 - REPOSITORY_JUST_FMT
 - REPOSITORY_GIT_DIFF
 
-### Warn tier (29 — reports only)
+### Warn tier (30 — reports only)
 
+- BASH_SHELLCHECK
 - BASH_SHFMT
 - PYTHON_VULTURE
 - YAML_YAMLLINT
@@ -144,7 +144,7 @@ Generated from config files — this IS the source of truth.
 - **warn**: service '%s' exposes port %s to all interfaces — bind to 127.0.0.1 unless intentionally public (security.rego)
 - **deny**: service '%s' mounts sensitive host path '%s' (security.rego)
 
-## Repo standards (49)
+## Repo standards (52)
 
 - **warn**: .mega-linter.yml not found (ci.rego)
 - **warn**: .mega-linter.yml exists but has no EXTENDS URL (ci.rego)
@@ -154,6 +154,9 @@ Generated from config files — this IS the source of truth.
 - **warn**: Not all GitHub Actions are SHA-pinned (ci.rego)
 - **warn**: CI has inline linting commands instead of delegating to a task runner (ci.rego)
 - **warn**: CI workflow mixes schedule triggers with push/PR triggers (ci.rego)
+- **warn**: Workflow run: blocks missing ::group:: log markers (ci.rego)
+- **warn**: Workflow push trigger filters by branch (ci.rego)
+- **warn**: Workflow uses github.com actions but lacks GITHUB_TOKEN workaround (ci.rego)
 - **warn**: coding-standards repo-standards checks active (guide.rego)
 - **warn**: conftest.toml not found (infrastructure.rego)
 - **warn**: .editorconfig not found — ensures consistent formatting across editors (infrastructure.rego)
