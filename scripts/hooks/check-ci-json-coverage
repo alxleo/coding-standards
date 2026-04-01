@@ -11,8 +11,8 @@ import re
 import sys
 from pathlib import Path
 
-# Libraries, not CLIs — no --version to test
-SKIP = re.compile(r"eslint-plugin-|@commitlint/config-|typescript$")
+# Libraries/frameworks, not CLIs — no --version to test
+SKIP = re.compile(r"eslint-plugin-|@commitlint/config-|typescript$|networkx|pydantic|pyyaml")
 
 # Package name → CLI binary name (when they differ)
 ALIASES = {
@@ -38,8 +38,9 @@ for tool in tools:
     if SKIP.search(tool):
         continue
     short = tool.rsplit("/", 1)[-1]  # @commitlint/cli → cli
-    alias = ALIASES.get(tool, "")
-    if short not in ci_text and tool not in ci_text and alias not in ci_text:
+    alias = ALIASES.get(tool)
+    names = [short, tool] + ([alias] if alias else [])
+    if not any(name in ci_text for name in names):
         missing.append(tool)
 
 if missing:

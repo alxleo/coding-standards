@@ -4,6 +4,7 @@ version = "0.0.0"
 requires-python = ">=3.11"
 dependencies = [
     "networkx>=3.0",
+    "pydantic>=2.0",
 ]
 
 [project.optional-dependencies]
@@ -13,7 +14,14 @@ test = [
     "pyyaml",
 ]
 
-[dependency-groups]
-dev = [
-    "pydantic>=2.0",
-]
+[tool.deptry]
+# manifest_schema: local module in scripts/, not an installable package
+known_first_party = ["manifest_schema"]
+# pyyaml installs as 'yaml', pytest-randomly activates via entry point
+package_module_name_map = {pyyaml = "yaml"}
+per_rule_ignores = {DEP002 = ["pytest-randomly"]}
+
+[tool.importlinter]
+root_packages = ["scripts"]
+# Scripts are standalone — no layered architecture to enforce yet.
+# Minimal contract validates import-linter runs without "no configuration" error.
