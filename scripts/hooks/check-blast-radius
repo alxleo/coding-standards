@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+"""Warn when committing files with high blast radius or naming entropy.
+
+Runs blast_radius analysis on staged files and warns (doesn't block) if:
+- Any changed file has blast radius >= 10 (many files reference it)
+- Any directory has naming entropy > 1.5 (3+ conventions mixed)
+
+Advisory only — exits 0 always. Prints warnings to stderr so they're
+visible but don't block the commit.
+"""
+
+from __future__ import annotations
+
+import subprocess
+import sys
+from pathlib import Path
+
+# Import blast_radius from scripts/
+root = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(root / "scripts"))
+
+try:
+    from blast_radius import compute_blast_radius, compute_naming_entropy
+except ImportError:
+    # networkx not installed locally — skip silently
+    sys.exit(0)
+
+BLAST_THRESHOLD = 10
+ENTROPY_THRESHOLD = 1.5
+
+# Get staged files
+result = subprocess.run(
+    ["git", "diff", "--cached", "--name-only", "--diff-filter=ACM"],
+    capture_output=True,
+    text=True,
+    check=False,
+)
+staged = set(result.stdout.strip().splitlines())
+if not staged:
+    sys.exit(0)
+
+# Check blast radius of staged files
+warnings = []
+try:
+    radius_data = compute_blast_radius(root)
+    for entry in radius_data:
+        if entry["file"] in staged and entry["blast_radius"] >= BLAST_THRESHOLD:
+            warnings.append(
+                f"  {entry['file']} — blast radius {entry['blast_radius']}"
+                f" ({len(entry['referencing_files'])} files reference this)"
+            )
+except Exception:
+    pass  # Don't block on analysis errors
+
+# Check naming entropy of directories containing staged files
+try:
+    entropy_data = compute_naming_entropy(root)
+    staged_dirs = {str(Path(f).parent) for f in staged}
+    for entry in entropy_data:
+        if entry["directory"] in staged_dirs and entry["entropy"] > ENTROPY_THRESHOLD:
+            convs = ", ".join(f"{k}:{v}" for k, v in entry["conventions"].items())
+            warnings.append(
+                f"  {entry['directory']}/ — naming entropy {entry['entropy']:.2f} ({convs})"
+            )
+except Exception:
+    pass
+
+if warnings:
+    print("⚠ Attention load warnings (advisory, not blocking):", file=sys.stderr)
+    for w in warnings:
+        print(w, file=sys.stderr)
+    print(file=sys.stderr)
+
+# Always exit 0 — advisory only
+sys.exit(0)

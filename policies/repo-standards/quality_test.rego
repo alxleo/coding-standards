@@ -58,3 +58,23 @@ any_contains(set, substring) if {
 	some msg in set
 	contains(msg, substring)
 }
+
+test_warn_high_blast_radius if {
+	result := quality.warn with input as {"content": {"max_blast_radius": 20, "max_naming_entropy": 0.5}}
+	any_contains(result, "blast radius")
+}
+
+test_no_warn_low_blast_radius if {
+	result := quality.warn with input as {"content": {"max_blast_radius": 5, "max_naming_entropy": 0.5}}
+	not any_contains(result, "blast radius")
+}
+
+test_warn_high_entropy if {
+	result := quality.warn with input as {"content": {"max_blast_radius": 3, "max_naming_entropy": 2.0}}
+	any_contains(result, "naming entropy")
+}
+
+test_no_warn_low_entropy if {
+	result := quality.warn with input as {"content": {"max_blast_radius": 3, "max_naming_entropy": 1.0}}
+	not any_contains(result, "naming entropy")
+}

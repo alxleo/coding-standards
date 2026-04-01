@@ -54,6 +54,8 @@ class ManifestContent(BaseModel):
     dockerfile_files: int
     python_files_with_hyphens: int
     pre_commit_hooks: list[str]
+    max_blast_radius: int
+    max_naming_entropy: float
 
 
 class ManifestDependencies(BaseModel):

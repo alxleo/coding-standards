@@ -56,8 +56,10 @@ test_warn_large_ci_run_blocks if {
 }
 
 test_no_warn_small_ci_run_blocks if {
-	result := ci.warn with input as {"files": {"mega_linter": true, "mega_linter_extends_url": "https://example.com"}, "directories": {"github_workflows": true}, "ci": {"workflow_uses_composite_action": true, "workflow_fetch_depth_zero": true, "workflow_persist_credentials_false": true, "workflow_actions_sha_pinned": true, "ci_delegates_to_runner": true, "ci_mixes_schedule_and_push": false, "ci_run_blocks_over_10_lines": 0}}
+	result := ci.warn with input as {"files": {"mega_linter": true, "mega_linter_extends_url": "https://example.com"}, "directories": {"github_workflows": true}, "ci": {"workflow_uses_composite_action": true, "workflow_fetch_depth_zero": true, "workflow_persist_credentials_false": true, "workflow_actions_sha_pinned": true, "ci_delegates_to_runner": true, "ci_mixes_schedule_and_push": false, "ci_run_blocks_over_10_lines": 0, "run_blocks_have_groups": true, "push_trigger_all_branches": true, "github_token_workaround": true}}
 	not any_contains(result, "run: block")
+}
+
 # ── Gitea CI patterns ─────────────────────────────────────────
 
 test_warn_missing_group_markers if {

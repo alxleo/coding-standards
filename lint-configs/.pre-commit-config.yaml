@@ -196,3 +196,11 @@ repos:
         additional_dependencies: [pyyaml]
         pass_filenames: false
         files: '\.mega-linter-default\.yml$'
+
+      - id: check-blast-radius
+        name: Attention load warnings (advisory)
+        entry: python3 scripts/hooks/check-blast-radius
+        language: system
+        pass_filenames: false
+        always_run: true
+        verbose: true

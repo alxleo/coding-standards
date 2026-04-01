@@ -101,6 +101,8 @@ warn contains msg if {
 		"  Orchestration files delegate — they don't implement.",
 		"  Fix: extract long run: blocks into scripts/ and call by path.",
 	]), [input.ci.ci_run_blocks_over_10_lines])
+}
+
 # ── Gitea CI patterns ─────────────────────────────────────────
 
 warn contains msg if {
