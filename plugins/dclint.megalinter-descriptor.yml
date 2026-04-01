@@ -16,4 +16,4 @@ linters:
     file_extensions: []
     file_names_regex:
       - (^|/)docker-compose[^/]*\.ya?ml$
-      - (^|/)compose[^/]*\.ya?ml$
+      - (^|/)compose(\.[\w.-]+)?\.ya?ml$

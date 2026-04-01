@@ -21,30 +21,17 @@ from pathlib import Path
 
 def extract_linters(root: Path) -> tuple[list[str], list[str]]:
     """Return (error_tier, warn_tier) linter lists."""
+    import yaml
+
     ml = root / ".mega-linter-default.yml"
-    text = ml.read_text()
-
-    enable = []
-    disable_errors = []
-    current = None
-    for line in text.splitlines():
-        if "ENABLE_LINTERS:" in line:
-            current = "enable"
-            continue
-        if "DISABLE_ERRORS_LINTERS:" in line:
-            current = "disable"
-            continue
-        if current and line.strip().startswith("- "):
-            name = line.strip().lstrip("- ").strip()
-            if current == "enable":
-                enable.append(name)
-            else:
-                disable_errors.append(name)
-        elif current and not line.strip().startswith("#") and line.strip() and not line.startswith(" "):
-            current = None
-
-    error_tier = [name for name in enable if name not in disable_errors]
-    warn_tier = [name for name in enable if name in disable_errors]
+    data = yaml.safe_load(ml.read_text())
+    enable = data.get("ENABLE_LINTERS", [])
+    disable_errors = set(data.get("DISABLE_ERRORS_LINTERS", []))
+    error_tier = [n for n in enable if n not in disable_errors]
+    warn_tier = [n for n in enable if n in disable_errors]
+    if len(error_tier) + len(warn_tier) != len(enable):
+        msg = f"Tier count mismatch: {len(error_tier)} error + {len(warn_tier)} warn != {len(enable)} enabled"
+        raise ValueError(msg)
     return error_tier, warn_tier
 
 
