@@ -52,7 +52,7 @@ repos:
         name: rumdl
         entry: rumdl check --config lint-configs/.markdownlint-cli2.yaml
         language: python
-        additional_dependencies: [rumdl]
+        additional_dependencies: [rumdl==0.1.64]
         types: [markdown]
 
   # ── Commit message linting ─────────────────────────────────
