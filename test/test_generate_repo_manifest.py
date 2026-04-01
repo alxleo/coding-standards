@@ -12,9 +12,7 @@ from pathlib import Path
 import pytest
 
 # Import via spec loader (script lives in scripts/, not a package)
-_script = (
-    Path(__file__).resolve().parent.parent / "scripts" / "generate_repo_manifest.py"
-)
+_script = Path(__file__).resolve().parent.parent / "scripts" / "generate_repo_manifest.py"
 _spec = importlib.util.spec_from_file_location("generate_repo_manifest", _script)
 assert _spec is not None, f"Could not load spec from {_script}"
 _mod = importlib.util.module_from_spec(_spec)
@@ -84,9 +82,7 @@ def test_js_repo_detects_files(js_repo: Path) -> None:
 
 
 def test_acknowledged_string_passes_through(tmp_path: Path) -> None:
-    (tmp_path / ".repo-standards.yml").write_text(
-        "acknowledged:\n  pydantic: 'not needed'\n"
-    )
+    (tmp_path / ".repo-standards.yml").write_text("acknowledged:\n  pydantic: 'not needed'\n")
     manifest = generate(tmp_path)
     assert manifest["acknowledged"]["pydantic"] == "not needed"
 
