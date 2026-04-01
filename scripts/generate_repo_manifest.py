@@ -307,7 +307,7 @@ def check_run_blocks_have_groups(root: Path) -> bool:
                 if "\n" in run_block.strip():
                     has_group = "::group::" in run_block
                     has_endgroup = "::endgroup::" in run_block
-                    if not has_group or not has_endgroup:
+                    if not (has_group and has_endgroup):
                         return False
     return True
 
