@@ -194,7 +194,7 @@ jobs:
           trap 'echo "::endgroup::"' EXIT
           img="${REGISTRY}/${IMAGE_NAME}:ci-test"
           echo "  → help"
-          docker run --rm "$img" help | grep -q "Commands:"
+          docker run --rm "$img" --help | grep -q "Commands"
           echo "  → catalog"
           docker run --rm "$img" catalog | grep -q "Coding Standards Catalog"
           echo "  → standards (empty workspace)"
