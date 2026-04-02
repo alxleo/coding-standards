@@ -31,16 +31,20 @@ Three layers of checks — all automatic:
 
 **Repo standards** — checks your repo is set up correctly. Missing pyrightconfig.json? No .gitleaks.toml? Error messages tell you what's missing and how to fix it. [Full catalog →](docs/catalog.md)
 
-## Built-in Commands
+## Local Development
 
 ```bash
-docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest              # full lint
-docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest lint PYTHON_RUFF  # single linter
-docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest fix           # auto-fix
-docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest standards     # repo setup checks
-docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest warnings      # show warn-tier findings
-docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest catalog       # full inventory
-docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest help          # commands
+# One-time: extract consumer justfile
+docker run --rm ghcr.io/alxleo/coding-standards:latest cat /opt/coding-standards/consumer.just > consumer.just
+echo 'import? "consumer.just"' >> justfile
+
+# Then:
+just cs-lint              # full suite
+just cs-fix               # auto-fix
+just cs-help              # all commands + setup guides
+just cs-help setup        # first-time CI setup
+just cs-help semgrep      # add custom rules
+just cs-help migrate      # get to green CI fast
 ```
 
 ## Consumer Override
