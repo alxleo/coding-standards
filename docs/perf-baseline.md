@@ -73,11 +73,11 @@ Captured 2026-04-02. Basis for measuring optimization impact.
 
 ## Optimization Targets
 
-| ID | Change | Target savings | Status |
-|----|--------|---------------|--------|
-| B1 | semgrep `--optimizations all` | test-driven | pending |
-| B2 | trivy drop secret+license scanners | 2-3s | pending |
-| B3 | v8r audit unused schemas | 2-4s | pending |
-| B4 | pyright add excludes | 1-3s | pending |
-| C1 | CI skip rebuild on cache hit | 3 min | pending |
-| A | Alpine multi-arch migration | major (arch + size) | pending |
+| ID | Change | Target | Measured | Status |
+|----|--------|--------|----------|--------|
+| B1 | semgrep `--optimizations all` | test-driven | 0s (already default) | done — no-op |
+| B2 | trivy drop secret+license scanners | 2-3s | -4.2s (9.45→5.27s) | done PR#83 |
+| B3 | v8r ignore patterns | 2-4s | -22.7s (28.5→5.7s) | done PR#83 |
+| B4 | pyright add excludes | 1-3s | ~0s (file-mode, not project) | done PR#83 |
+| C1 | CI skip rebuild on cache hit | 3 min | — | pending #90 |
+| A | Alpine multi-arch migration | major (arch + size) | — | pending #84 |
