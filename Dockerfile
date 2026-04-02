@@ -72,7 +72,7 @@ RUN --mount=type=cache,target=/root/.npm \
   publint@0.3.18 \
   @arethetypeswrong/cli@0.18.2 \
   eslint-plugin-i18next@6.1.3 \
-  @stoplight/spectral-cli@6.17.0 && \
+  @stoplight/spectral-cli@6.15.0 && \
   find /usr/local/lib/node_modules -type d \( -name "test" -o -name "tests" -o -name "docs" \) -exec rm -rf {} + 2>/dev/null; \
   find /usr/local/lib/node_modules -type f \( -name "*.md" -o -name "*.markdown" -o -name "LICENSE*" -o -name "CHANGELOG*" \) -exec rm -f {} + 2>/dev/null; \
   true
