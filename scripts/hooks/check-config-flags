@@ -37,7 +37,6 @@ SKIP_HOOKS = {
     "just-fmt-check",
     "caddy-fmt-check",
     "pytest",
-    "catalog-drift",
     # External tools without configs in lint-configs/
     "actionlint",
     "zizmor",

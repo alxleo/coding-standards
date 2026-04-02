@@ -69,5 +69,5 @@ just cs-help debug        Troubleshoot a failing linter
 ## Docs
 
 - `just cs-help <topic>` — progressive disclosure guides
-- [Full catalog](docs/catalog.md) — auto-generated check inventory
+- `just cs-catalog` — full check inventory (rendered at runtime)
 - [Config decisions](docs/config-decisions.md) — every decision with rationale

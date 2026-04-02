@@ -274,7 +274,7 @@ COPY semgrep-rules/ /rules/custom/
 COPY policies/ /opt/coding-standards/policies/
 
 # ── Mechanism scripts + reporting ─────────────────────────────
-COPY --chmod=755 scripts/ci/check-drift.sh scripts/ci/check-expiry.py scripts/megalinter_report_statuses.py scripts/generate_repo_manifest.py scripts/generate_catalog.py scripts/manifest_schema.py scripts/show_warnings.py scripts/blast_radius.py scripts/show_config.py scripts/recommend.py /opt/coding-standards/scripts/
+COPY --chmod=755 scripts/ci/check-drift.sh scripts/ci/check-expiry.py scripts/megalinter_report_statuses.py scripts/generate_repo_manifest.py scripts/show_catalog.py scripts/manifest_schema.py scripts/show_warnings.py scripts/blast_radius.py scripts/show_config.py scripts/recommend.py /opt/coding-standards/scripts/
 
 # ── Linter config files ──────────────────────────────────────
 COPY lint-configs/ /opt/coding-standards/configs/
@@ -289,9 +289,6 @@ ENTRYPOINT ["/bin/bash", "/opt/coding-standards/entrypoint.sh"]
 COPY consumer.just /opt/coding-standards/consumer.just
 COPY docs/help/ /opt/coding-standards/docs/help/
 COPY templates/ /opt/coding-standards/templates/
-
-# ── Generated catalog ────────────────────────────────────────
-COPY docs/catalog.md /opt/coding-standards/docs/catalog.md
 
 # ── Default config ────────────────────────────────────────────
 COPY .mega-linter-default.yml /opt/coding-standards/.mega-linter-default.yml

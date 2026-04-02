@@ -93,7 +93,7 @@ scripts/
   entrypoint.sh                     # Command router + config resolution
   generate_image_manifest.py        # Cross-validation data for integrity hook
   generate_repo_manifest.py         # Consumer repo data for repo-standards
-  generate_catalog.py               # Auto-generates docs/catalog.md
+  show_catalog.py                   # Runtime catalog renderer (no generated file)
   extract_linter_timings.py         # Parse MegaLinter report for perf data
   download-schemas.sh               # v8r schemas (build-time)
   download-semgrep-rules.sh         # Cached rulesets as JSON (build-time)

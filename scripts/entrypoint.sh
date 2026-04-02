@@ -73,7 +73,7 @@ recommend)
     python3 /opt/coding-standards/scripts/recommend.py "$WORKSPACE"
     ;;
 catalog)
-    cat /opt/coding-standards/docs/catalog.md
+    python3 /opt/coding-standards/scripts/show_catalog.py
     ;;
 warnings)
     cd "$WORKSPACE"

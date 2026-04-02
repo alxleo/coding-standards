@@ -101,11 +101,6 @@ test-rego:
 test-semgrep:
     uvx semgrep scan --config semgrep-rules/ --validate
 
-[doc('Regenerate catalog')]
-[group('check')]
-catalog-gen:
-    uv run --with pydantic --with pyyaml python3 scripts/generate_catalog.py
-
 [doc('Change impact analysis (blast radius, coupling, criticality)')]
 [group('check')]
 measure *ARGS:
