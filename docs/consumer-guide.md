@@ -234,12 +234,29 @@ For shellcheck findings (e.g., `require-double-brackets`):
 # Focus on scripts you actively maintain first
 ```
 
+## Gitignore
+
+The image creates temporary config and cache files during lint runs. Add to `.gitignore`:
+
+```gitignore
+# coding-standards lint artifacts
+.mega-linter-config/    # baked linter configs (shellcheckrc, codespellrc, etc.)
+megalinter-reports/     # lint output
+repo-manifest.json      # generated for repo-standards checks
+.lycheecache            # lychee link checker cache
+.ruff_cache/            # ruff lint cache
+.editorconfig           # only if you don't have your own
+.v8rrc.yml              # symlink to .mega-linter-config/
+```
+
+If your repo already has an `.editorconfig`, it won't be overwritten — the image only creates one if missing.
+
 ## Local development (Mac)
 
-The image is amd64. On Apple Silicon it runs under Rosetta (slower but works):
+The image supports native arm64. On Apple Silicon it runs without Rosetta:
 
 ```bash
-docker run --rm --platform linux/amd64 -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest
+docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest
 ```
 
 For faster local linting, use the tools directly:
