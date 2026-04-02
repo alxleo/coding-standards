@@ -1,113 +1,112 @@
 # coding-standards
 
-A Docker image that acts as a seed — drop it into any repo's CI and it tells you what to set up, catches bugs, enforces security, and improves over time as new checks are added.
+Docker image: `python:3.13-alpine` + MegaLinter engine + linters. Multi-arch (amd64 + arm64). Zero-config for consumers.
 
-Built on MegaLinter. Runs identically on Gitea Actions and GitHub Actions.
+## How it works
 
-## Architecture: Three Layers
+Image bakes: MegaLinter engine, linter binaries, configs, semgrep rules, conftest policies, help docs, templates.
 
-### 1. Enforcement (linters + security)
+Consumer adds a CI workflow → image runs → reports findings. No `.mega-linter.yml` needed (baked default used when absent).
 
-Two tiers — error (blocks build) and warn (reports only). See `docs/catalog.md` for the full inventory.
+Entrypoint handles: zero-config fallback, EXTENDS URL rewrite to local path, consumer `.semgrep/` auto-discovery, workspace ownership cleanup.
 
-### 2. Structural validation (conftest/Rego policies)
-
-- `policies/compose/` — Docker Compose: healthchecks, resource limits, image pinning
-- `policies/repo-standards/` — Repo setup: CI config, pre-commit hooks, dependencies, naming
-
-### 3. Change impact analysis
-
-`scripts/blast_radius.py` — answers "how hard is it to make a correct change?"
-- Blast radius (filename reference count)
-- Temporal coupling (Jaccard on git co-changes)
-- CIRank (PageRank weighted by co-change)
-- Naming entropy (convention consistency per directory)
-
-Usage: `docker run ... blast-radius --pr FILE [FILE ...]`
-
-## Dev workflow
+## Dev commands
 
 ```bash
-just check       # all checks — identical to CI (35 pre-commit hooks)
-just lint         # full MegaLinter via Docker (branch configs mounted)
-just verify       # both + rego tests
-just show-config  # which config each linter uses + shadow detection
-just measure      # blast radius / coupling / entropy analysis
+just check       # pre-commit hooks — THE gate (CI calls this)
+just build       # docker build locally
+just lint        # full MegaLinter via Docker (mounts branch configs)
+just verify      # check + lint + rego tests
 ```
 
-`just check` is THE command. CI calls it. No duplication.
+## Structural invariants (enforced by pre-commit)
 
-## Key rules
+7 cross-validation checks run on every commit via `scripts/hooks/check-image-integrity`:
 
-**`_CONFIG_FILE` must be bare filenames** — `ruff.toml` not `/opt/.../ruff.toml`. MegaLinter concatenates `workspace + _CONFIG_FILE`; absolute paths break silently. Enforced by `check-megalinter-config-paths` hook.
+1. Every `ENABLE_LINTERS` entry has an installed binary (Dockerfile)
+2. Every `DISABLE_ERRORS_LINTERS` entry is in `ENABLE_LINTERS`
+3. Every `_CONFIG_FILE` value exists in `lint-configs/`
+4. Every file in `lint-configs/` is referenced by `_CONFIG_FILE` or `_ARGUMENTS`
+5. Every Dockerfile COPY source is in CI `hashFiles()` expression
+6. Every binary download has amd64 + arm64 SHA256 checksums
+7. Every linter category has a help doc in `docs/help/`
 
-**Every pre-commit hook must have `--config`** — explicit config flags, no auto-discovery. Enforced by `check-config-flags` hook.
+If you add a tool and forget a step, the hook tells you what's missing.
 
-**CI calls `just check`, not inline linting** — one source of truth. Enforced by `ci_delegates_to_runner` repo-standard policy.
+## Adding a new linter
 
-**Merge, don't rebase** — squash-merge on GitHub makes branch history irrelevant. Rebase requires force-push which breaks parallel agents.
+Touch these files — the integrity hook validates completeness:
+
+1. **Dockerfile** — install via pip, npm, or binary download
+   - Binary: add `TOOL_VERSION`, `TOOL_SHA256_amd64`, `TOOL_SHA256_arm64`
+   - Look up real checksums from GitHub release pages, never guess
+   - Use `TARGETARCH` for download URL
+2. **plugins/\<tool\>.megalinter-descriptor.yml** — define `name`, `cli_executable`, `cli_lint_mode`, `cli_lint_extra_args`
+3. **.mega-linter-default.yml** — add to `ENABLE_LINTERS` + `DISABLE_ERRORS_LINTERS` (warn tier for new tools) + `PLUGINS`
+4. **lint-configs/\<config\>** — baked config file (if tool needs one)
+5. **.mega-linter-default.yml** — add `_CONFIG_FILE: <bare-filename>` (resolved via `LINTER_RULES_PATH`)
+6. **.ci.json** — add `"<tool> --version"` smoke test
+7. **docs/help/** — ensure the linter's category has a help topic
+8. `just build && just lint` to verify
+
+## Adding a semgrep rule
+
+1. Add to `semgrep-rules/<category>.yml` with `id: coding-standards.<rule-name>`
+2. `just check` validates rule syntax automatically
+3. Catalog regenerates on commit (pre-commit hook)
+
+## Adding a conftest policy
+
+1. Add `.rego` file to `policies/repo-standards/` or `policies/compose/`
+2. Add `*_test.rego` with unit tests
+3. `conftest verify -p policies/<dir>/` to validate
+4. If repo-standards: update `scripts/generate_repo_manifest.py` with the data field
+
+## Key constraints
+
+- **`_CONFIG_FILE` must be bare filenames** — `ruff.toml` not `/opt/.../ruff.toml`. MegaLinter concatenates `LINTER_RULES_PATH + _CONFIG_FILE`. Enforced by `check-megalinter-config-paths`.
+- **Binary checksums: both architectures** — every `curl` download needs `_SHA256_amd64` and `_SHA256_arm64`. PMD is exempt (Java, arch-agnostic). Enforced by integrity hook.
+- **Semgrep rule IDs: `coding-standards.` prefix** — ensures predictable `--exclude-rule` for consumers.
+- **No workspace root pollution** — baked configs go to `.mega-linter-config/` via PRE_COMMANDS. Exceptions: `.editorconfig` (spec requires root), `.v8rrc.yml` (symlink for cosmiconfig).
+- **Consumer files are read-only** — never `sed -i` or modify mounted workspace files. Use temp copies.
 
 ## Repository layout
 
 ```
-Dockerfile                          # MegaLinter cupcake + custom tools
-.mega-linter-default.yml            # Baseline config (inherited via EXTENDS)
+Dockerfile                          # Alpine base + all tool installs (multi-arch)
+.mega-linter-default.yml            # Baseline config (baked, zero-config default)
 docker-action/action.yml            # Composite action for consumer CI
+consumer.just                       # Consumer justfile (thin wiring, ~50 lines)
 
-lint-configs/                       # Baked linter configs
-  .pre-commit-config.yaml           # Pre-commit hooks (authoritative config)
-  ruff.toml, .yamllint, .prettierrc, eslint.config.mjs, etc.
-
-plugins/                            # MegaLinter plugin descriptors
+lint-configs/                       # Baked linter configs (bare filenames)
+plugins/                            # MegaLinter plugin descriptors (22 custom tools)
+semgrep-rules/                      # Custom semgrep rules (coding-standards.* prefix)
 policies/
-  compose/                          # Compose file validation
-  repo-standards/                   # Repo setup validation (44 Rego tests)
+  compose/                          # Compose file validation (Rego)
+  repo-standards/                   # Repo setup validation (Rego)
+  image-integrity/                  # Self-validation policies (Rego)
 
-semgrep-rules/                      # Custom rules (silent-fallbacks, typing, etc.)
+docs/help/                          # Progressive disclosure help (13 markdown files)
+templates/                          # CI workflow + gitignore templates for cs-init
 
 scripts/
-  blast_radius.py                   # Change impact analysis (6 algorithms, 93 tests)
-  show_config.py                    # Config observability (which config each linter uses)
-  generate_repo_manifest.py         # Manifest generator for repo standards
+  entrypoint.sh                     # Command router + config resolution
+  generate_image_manifest.py        # Cross-validation data for integrity hook
+  generate_repo_manifest.py         # Consumer repo data for repo-standards
   generate_catalog.py               # Auto-generates docs/catalog.md
-  megalinter_report_statuses.py     # Per-linter commit statuses (Gitea + GitHub)
-  hooks/                            # Pre-commit validation hooks
-    check-config-flags              # Every linter hook has --config
-    check-hook-deps                 # Pytest hook has all dependencies
+  extract_linter_timings.py         # Parse MegaLinter report for perf data
+  download-schemas.sh               # v8r schemas (build-time)
+  download-semgrep-rules.sh         # Cached rulesets as JSON (build-time)
+  hooks/
+    check-image-integrity           # 7 cross-validation invariants (Python)
     check-ci-json-coverage          # Every Dockerfile tool has a smoke test
-    check-megalinter-config-paths   # _CONFIG_FILE values are relative
-    regenerate-catalog              # Auto-regen on config changes
-    shell-hygiene                   # Bare python, mktemp cleanup, npx pinning
-
-docs/
-  catalog.md                        # GENERATED — full check inventory
-  change-impact-techniques.md       # Algorithm registry (6 implemented, 4 planned)
-  consumer-guide.md                 # Getting started + customization
-  config-decisions.md               # Every decision with rationale
+    check-config-flags              # Every pre-commit hook has --config
+    check-megalinter-config-paths   # _CONFIG_FILE values are bare filenames
+    check-hook-deps                 # Pytest hook has all dependencies
 
 .github/workflows/
-  ci.yml                            # Pipeline: fast-checks → self-lint + build → push
-  scheduled.yml                     # Weekly: rebuild + trivy + dive + action updates
-  gate.yml                          # Branch protection
-  release.yml                       # Auto-release v1.x.y on CI success
+  ci.yml                            # fast-checks → build (with context-hash skip) → push
+  cache-cleanup.yml                 # Delete branch caches on PR close
+  scheduled.yml                     # Weekly: rebuild + trivy + dive + cache prune
+  release.yml                       # Auto-release on CI success
 ```
-
-## Contributing new checks
-
-| Check type | Files to touch |
-|---|---|
-| **Repo setup** | `generate_repo_manifest.py` + `manifest_schema.py` + `policies/repo-standards/*.rego` + `*_test.rego` + `test/` |
-| **Code pattern** | `semgrep-rules/*.yml` |
-| **Config validation** | `policies/compose/*.rego` + `*_test.rego` |
-| **Code quality** | `lint-configs/ruff.toml` |
-| **New linter** | `Dockerfile` + `plugins/*.yml` + `.mega-linter-default.yml` (3 places) + `.ci.json` |
-
-### New linter checklist
-
-1. Install in `Dockerfile` (pip/npm + version pin)
-2. Create `plugins/<tool>.megalinter-descriptor.yml`
-3. Add to `.mega-linter-default.yml`: `ENABLE_LINTERS` + `DISABLE_ERRORS_LINTERS` + `PLUGINS`
-4. Add `_CONFIG_FILE: <filename>` (bare filename, resolved via `LINTER_RULES_PATH`)
-5. Add `<tool> --version` to `.ci.json`
-6. Pre-commit regenerates catalog automatically
-7. `just build && just lint <LINTER>` to verify
