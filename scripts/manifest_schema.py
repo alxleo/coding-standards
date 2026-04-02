@@ -49,7 +49,7 @@ class ManifestContent(BaseModel):
     javascript_files: int
     shell_files: int
     compose_files: int
-    shell_scripts_over_50_lines: int
+    shell_scripts_over_30_lines: int
     justfile_recipes_over_10_lines: int
     dockerfile_files: int
     python_files_with_hyphens: int

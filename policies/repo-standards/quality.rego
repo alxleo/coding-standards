@@ -97,14 +97,15 @@ warn contains msg if {
 }
 
 warn contains msg if {
-	input.content.shell_scripts_over_50_lines > 0
+	input.content.shell_scripts_over_30_lines > 0
 	not helpers.acknowledged("large_shell_scripts")
 	msg := sprintf(concat("\n", [
-		"%d shell script(s) exceed 50 lines",
-		"  Shell is for glue (wiring commands together). When scripts need loops",
-		"  with conditionals, data parsing, or error handling, rewrite in Python.",
-		"  Shell scripts are hard to test; Python scripts get pytest for free.",
-	]), [input.content.shell_scripts_over_50_lines])
+		"%d shell script(s) exceed 30 lines — rewrite in Python",
+		"  Shell is for inline/ephemeral only (pipe chains, justfile recipes).",
+		"  Named files should be Python: testable, typed, maintainable.",
+		"  Migration: typer for CLI, subprocess.run(shlex.split(...), check=True)",
+		"  for commands, pathlib for file ops. pytest + CliRunner from day one.",
+	]), [input.content.shell_scripts_over_30_lines])
 }
 
 warn contains msg if {

@@ -631,8 +631,8 @@ def generate(root: Path) -> dict[str, Any]:
                 for f in root.rglob(p)
                 if not _is_excluded(f.relative_to(root))
             ),
-            "shell_scripts_over_50_lines": _count_large_shell(
-                root, 50, _acknowledged_paths(ack, "large_shell_scripts")
+            "shell_scripts_over_30_lines": _count_large_shell(
+                root, 30, _acknowledged_paths(ack, "large_shell_scripts")
             ),
             "justfile_recipes_over_10_lines": _count_large_justfile_recipes(root, 10),
             "python_files_with_hyphens": sum(

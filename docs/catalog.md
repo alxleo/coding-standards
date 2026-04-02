@@ -194,7 +194,7 @@ Generated from config files — this IS the source of truth.
 - **warn**: %d suppression comments found across codebase (quality.rego)
 - **warn**: No Makefile or justfile found (quality.rego)
 - **warn**: No tests/ directory but Python scripts present (quality.rego)
-- **warn**: %d shell script(s) exceed 50 lines (quality.rego)
+- **warn**: %d shell script(s) exceed 30 lines — rewrite in Python (quality.rego)
 - **warn**: %d justfile recipe(s) exceed 10 lines (quality.rego)
 - **warn**: High blast radius: a file is referenced by %d others (quality.rego)
 - **warn**: High naming entropy (%.2f) — mixed conventions in a directory (quality.rego)
