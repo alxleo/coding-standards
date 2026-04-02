@@ -1,0 +1,27 @@
+---
+# Delete branch-scoped GHA caches when PRs close.
+# Prevents dead feature-branch caches from exhausting the 10GB quota.
+# GitHub-only — Gitea has no cache management API (gitea/gitea#26403).
+name: Cache cleanup
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  actions: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete PR branch caches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BRANCH: refs/pull/${{ github.event.pull_request.number }}/merge
+        run: |
+          echo "Cleaning caches for $BRANCH"
+          gh cache list --ref "$BRANCH" --repo "$REPO" --json id --jq '.[].id' |
+            xargs -I {} gh cache delete {} --repo "$REPO" 2>/dev/null || true
+          echo "Done"
