@@ -30,6 +30,9 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Set up QEMU (multi-arch)
+        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
         with:
@@ -55,14 +58,13 @@ jobs:
             type=raw,value={{date 'YYYY-MM-DD'}}
             type=sha,prefix=sha-
 
-      - name: Build image
+      - name: Build image (amd64 for testing)
         uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
         with:
           context: .
           load: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ci-test
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=min
 
       - name: Trivy vulnerability scan
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
@@ -74,15 +76,15 @@ jobs:
           scanners: vuln
           trivyignores: .trivyignore
 
-      - name: Push image
-        env:
-          TAGS: ${{ steps.meta.outputs.tags }}
-        run: |
-          echo "$TAGS" | while IFS= read -r tag; do
-            [ -z "$tag" ] && continue
-            docker tag "${REGISTRY}/${IMAGE_NAME}:ci-test" "$tag"
-            docker push "$tag"
-          done
+      - name: Build + push multi-arch
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=min
 
   # Prune stale GHA caches — safety net for residual buildkit blobs.
   # Primary fix is type=registry in ci.yml; this catches any leftovers.
