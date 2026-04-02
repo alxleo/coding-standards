@@ -19,6 +19,7 @@ ALIASES = {
     "dependency-cruiser": "depcruise",
     "import-linter": "lint-imports",
     "@commitlint/cli": "commitlint",
+    "@stoplight/spectral-cli": "spectral",
 }
 
 root = Path(__file__).resolve().parent.parent.parent

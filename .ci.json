@@ -41,6 +41,8 @@
     "stylelint --version",
     "htmlhint --version",
     "ls-lint --version || true",
+    "spectral --version",
+    "checkmake --version",
     "semgrep --version",
     "conftest verify -p /opt/coding-standards/policies/repo-standards/",
     "conftest verify -p /opt/coding-standards/policies/compose/",

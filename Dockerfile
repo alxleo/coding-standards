@@ -40,7 +40,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
   networkx==3.6.1 \
   pydantic==2.12.5 \
   import-linter==2.4 \
-  rumdl==0.1.64
+  rumdl==0.1.64 && \
+  apk del build-base musl-dev libffi-dev
 
 # ── npm tools (single layer, cache mount) ────────────────────
 # Includes cupcake-provided tools (eslint, prettier, v8r, stylelint, htmlhint, ls-lint)
@@ -70,7 +71,8 @@ RUN --mount=type=cache,target=/root/.npm \
   type-coverage@2.29.7 \
   publint@0.3.18 \
   @arethetypeswrong/cli@0.18.2 \
-  eslint-plugin-i18next@6.1.3 && \
+  eslint-plugin-i18next@6.1.3 \
+  @stoplight/spectral-cli@6.17.0 && \
   find /usr/local/lib/node_modules -type d \( -name "test" -o -name "tests" -o -name "docs" \) -exec rm -rf {} + 2>/dev/null; \
   find /usr/local/lib/node_modules -type f \( -name "*.md" -o -name "*.markdown" -o -name "LICENSE*" -o -name "CHANGELOG*" \) -exec rm -f {} + 2>/dev/null; \
   true
@@ -199,6 +201,15 @@ RUN set -eux && \
     -o /usr/local/bin/shfmt && \
   echo "${SHFMT_SHA256}  /usr/local/bin/shfmt" | sha256sum -c - && \
   chmod +x /usr/local/bin/shfmt && \
+  # ── checkmake (Makefile linter) ──
+  CHECKMAKE_VERSION="0.3.2" && \
+  CHECKMAKE_SHA256_amd64="e2effb876913f3ee2caef0ba35f6202c5e8a3cd55a077d8d2b9ce2034257b6af" && \
+  CHECKMAKE_SHA256_arm64="409167c4abb99407bd232c3bbd351b8a39df57997feafde5a08bddffb0f2dcb4" && \
+  CHECKMAKE_SHA256=$([ "$TARGETARCH" = "arm64" ] && echo "$CHECKMAKE_SHA256_arm64" || echo "$CHECKMAKE_SHA256_amd64") && \
+  curl -fsSL "https://github.com/mrtazz/checkmake/releases/download/v${CHECKMAKE_VERSION}/checkmake-v${CHECKMAKE_VERSION}.linux.${TARGETARCH}" \
+    -o /usr/local/bin/checkmake && \
+  echo "${CHECKMAKE_SHA256}  /usr/local/bin/checkmake" | sha256sum -c - && \
+  chmod +x /usr/local/bin/checkmake && \
   # ── PMD-CPD (Java, arch-agnostic) ──
   PMD_VERSION="7.12.0" && \
   PMD_SHA256="418dd819d38a16a49d7f345ef9a0a51e9f53e99f022d8b0722de77b7049bb8b8" && \
@@ -210,7 +221,9 @@ RUN set -eux && \
   rm /tmp/pmd.zip && \
   # ── caddy (Caddyfile formatter) ──
   CADDY_VERSION="2.11.2" && \
-  CADDY_SHA256="94391dfefe1f278ac8f387ab86162f0e88d87ff97df367f360e51e3cda3df56f" && \
+  CADDY_SHA256_amd64="94391dfefe1f278ac8f387ab86162f0e88d87ff97df367f360e51e3cda3df56f" && \
+  CADDY_SHA256_arm64="b9d88bec4254d0a98bd415ad60f97f37e4222dec96235c00b442437f5e303a32" && \
+  CADDY_SHA256=$([ "$TARGETARCH" = "arm64" ] && echo "$CADDY_SHA256_arm64" || echo "$CADDY_SHA256_amd64") && \
   curl -fsSL "https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_${TARGETARCH}.tar.gz" \
     -o /tmp/caddy.tar.gz && \
   echo "${CADDY_SHA256}  /tmp/caddy.tar.gz" | sha256sum -c - && \

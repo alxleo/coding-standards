@@ -4,7 +4,7 @@
 Complete inventory of what the coding-standards image checks.
 Generated from config files — this IS the source of truth.
 
-## Linters (53 total)
+## Linters (54 total)
 
 ### Error tier (24 — blocks build)
 
@@ -33,7 +33,7 @@ Generated from config files — this IS the source of truth.
 - REPOSITORY_JUST_FMT
 - REPOSITORY_GIT_DIFF
 
-### Warn tier (29 — reports only)
+### Warn tier (30 — reports only)
 
 - BASH_SHELLCHECK
 - BASH_SHFMT
@@ -64,6 +64,7 @@ Generated from config files — this IS the source of truth.
 - KUBERNETES_KUBECONFORM
 - REPOSITORY_LS_LINT
 - MAKEFILE_CHECKMAKE
+- GO_GOLANGCI_LINT
 
 ## Ruff rule categories (29)
 
