@@ -28,7 +28,6 @@ class TestDownload:
 
     def test_download_with_json_normalization(self, tmp_path: Path) -> None:
         dest = tmp_path / "rules.json"
-        tmp_file = dest.with_suffix(".tmp")
 
         with patch("subprocess.run") as mock_run:
 
