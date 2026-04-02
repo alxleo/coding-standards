@@ -145,8 +145,11 @@ for f in (root / "test").rglob("*.py"):
         elif isinstance(node, ast.ImportFrom) and node.module:
             test_imports.add(node.module.split(".")[0])
 
-# Also check scripts that tests load via importlib
+# Also check scripts that tests load via importlib (skip Docker-only scripts)
+DOCKER_ONLY_SCRIPTS = {"entrypoint.py", "download_build_assets.py", "show_catalog.py"}
 for f in root.glob("scripts/*.py"):
+    if f.name in DOCKER_ONLY_SCRIPTS:
+        continue
     try:
         tree = ast.parse(f.read_text(), filename=str(f))
     except SyntaxError:

@@ -1,0 +1,29 @@
+# Build-time downloads — schemas and semgrep rules baked into the image.
+# Consumed by scripts/download_build_assets.py during Docker build.
+
+schemas:
+  dest: /opt/coding-standards/schemas
+  items:
+    github-workflow: https://json.schemastore.org/github-workflow.json
+    github-action: https://json.schemastore.org/github-action.json
+    package: https://json.schemastore.org/package.json
+    tsconfig: https://json.schemastore.org/tsconfig.json
+    docker-compose: https://raw.githubusercontent.com/compose-spec/compose-go/main/schema/compose-spec.json
+    prettierrc: https://json.schemastore.org/prettierrc.json
+    eslintrc: https://json.schemastore.org/eslintrc.json
+    commitlintrc: https://json.schemastore.org/commitlintrc.json
+    markdownlint: https://raw.githubusercontent.com/DavidAnson/markdownlint/main/schema/markdownlint-config-schema.json
+    yamllint: https://json.schemastore.org/yamllint.json
+    hadolint: https://raw.githubusercontent.com/hadolint/hadolint/master/contrib/hadolint.json
+    renovate: https://docs.renovatebot.com/renovate-schema.json
+    pre-commit: https://json.schemastore.org/pre-commit-config.json
+    pyproject: https://json.schemastore.org/pyproject.json
+    ruff: https://json.schemastore.org/ruff.json
+    dependabot-v2: https://json.schemastore.org/dependabot-2.0.json
+
+semgrep-rules:
+  dest: /rules
+  normalize: json
+  items:
+    security-audit: https://semgrep.dev/c/p/security-audit
+    trailofbits: https://semgrep.dev/c/p/trailofbits

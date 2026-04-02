@@ -30,6 +30,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN --mount=type=cache,target=/root/.cache/pip \
   pip install --no-cache-dir --no-compile \
   "megalinter @ git+https://github.com/oxsecurity/megalinter.git@v9.4.0" \
+  typer==0.16.0 \
   semgrep==1.153.1 \
   ruff==0.15.4 \
   codespell==2.4.1 \
@@ -257,12 +258,10 @@ RUN set -eux && \
   # ── Trivy DB pre-cache ──
   trivy --cache-dir /root/.cache/trivy fs --download-db-only --db-repository ghcr.io/aquasecurity/trivy-db:2 --no-progress 2>/dev/null || true
 
-# ── Schema + semgrep rule download ───────────────────────────
-COPY scripts/download-schemas.sh scripts/download-semgrep-rules.sh /tmp/
-RUN chmod +x /tmp/download-schemas.sh /tmp/download-semgrep-rules.sh && \
-    /tmp/download-schemas.sh /opt/coding-standards/schemas && \
-    /tmp/download-semgrep-rules.sh /rules && \
-    rm /tmp/download-schemas.sh /tmp/download-semgrep-rules.sh
+# ── Build asset downloads (schemas + semgrep rules) ──────────
+COPY build-assets.yml scripts/download_build_assets.py /tmp/
+RUN python3 /tmp/download_build_assets.py --config /tmp/build-assets.yml && \
+    rm /tmp/build-assets.yml /tmp/download_build_assets.py
 
 # ── Plugin descriptors ────────────────────────────────────────
 COPY plugins/ /mega-linter-plugin-custom/
@@ -274,16 +273,16 @@ COPY semgrep-rules/ /rules/custom/
 COPY policies/ /opt/coding-standards/policies/
 
 # ── Mechanism scripts + reporting ─────────────────────────────
-COPY --chmod=755 scripts/ci/check-drift.sh scripts/ci/check-expiry.py scripts/megalinter_report_statuses.py scripts/generate_repo_manifest.py scripts/show_catalog.py scripts/manifest_schema.py scripts/show_warnings.py scripts/blast_radius.py scripts/show_config.py scripts/recommend.py /opt/coding-standards/scripts/
+COPY --chmod=755 scripts/ci/check-expiry.py scripts/megalinter_report_statuses.py scripts/generate_repo_manifest.py scripts/show_catalog.py scripts/manifest_schema.py scripts/show_warnings.py scripts/blast_radius.py scripts/show_config.py scripts/recommend.py /opt/coding-standards/scripts/
 
 # ── Linter config files ──────────────────────────────────────
 COPY lint-configs/ /opt/coding-standards/configs/
 
 # ── Entrypoint ───────────────────────────────────────────────
-COPY --chmod=755 scripts/entrypoint.sh /opt/coding-standards/entrypoint.sh
+COPY --chmod=755 scripts/entrypoint.py /opt/coding-standards/entrypoint.py
 # MegaLinter requires root for tool installs and workspace writes.
 # nosemgrep: dockerfile.security.missing-user-entrypoint.missing-user-entrypoint
-ENTRYPOINT ["/bin/bash", "/opt/coding-standards/entrypoint.sh"]
+ENTRYPOINT ["python3", "/opt/coding-standards/entrypoint.py"]
 
 # ── Consumer files (justfile, help docs, templates) ──────────
 COPY consumer.just /opt/coding-standards/consumer.just

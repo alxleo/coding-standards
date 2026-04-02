@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 # Libraries/frameworks, not CLIs — no --version to test
-SKIP = re.compile(r"eslint-plugin-|@commitlint/config-|typescript$|networkx|pydantic|pyyaml")
+SKIP = re.compile(r"eslint-plugin-|@commitlint/config-|typescript$|networkx|pydantic|pyyaml|typer")
 
 # Package name → CLI binary name (when they differ)
 ALIASES = {

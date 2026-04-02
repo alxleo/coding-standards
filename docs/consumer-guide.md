@@ -201,11 +201,11 @@ deny := python.warn
 
 ### 3. Generated file drift
 
-Use the baked-in drift checker via POST_COMMANDS:
+Use POST_COMMANDS to verify generated files match their generators:
 
 ```yaml
 POST_COMMANDS:
-  - command: /opt/coding-standards/scripts/check-drift.sh "python3 scripts/generate_catalog.py" catalog.json
+  - command: python3 scripts/generate_routes.py > /tmp/expected.json && diff -q routes.json /tmp/expected.json
     cwd: workspace
     continue_if_failed: false
 ```

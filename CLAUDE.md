@@ -90,13 +90,12 @@ docs/help/                          # Progressive disclosure help (13 markdown f
 templates/                          # CI workflow + gitignore templates for cs-init
 
 scripts/
-  entrypoint.sh                     # Command router + config resolution
+  entrypoint.py                     # typer CLI — command router + config resolution
   generate_image_manifest.py        # Cross-validation data for integrity hook
   generate_repo_manifest.py         # Consumer repo data for repo-standards
   show_catalog.py                   # Runtime catalog renderer (no generated file)
   extract_linter_timings.py         # Parse MegaLinter report for perf data
-  download-schemas.sh               # v8r schemas (build-time)
-  download-semgrep-rules.sh         # Cached rulesets as JSON (build-time)
+  download_build_assets.py          # Data-driven downloads (schemas + semgrep rules)
   hooks/
     check-image-integrity           # 7 cross-validation invariants (Python)
     check-ci-json-coverage          # Every Dockerfile tool has a smoke test
