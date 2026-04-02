@@ -29,7 +29,18 @@ check:
             echo "⚠ Branch is behind main — merge before pushing: git merge origin/main"
         fi
     fi
-    uvx pre-commit run --all-files -c {{ precommit_cfg }}
+    # Run pre-commit. If hooks auto-fix files (trailing newlines, formatting),
+    # stage the fixes and re-run to verify clean. Prevents the "forgot to stage
+    # the auto-fix" class of CI failures.
+    if ! uvx pre-commit run --all-files -c {{ precommit_cfg }}; then
+        if git diff --quiet; then
+            exit 1  # genuine failure, not auto-fix
+        fi
+        echo ""
+        echo "⚠ Hooks auto-fixed files. Staging fixes and re-checking..."
+        git add -u
+        uvx pre-commit run --all-files -c {{ precommit_cfg }}
+    fi
 
 [doc('Full MegaLinter suite via Docker image (mounts branch configs)')]
 [group('workflow')]
