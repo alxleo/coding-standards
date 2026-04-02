@@ -106,7 +106,6 @@ just cs-fix            # auto-fix
 just cs-standards      # repo-standards
 ```
 
-
 ### Auto-fix
 
 ```bash
