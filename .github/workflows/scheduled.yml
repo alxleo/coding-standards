@@ -100,8 +100,9 @@ jobs:
           gh cache list --repo "$REPO" --limit 500 --json id,key \
             --jq '.[] | select(.key | startswith("buildkit-")) | .id' |
             xargs -I {} gh cache delete {} --repo "$REPO" 2>/dev/null || true
-          echo "Remaining caches:"
-          gh cache list --repo "$REPO" --limit 500 --json key --jq '. | length'
+          remaining=$(gh cache list --repo "$REPO" --limit 500 --json key \
+            --jq '[.[] | select(.key | startswith("buildkit-"))] | length' 2>/dev/null || echo "?")
+          echo "Remaining buildkit caches: $remaining"
 
   # Dive layer efficiency — non-blocking
   dive:
