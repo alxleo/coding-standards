@@ -68,6 +68,10 @@ standards)
         -p /opt/coding-standards/policies/repo-standards/
     rm -f repo-manifest.json
     ;;
+recommend)
+    cd "$WORKSPACE"
+    python3 /opt/coding-standards/scripts/recommend.py "$WORKSPACE"
+    ;;
 catalog)
     cat /opt/coding-standards/docs/catalog.md
     ;;

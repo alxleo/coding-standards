@@ -20,6 +20,7 @@ just cs-show-config       Which config each linter uses
 just cs-warnings          Warnings from last run
 just cs-catalog           Full check inventory
 just cs-blast-radius      Change impact analysis
+just cs-recommend         What checks to enable for this repo (JSON)
 just cs-update            Pull latest image
 ```
 

@@ -15,6 +15,7 @@ cs-show-config:             {{ cs-run }} {{ cs-image }} show-config
 cs-catalog:                 @docker run --rm {{ cs-image }} catalog
 cs-warnings:                {{ cs-run }} {{ cs-image }} warnings
 cs-blast-radius *ARGS:      {{ cs-run }} {{ cs-image }} blast-radius {{ ARGS }}
+cs-recommend:               {{ cs-run }} {{ cs-image }} recommend
 cs-update:                  docker pull {{ cs-image }} && curl -fsSL {{ cs-repo }}/consumer.just -o consumer.just
 
 # Help: renders markdown from repo (no Docker needed)

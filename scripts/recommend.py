@@ -1,0 +1,164 @@
+#!/usr/bin/env python3
+"""Recommend checks for a consumer repo based on detected stack.
+
+Scans the workspace, identifies what's running vs what COULD run,
+and outputs actionable setup instructions. Designed for LLM consumers.
+
+Usage:
+    python3 /opt/coding-standards/scripts/recommend.py [workspace]
+    docker run ... coding-standards:latest recommend
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+WORKSPACE = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("/tmp/lint")
+
+
+def has_files(patterns: list[str]) -> list[str]:
+    """Check which glob patterns match files in the workspace."""
+    found = []
+    for pattern in patterns:
+        if list(WORKSPACE.rglob(pattern)):
+            found.append(pattern)
+    return found
+
+
+def file_exists(name: str) -> bool:
+    return (WORKSPACE / name).exists()
+
+
+# ── Detection rules ──────────────────────────────────────────
+# Each recommendation: what we detect, what's missing, what to do.
+
+recommendations: list[dict[str, object]] = []
+
+# Conftest compose policies
+if has_files(["docker-compose*.yml", "compose*.yml"]) and not file_exists("conftest.toml"):
+    recommendations.append({
+        "tool": "conftest",
+        "reason": "Docker Compose files detected but no conftest.toml",
+        "value": "Structural validation: healthchecks, resource limits, image pinning, security",
+        "setup": [
+            'echo \'parser = "yaml"\' > conftest.toml',
+            "mkdir -p policy/compose",
+            "# Add .rego policies — see: just cs-help conftest",
+        ],
+        "baked_policies": "Image already validates compose files against baked policies. conftest.toml activates consumer-side policies too.",
+    })
+
+# Custom semgrep rules
+if has_files(["*.py", "*.js", "*.ts"]) and not (WORKSPACE / ".semgrep").exists():
+    recommendations.append({
+        "tool": "semgrep (custom rules)",
+        "reason": "Code files detected but no .semgrep/ directory",
+        "value": "Catch project-specific anti-patterns alongside baked security rules",
+        "setup": [
+            "mkdir -p .semgrep",
+            "# Add YAML rules — see: just cs-help semgrep",
+        ],
+    })
+
+# Pyright config for Python repos
+if has_files(["*.py"]) and not file_exists("pyrightconfig.json"):
+    recommendations.append({
+        "tool": "pyright",
+        "reason": "Python files detected but no pyrightconfig.json",
+        "value": "Type checking catches hallucinated APIs, wrong argument types, missing imports",
+        "setup": [
+            'echo \'{"typeCheckingMode": "standard", "pythonVersion": "3.11"}\' > pyrightconfig.json',
+        ],
+    })
+
+# Gitleaks config
+if not file_exists(".gitleaks.toml") and not file_exists(".gitleaksignore"):
+    recommendations.append({
+        "tool": "gitleaks",
+        "reason": "No .gitleaks.toml or .gitleaksignore — using defaults",
+        "value": "Custom allowlists prevent false positives on test fixtures and known-safe patterns",
+        "setup": [
+            "# Create .gitleaks.toml to allowlist known-safe patterns:",
+            "# [allowlist]",
+            '#   paths = ["test/fixtures/**"]',
+        ],
+    })
+
+# Trivy ignore for known CVEs
+if has_files(["Dockerfile", "docker-compose*.yml"]) and not file_exists(".trivyignore"):
+    recommendations.append({
+        "tool": "trivy",
+        "reason": "Docker files detected but no .trivyignore",
+        "value": "Silence accepted CVEs so trivy only reports new vulnerabilities",
+        "setup": [
+            "# Create .trivyignore with accepted CVE IDs:",
+            "# CVE-2024-XXXXX  # accepted: no exposure in our usage",
+        ],
+    })
+
+# Dependency cruiser for JS/TS
+if has_files(["package.json"]) and not has_files([".dependency-cruiser.*"]):
+    recommendations.append({
+        "tool": "dependency-cruiser",
+        "reason": "package.json detected but no dependency-cruiser config",
+        "value": "Enforce module boundaries and catch circular dependencies",
+        "setup": [
+            "npx depcruise --init",
+            "# Generates .dependency-cruiser.cjs with sensible defaults",
+        ],
+    })
+
+# Ansible lint config
+if has_files(["*/tasks/*.yml", "*/playbooks/*.yml", "ansible.cfg"]) and not file_exists(".ansible-lint"):
+    recommendations.append({
+        "tool": "ansible-lint",
+        "reason": "Ansible files detected but no .ansible-lint config",
+        "value": "Custom skip rules and exclude paths for your playbook structure",
+        "setup": [
+            "# Create .ansible-lint:",
+            "# skip_list:",
+            "#   - yaml[truthy]  # if you use 'yes' in YAML",
+            "# exclude_paths:",
+            "#   - .cache/",
+        ],
+    })
+
+# Commitlint
+if not has_files(["commitlint.config.*"]):
+    recommendations.append({
+        "tool": "commitlint",
+        "reason": "No commitlint config — conventional commits not enforced",
+        "value": "Enforces consistent commit message format (feat:, fix:, etc.)",
+        "setup": [
+            "# Baked config enforces conventional commits.",
+            "# To use: just add commitlint.config.mjs to your repo",
+            "# (or accept the baked default which activates automatically)",
+        ],
+    })
+
+# Repo standards acknowledgments
+if file_exists("repo-manifest.json") and not file_exists(".repo-standards.yml"):
+    recommendations.append({
+        "tool": "repo-standards",
+        "reason": "Repo-standards checks run but no acknowledgment file",
+        "value": "Acknowledge warnings that don't apply with documented reasons",
+        "setup": [
+            "# Create .repo-standards.yml:",
+            "# acknowledged:",
+            '#   pydantic: "scripts only, no boundary-crossing data"',
+        ],
+    })
+
+# ── Output ────────────────────────────────────────────────────
+
+if not recommendations:
+    print(json.dumps({"status": "fully_configured", "recommendations": []}, indent=2))
+else:
+    output = {
+        "status": "recommendations_available",
+        "count": len(recommendations),
+        "recommendations": recommendations,
+    }
+    print(json.dumps(output, indent=2))
