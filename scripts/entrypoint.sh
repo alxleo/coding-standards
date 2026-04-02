@@ -11,6 +11,12 @@ set -euo pipefail
 
 WORKSPACE="${DEFAULT_WORKSPACE:-/tmp/lint}"
 
+# Git safe.directory — required for MegaLinter to run git commands in mounted workspaces
+# (previously handled by cupcake's /entrypoint.sh)
+if [[ -d "$WORKSPACE" ]]; then
+  git config --global --add safe.directory "$WORKSPACE"
+fi
+
 case "${1:-}" in
 lint)
     # Single linter: lint <name> or lint (full suite)
@@ -20,11 +26,11 @@ lint)
         ENABLE_LINTERS="$(echo "$1" | tr '[:lower:]' '[:upper:]')"
         export ENABLE_LINTERS
     fi
-    exec /entrypoint.sh
+    exec python3 -m megalinter.run
     ;;
 fix)
     export APPLY_FIXES=all
-    exec /entrypoint.sh
+    exec python3 -m megalinter.run
     ;;
 standards)
     cd "$WORKSPACE"
@@ -69,6 +75,6 @@ help | --help | -h)
     ;;
 *)
     # No recognized command — pass through to MegaLinter
-    exec /entrypoint.sh "$@"
+    exec python3 -m megalinter.run "$@"
     ;;
 esac

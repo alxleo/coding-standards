@@ -88,8 +88,7 @@ ENABLE_LINTERS:
   - REPOSITORY_JUST_FMT
   # Filename conventions (cross-language)
   - REPOSITORY_LS_LINT
-  # Environment files
-  - ENV_DOTENV_LINTER
+  # ENV_DOTENV_LINTER: removed — glibc-only binary, no Alpine/musl build.
   # Makefile
   - MAKEFILE_CHECKMAKE
   # Git
@@ -119,7 +118,7 @@ DISABLE_ERRORS_LINTERS:
   - REPOSITORY_LS_LINT
   - REPOSITORY_OXLINT
   - REPOSITORY_TYPE_COVERAGE
-  - ENV_DOTENV_LINTER
+
   - MAKEFILE_CHECKMAKE
   - PYTHON_VULTURE
   - REPOSITORY_IMPORT_LINTER
