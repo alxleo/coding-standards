@@ -214,7 +214,7 @@ POST_COMMANDS:
 
 ```yaml
 POST_COMMANDS:
-  - command: python3 /opt/coding-standards/scripts/check-expiry.py .
+  - command: python3 /opt/coding-standards/scripts/check_expiry.py .
     cwd: workspace
     continue_if_failed: false
 ```

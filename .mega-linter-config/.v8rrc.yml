@@ -1,0 +1,82 @@
+# v8r config — bundled schemas for offline validation.
+# Schemas downloaded at Docker build time to /opt/coding-standards/schemas/.
+# Files not matching customCatalog fall through to SchemaStore.org.
+
+# Ignore patterns live in .v8rignore (v8r doesn't support inline ignorePatterns).
+# v8r auto-discovers .v8rignore and .gitignore via ignorePatternFiles default.
+
+customCatalog:
+  schemas:
+    - name: GitHub Workflow
+      fileMatch:
+        - "**/.github/workflows/*.yml"
+        - "**/.github/workflows/*.yaml"
+        - "**/.gitea/workflows/*.yml"
+        - "**/.gitea/workflows/*.yaml"
+      location: /opt/coding-standards/schemas/github-workflow.json
+
+    - name: GitHub Action
+      fileMatch: ["action.yml", "action.yaml"]
+      location: /opt/coding-standards/schemas/github-action.json
+
+    - name: package.json
+      fileMatch: ["package.json"]
+      location: /opt/coding-standards/schemas/package.json
+
+    - name: tsconfig
+      fileMatch: ["tsconfig.json", "tsconfig.*.json"]
+      location: /opt/coding-standards/schemas/tsconfig.json
+
+    - name: Docker Compose
+      fileMatch:
+        - "docker-compose.yml"
+        - "docker-compose.yaml"
+        - "docker-compose.*.yml"
+        - "compose.yml"
+        - "compose.yaml"
+        - "compose.*.yml"
+      location: /opt/coding-standards/schemas/docker-compose.json
+
+    - name: Prettier
+      fileMatch: [".prettierrc", ".prettierrc.json", ".prettierrc.yml"]
+      location: /opt/coding-standards/schemas/prettierrc.json
+
+    - name: ESLint
+      fileMatch: [".eslintrc", ".eslintrc.json", ".eslintrc.yml"]
+      location: /opt/coding-standards/schemas/eslintrc.json
+
+    - name: commitlint
+      fileMatch: [".commitlintrc", ".commitlintrc.json", ".commitlintrc.yml"]
+      location: /opt/coding-standards/schemas/commitlintrc.json
+
+    - name: markdownlint
+      fileMatch:
+        - ".markdownlint.json"
+        - ".markdownlint.yaml"
+        - ".markdownlint-cli2.yaml"
+        - ".markdownlint-cli2.jsonc"
+      location: /opt/coding-standards/schemas/markdownlint.json
+
+    - name: yamllint
+      fileMatch: [".yamllint", ".yamllint.yml", ".yamllint.yaml"]
+      location: /opt/coding-standards/schemas/yamllint.json
+
+    - name: Hadolint
+      fileMatch: [".hadolint.yaml", ".hadolint.yml"]
+      location: /opt/coding-standards/schemas/hadolint.json
+
+    - name: Renovate
+      fileMatch: ["renovate.json", "renovate.json5", ".renovaterc"]
+      location: /opt/coding-standards/schemas/renovate.json
+
+    - name: pre-commit
+      fileMatch: [".pre-commit-config.yml", ".pre-commit-config.yaml"]
+      location: /opt/coding-standards/schemas/pre-commit.json
+
+    - name: Ruff
+      fileMatch: ["ruff.toml", ".ruff.toml"]
+      location: /opt/coding-standards/schemas/ruff.json
+
+    - name: Dependabot v2
+      fileMatch: ["**/.github/dependabot.yml", "**/.github/dependabot.yaml"]
+      location: /opt/coding-standards/schemas/dependabot-v2.json
