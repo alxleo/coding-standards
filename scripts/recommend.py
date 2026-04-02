@@ -225,14 +225,12 @@ if file_exists("repo-manifest.json") and not file_exists(".repo-standards.yml"):
         }
     )
 
+
 # ── Output ────────────────────────────────────────────────────
 
-if not recommendations:
-    print(json.dumps({"status": "fully_configured", "recommendations": []}, indent=2))
-else:
-    output = {
-        "status": "recommendations_available",
-        "count": len(recommendations),
-        "recommendations": recommendations,
-    }
-    print(json.dumps(output, indent=2))
+output = {
+    "status": "recommendations_available" if recommendations else "fully_configured",
+    "count": len(recommendations),
+    "recommendations": recommendations,
+}
+print(json.dumps(output, indent=2))
