@@ -17,16 +17,23 @@ if [[ -d "$WORKSPACE" ]]; then
   git config --global --add safe.directory "$WORKSPACE"
 fi
 
-# Rewrite EXTENDS URLs to local paths — eliminates runtime dependency on
-# raw.githubusercontent.com (rate limits, transient 429s, offline CI).
-# Works on a temp copy so we never modify the consumer's actual file.
+# Config resolution (zero-config by default):
+# 1. No .mega-linter.yml → use baked config directly (zero setup needed)
+# 2. .mega-linter.yml with EXTENDS URL → rewrite to local path (no network)
+# 3. .mega-linter.yml without EXTENDS → consumer's config takes full control
 CONSUMER_CONFIG="$WORKSPACE/.mega-linter.yml"
-EXTENDS_URL="https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml"
-if [[ -f "$CONSUMER_CONFIG" ]] && grep -q "$EXTENDS_URL" "$CONSUMER_CONFIG" 2>/dev/null; then
-  REWRITTEN_CONFIG="/tmp/.mega-linter-rewritten.yml"
-  sed "s|$EXTENDS_URL|/opt/coding-standards/.mega-linter-default.yml|g" \
-    "$CONSUMER_CONFIG" > "$REWRITTEN_CONFIG"
-  export MEGALINTER_CONFIG="$REWRITTEN_CONFIG"
+if [[ ! -f "$CONSUMER_CONFIG" ]]; then
+  # Zero-config: no consumer config → use the baked default
+  export MEGALINTER_CONFIG="/opt/coding-standards/.mega-linter-default.yml"
+else
+  EXTENDS_URL="https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml"
+  if grep -q "$EXTENDS_URL" "$CONSUMER_CONFIG" 2>/dev/null; then
+    # Rewrite EXTENDS URL to local path (avoids rate limits / network dependency)
+    REWRITTEN_CONFIG="/tmp/.mega-linter-rewritten.yml"
+    sed "s|$EXTENDS_URL|/opt/coding-standards/.mega-linter-default.yml|g" \
+      "$CONSUMER_CONFIG" > "$REWRITTEN_CONFIG"
+    export MEGALINTER_CONFIG="$REWRITTEN_CONFIG"
+  fi
 fi
 
 # Auto-discover consumer rules and merge with baked rules.

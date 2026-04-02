@@ -48,6 +48,66 @@ cs-update:
     @echo "Updated. Run 'just cs-lint' to use the new image."
     @echo "To update this justfile: docker run --rm {{ cs-image }} cat /opt/coding-standards/consumer.just > consumer.just"
 
+# ── Setup ─────────────────────────────────────────────────────
+
+# One-command setup: creates CI workflow + .gitignore entries
+cs-init:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Detect CI platform
+    if [ -d .gitea ] || [ -d .gitea/workflows ]; then
+        CI_DIR=".gitea/workflows"
+        PLATFORM="Gitea"
+    else
+        CI_DIR=".github/workflows"
+        PLATFORM="GitHub"
+    fi
+
+    # Create workflow if it doesn't exist
+    WORKFLOW="$CI_DIR/lint.yml"
+    if [ -f "$WORKFLOW" ]; then
+        echo "⏭  $WORKFLOW already exists — skipping"
+    else
+        mkdir -p "$CI_DIR"
+        cat > "$WORKFLOW" << 'WORKFLOW_EOF'
+    name: Lint
+    on:
+      push:
+        branches: [main]
+      pull_request:
+    jobs:
+      lint:
+        runs-on: ubuntu-latest
+        steps:
+          - uses: actions/checkout@v4
+            with:
+              fetch-depth: 0
+          - uses: alxleo/coding-standards/docker-action@v1
+    WORKFLOW_EOF
+        echo "✅ Created $WORKFLOW ($PLATFORM)"
+    fi
+
+    # Add .gitignore entries
+    ENTRIES=(".mega-linter-config/" "megalinter-reports/" "repo-manifest.json" ".lycheecache" ".ruff_cache/" ".v8rrc.yml")
+    ADDED=0
+    for entry in "${ENTRIES[@]}"; do
+        if ! grep -qF "$entry" .gitignore 2>/dev/null; then
+            echo "$entry" >> .gitignore
+            ADDED=$((ADDED + 1))
+        fi
+    done
+    if [ "$ADDED" -gt 0 ]; then
+        echo "✅ Added $ADDED entries to .gitignore"
+    else
+        echo "⏭  .gitignore already has all entries"
+    fi
+
+    echo ""
+    echo "Done. Next steps:"
+    echo "  just cs-lint          Run locally to see findings"
+    echo "  just cs-help migrate  Get to green CI fast"
+
 # ── Help (progressive disclosure) ────────────────────────────
 
 # Show help: cs-help, cs-help setup, cs-help semgrep, etc.
