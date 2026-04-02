@@ -151,8 +151,8 @@ jobs:
           context: .
           load: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ci-test
-          cache-from: type=gha,scope=coding-standards
-          cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,scope=coding-standards,mode=max' || '' }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: ${{ github.event_name != 'pull_request' && format('type=registry,ref={0}/{1}:buildcache,mode=min', env.REGISTRY, env.IMAGE_NAME) || '' }}
 
       - name: Smoke test (all tools in single container)
         run: |

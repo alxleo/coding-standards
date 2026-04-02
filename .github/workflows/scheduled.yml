@@ -61,8 +61,8 @@ jobs:
           context: .
           load: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ci-test
-          cache-from: type=gha,scope=coding-standards
-          cache-to: type=gha,scope=coding-standards,mode=min
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=min
 
       - name: Trivy vulnerability scan
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
