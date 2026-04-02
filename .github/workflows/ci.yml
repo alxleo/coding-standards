@@ -1,7 +1,13 @@
 ---
-# Self-test — calls the reusable lint workflow from this repo.
+# CI pipeline — single workflow with dependency graph.
 #
-# This is the dogfood loop: if CI passes, the workflow works.
+# Graph:
+#   fast-checks ──→ build ──→ self-lint ──→ push (main only)
+#
+# fast-checks: `just check` — same as local dev
+# build: Docker image build + smoke tests + catalog drift
+# self-lint: runs the just-built ci-test image (not stale :latest)
+# push: tag + push to GHCR (only on main/dispatch)
 name: CI
 
 on:
@@ -9,17 +15,222 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
-  statuses: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: alxleo/coding-standards
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  lint:
+  # ── Stage 1: fast local checks ──────────────────────────────
+  fast-checks:
     if: >-
       github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.draft == false &&
        github.actor != 'dependabot[bot]')
-    uses: ./.github/workflows/lint.yml
-    with:
-      skip-hooks: commitlint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # v8
+        with:
+          enable-cache: true
+
+      - uses: extractions/setup-just@dd310ad5a97d8e7b41793f8ef055398d51ad4de6 # v2
+
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('lint-configs/.pre-commit-config.yaml') }}
+
+      - name: just check
+        run: |
+          echo "::group::just check"
+          trap 'echo "::endgroup::"' EXIT
+          just check
+
+  # ── Stage 2: build + self-lint + push (needs fast-checks) ───
+  build:
+    needs: fast-checks
+    permissions:
+      contents: read
+      packages: write
+    # Skip on bot PRs (Renovate digest bumps) — image only matters at merge.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.user.type != 'Bot')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Compute image context hash
+        id: ctx
+        env:
+          # hashFiles() is a GHA expression — hash all files baked into the image.
+          CTX_HASH: ctx-${{ hashFiles('Dockerfile', 'plugins/**', 'semgrep-rules/**', 'policies/**', 'scripts/entrypoint.sh', 'scripts/ci/**', 'scripts/generate_catalog.py', 'scripts/generate_repo_manifest.py', 'scripts/manifest_schema.py', 'scripts/show_config.py', 'scripts/show_warnings.py', 'scripts/blast_radius.py', 'scripts/megalinter_report_statuses.py', 'scripts/download-schemas.sh', 'lint-configs/**', 'docs/catalog.md', '.mega-linter-default.yml') }}
+        run: |
+          # Truncate to ctx- prefix + 16 hex chars for tag readability
+          SHORT="${CTX_HASH:0:20}"
+          echo "hash=${SHORT}" >> "$GITHUB_OUTPUT"
+          echo "Image context hash: ${SHORT}"
+
+      - name: Check GHCR for cached image
+        id: cache
+        env:
+          CTX_TAG: ${{ steps.ctx.outputs.hash }}
+        run: |
+          TAG="${REGISTRY}/${IMAGE_NAME}:${CTX_TAG}"
+          if docker manifest inspect "$TAG" > /dev/null 2>&1; then
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+            echo "Cache hit — pulling $TAG"
+          else
+            echo "hit=false" >> "$GITHUB_OUTPUT"
+            echo "Cache miss — will build"
+          fi
+
+      - name: Pull cached image
+        if: steps.cache.outputs.hit == 'true'
+        env:
+          CTX_TAG: ${{ steps.ctx.outputs.hash }}
+        run: |
+          docker pull "${REGISTRY}/${IMAGE_NAME}:${CTX_TAG}"
+          docker tag "${REGISTRY}/${IMAGE_NAME}:${CTX_TAG}" \
+            "${REGISTRY}/${IMAGE_NAME}:ci-test"
+
+      - name: Set up Docker Buildx
+        if: steps.cache.outputs.hit != 'true'
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
+        with:
+          driver-opts: image=ghcr.io/alxleo/buildkit:v0.20.2
+          buildkitd-config-inline: |
+            [registry."docker.io"]
+              mirrors = ["mirror.gcr.io"]
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=sha,prefix=sha-
+            type=raw,value=${{ steps.ctx.outputs.hash }},enable=${{ github.ref == 'refs/heads/main' }}
+            type=semver,pattern=v{{version}},enable=${{ github.ref_type == 'tag' }}
+            type=semver,pattern=v{{major}},enable=${{ github.ref_type == 'tag' }}
+
+      - name: Build image
+        if: steps.cache.outputs.hit != 'true'
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
+        with:
+          context: .
+          load: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ci-test
+          cache-from: type=gha,scope=coding-standards
+          cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,scope=coding-standards,mode=max' || '' }}
+
+      - name: Smoke test (all tools in single container)
+        run: |
+          echo "::group::Smoke test (all tools in single container)"
+          trap 'echo "::endgroup::"' EXIT
+          img="${REGISTRY}/${IMAGE_NAME}:ci-test"
+          echo "Testing tool availability..."
+          # Run all version checks in one container — eliminates per-command startup overhead
+          jq -r '.test_commands[]' .ci.json | docker run --rm -i --entrypoint="" "$img" sh -c '
+            failed=0
+            while IFS= read -r cmd; do
+              printf "  → %s\n" "$cmd"
+              if ! eval "$cmd" 2>&1; then
+                printf "    FAIL: %s\n" "$cmd"
+                failed=1
+              fi
+            done
+            exit $failed
+          '
+          echo "All tools verified."
+
+      - name: Test entrypoint commands
+        run: |
+          echo "::group::Test entrypoint commands"
+          trap 'echo "::endgroup::"' EXIT
+          img="${REGISTRY}/${IMAGE_NAME}:ci-test"
+          echo "  → help"
+          docker run --rm "$img" help | grep -q "Commands:"
+          echo "  → catalog"
+          docker run --rm "$img" catalog | grep -q "Coding Standards Catalog"
+          echo "  → standards (empty workspace)"
+          docker run --rm -v "$(mktemp -d):/tmp/lint" -e DEFAULT_WORKSPACE=/tmp/lint "$img" standards || true
+          echo "All entrypoint commands verified."
+
+      - name: Verify linter configs resolve
+        run: |
+          img="${REGISTRY}/${IMAGE_NAME}:ci-test"
+          workspace="$(mktemp -d)"
+          echo "x = 1" > "$workspace/test.py"
+          docker run --rm -v "$workspace:/tmp/lint" -e DEFAULT_WORKSPACE=/tmp/lint \
+            "$img" show-config | tee /dev/stderr | grep -q "linters with baked configs"
+
+      - name: Check catalog is up to date
+        run: |
+          echo "::group::Check catalog is up to date"
+          trap 'echo "::endgroup::"' EXIT
+          img="${REGISTRY}/${IMAGE_NAME}:ci-test"
+          docker run --rm --entrypoint="" "$img" \
+            python3 /opt/coding-standards/scripts/generate_catalog.py --check
+
+      - name: Self-lint (built image against this repo)
+        run: |
+          echo "::group::Self-lint"
+          trap 'echo "::endgroup::"' EXIT
+          img="${REGISTRY}/${IMAGE_NAME}:ci-test"
+          docker run --rm \
+            -v "${{ github.workspace }}:/tmp/lint" \
+            -e DEFAULT_WORKSPACE=/tmp/lint \
+            -e MEGALINTER_CONFIG=/opt/coding-standards/.mega-linter-default.yml \
+            "$img"
+
+      - name: Upload MegaLinter report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: megalinter-report
+          path: megalinter-reports/
+          retention-days: 2
+
+      - name: Push image
+        if: github.event_name != 'pull_request'
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          echo "::group::Push image"
+          trap 'echo "::endgroup::"' EXIT
+          echo "$TAGS" | while IFS= read -r tag; do
+            [ -z "$tag" ] && continue
+            docker tag "${REGISTRY}/${IMAGE_NAME}:ci-test" "$tag"
+            docker push "$tag"
+          done

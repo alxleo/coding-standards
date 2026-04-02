@@ -18,9 +18,7 @@ assert _spec is not None and _spec.loader is not None
 check_expiry = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(check_expiry)
 
-SCRIPT = str(
-    Path(__file__).resolve().parent.parent / "scripts" / "ci" / "check-expiry.py"
-)
+SCRIPT = str(Path(__file__).resolve().parent.parent / "scripts" / "ci" / "check-expiry.py")
 TODAY = datetime.now(tz=UTC).date()
 PAST = TODAY - timedelta(days=30)
 FUTURE = TODAY + timedelta(days=30)

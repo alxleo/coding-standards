@@ -5,7 +5,7 @@ linters:
     name: REPOSITORY_JUST_FMT
     descriptor_flavors:
       - cupcake
-    cli_lint_mode: list_of_files
+    cli_lint_mode: file
     linter_text: Check justfile formatting
     linter_url: https://github.com/casey/just
     cli_executable: just

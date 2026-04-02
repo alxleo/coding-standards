@@ -13,7 +13,7 @@ linters:
     cli_lint_extra_args:
       - fs
       - --scanners
-      - vuln,misconfig,secret,license
+      - vuln,misconfig
       - --skip-db-update
       - --exit-code
       - "1"

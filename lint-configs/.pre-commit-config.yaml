@@ -1,0 +1,206 @@
+# Baseline pre-commit hooks — baked into the coding-standards action.
+# Runs in CI via the composite action. Consumer repos don't edit this file.
+
+repos:
+  # ── Standard hygiene ─────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-case-conflict
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+
+  # ── YAML linting ────────────────────────────────────────────
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.38.0
+    hooks:
+      - id: yamllint
+        args: [--strict, -c, lint-configs/.yamllint]
+
+  # ── Secret scanning ──────────────────────────────────────────
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.0
+    hooks:
+      - id: gitleaks
+        args: [--config, lint-configs/.gitleaks.toml]
+
+  # ── GitHub Actions linting ─────────────────────────────────
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.11
+    hooks:
+      - id: actionlint
+
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: v1.22.0
+    hooks:
+      - id: zizmor
+        args: ["-c", "lint-configs/.zizmor.yml"]
+
+  # ── Markdown linting ───────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: rumdl
+        name: rumdl
+        entry: rumdl check --config lint-configs/.markdownlint-cli2.yaml
+        language: python
+        additional_dependencies: [rumdl==0.1.64]
+        types: [markdown]
+
+  # ── Commit message linting ─────────────────────────────────
+  - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
+    rev: v9.24.0
+    hooks:
+      - id: commitlint
+        stages: [commit-msg]
+        args: [--config, lint-configs/commitlint.config.mjs]
+
+  # ── Python linting + formatting ────────────────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.8
+    hooks:
+      - id: ruff
+        args: [--fix, --config, lint-configs/ruff.toml]
+      - id: ruff-format
+        args: [--config, lint-configs/ruff.toml]
+
+  # ── Cruft & secrets blocking ─────────────────────────────────
+  - repo: local
+    hooks:
+      - id: forbid-cruft-files
+        name: Block cruft files (.bak, .del, .tmp, .old, .orig)
+        entry: "Found cruft file — delete or rename before committing"
+        language: fail
+        files: \.(bak|del|tmp|old|orig|swp|swo)$
+
+      - id: block-secret-files
+        name: Block secret files
+        entry: "Secret/env files must not be committed"
+        language: fail
+        files: (\.env$|\.env\.|\.secrets\.|\.key$|\.pem$|\.age$|sops\.yaml$)
+        exclude: \.secrets\.ya?ml$
+
+      - id: verify-sops-encryption
+        name: Verify SOPS files are encrypted
+        entry: 'bash -c ''for f in "$@"; do if ! grep -q "^sops:" "$f" 2>/dev/null; then echo "ERROR: $f is not SOPS-encrypted"; exit 1; fi; done'' --'
+        language: system
+        files: \.secrets\.yaml$
+
+  # ── Dockerfile linting ─────────────────────────────────────
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.14.0
+    hooks:
+      - id: hadolint-docker
+        args: [--config, lint-configs/.hadolint.yaml]
+
+  # ── Shell hygiene ──────────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: shell-hygiene
+        name: Shell hygiene (python, mktemp, npx)
+        entry: scripts/hooks/shell-hygiene
+        language: system
+        types_or: [shell, yaml]
+        exclude: '(\.bats$|scripts/entrypoint\.sh|semgrep-rules/)'
+
+  # ── Justfile formatting ─────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: just-fmt-check
+        name: Check justfile formatting
+        entry: just --fmt --check
+        language: system
+        files: (^|/)justfile$
+        pass_filenames: false
+
+  # ── Prettier (formatting) ─────────────────────────────────
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.1.0
+    hooks:
+      - id: prettier
+        entry: prettier --check --ignore-unknown
+        args: [--config, lint-configs/.prettierrc]
+        exclude: '\.md$'
+
+  # ── Fast checks (pytest + catalog drift) ───────────────────
+  - repo: local
+    hooks:
+      - id: pytest
+        name: Run tests
+        entry: python -m pytest test/ -q --tb=short
+        language: python
+        additional_dependencies: [pytest, pydantic, pyyaml, pytest-randomly, networkx, scipy]
+        pass_filenames: false
+        always_run: true
+
+      - id: catalog-drift
+        name: Check catalog is up to date
+        entry: python scripts/generate_catalog.py --check
+        language: python
+        additional_dependencies: [pyyaml]
+        pass_filenames: false
+        files: '(\.mega-linter-default\.yml|semgrep-rules/|policies/|lint-configs/ruff\.toml)'
+
+  # ── CI validation hooks ────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: semgrep-validate
+        name: Validate semgrep rules
+        entry: uvx semgrep scan --config semgrep-rules/ --validate
+        language: system
+        pass_filenames: false
+        files: "semgrep-rules/"
+
+      - id: semgrep-scan
+        name: Semgrep scan (custom rules)
+        entry: uvx semgrep scan --config semgrep-rules/ --error --quiet
+        language: system
+        pass_filenames: false
+        types_or: [python, javascript, ts, yaml, bash]
+
+      - id: check-ci-json-coverage
+        name: CI smoke test coverage
+        entry: python3 scripts/hooks/check-ci-json-coverage
+        language: system
+        pass_filenames: false
+        files: '(Dockerfile|\.ci\.json)'
+
+      - id: check-config-flags
+        name: Pre-commit --config flag check
+        entry: python scripts/hooks/check-config-flags
+        language: python
+        additional_dependencies: [pyyaml]
+        pass_filenames: false
+        files: '\.pre-commit-config\.yaml$'
+
+      - id: check-hook-deps
+        name: Pre-commit hook dependency coverage
+        entry: python scripts/hooks/check-hook-deps
+        language: python
+        additional_dependencies: [pyyaml]
+        pass_filenames: false
+        files: '(\.pre-commit-config\.yaml$|test/|scripts/)'
+
+      - id: check-megalinter-config-paths
+        name: MegaLinter _CONFIG_FILE must be relative
+        entry: python scripts/hooks/check-megalinter-config-paths
+        language: python
+        additional_dependencies: [pyyaml]
+        pass_filenames: false
+        files: '\.mega-linter-default\.yml$'
+
+      - id: check-blast-radius
+        name: Attention load warnings (advisory)
+        entry: python3 scripts/hooks/check-blast-radius
+        language: system
+        pass_filenames: false
+        always_run: true
+        verbose: true

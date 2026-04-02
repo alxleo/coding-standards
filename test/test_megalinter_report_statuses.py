@@ -1,4 +1,4 @@
-"""Tests for scripts/report-statuses.py (MegaLinter commit status posting)."""
+"""Tests for megalinter_report_statuses.py (commit status posting)."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-SCRIPT = str(Path(__file__).resolve().parent.parent / "scripts" / "report-statuses.py")
+SCRIPT = str(Path(__file__).resolve().parent.parent / "scripts" / "megalinter_report_statuses.py")
 
 
 def _make_report(tmp_path: Path, linters: list[dict]) -> Path:

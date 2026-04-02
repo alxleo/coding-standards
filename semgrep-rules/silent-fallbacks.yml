@@ -1,0 +1,54 @@
+rules:
+  - id: python-silent-fallback-or
+    patterns:
+      - pattern: $X or $DEFAULT
+      # Exclude boolean logic — two comparisons joined by or
+      - pattern-not: $A == $B or $C == $D
+      - pattern-not: $A != $B or $C != $D
+      - pattern-not: $A < $B or $C < $D
+      - pattern-not: $A > $B or $C > $D
+      - pattern-not: $A in $B or $C in $D
+      - pattern-not: $A is $B or $C is $D
+      # Exclude any() which is the idiomatic replacement
+      - pattern-not: any(...)
+    message: >
+      Silent fallback: `or $DEFAULT` may hide a bug.
+      Idiomatic fixes (don't suppress — refactor instead):
+        - dict.get(key) or [] → dict.get(key, [])
+        - x or default_value → if/else or any()
+        - check_a() or check_b() → any((check_a(), check_b()))
+      Last resort: `# nosemgrep: python-silent-fallback-or`
+    languages: [python]
+    severity: INFO
+    paths:
+      exclude:
+        - "**/test*"
+        - "**/tests*"
+    metadata:
+      category: maintainability
+      technology: [python]
+
+  - id: python-bare-except-pass
+    pattern: |
+      except:
+          pass
+    message: >
+      Bare except with pass swallows all errors including KeyboardInterrupt.
+      Catch a specific exception, or at minimum log the error.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: correctness
+      technology: [python]
+
+  - id: javascript-silent-catch
+    pattern: |
+      catch ($ERR) {}
+    message: >
+      Empty catch block silently swallows errors. Either handle the error,
+      re-throw, or add a comment explaining why it's safe to ignore.
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      category: correctness
+      technology: [javascript]

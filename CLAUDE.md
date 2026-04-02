@@ -1,210 +1,113 @@
 # coding-standards
 
-**Project class: Lint Docker Image** — a MegaLinter-based Docker image (`ghcr.io/alxleo/coding-standards`) providing centralized linting + security scanning + type checking across all repos. Runs identically in CI (Gitea + GitHub) and locally.
+A Docker image that acts as a seed — drop it into any repo's CI and it tells you what to set up, catches bugs, enforces security, and improves over time as new checks are added.
 
-This repo contains **no repo lists, no secrets, no private information**. It is a public linting image.
+Built on MegaLinter. Runs identically on Gitea Actions and GitHub Actions.
 
-## How it works
+## Architecture: Three Layers
 
-### For CI (Gitea + GitHub Actions)
+### 1. Enforcement (linters + security)
 
-Consumer repos use the composite action:
+Two tiers — error (blocks build) and warn (reports only). See `docs/catalog.md` for the full inventory.
 
-```yaml
-# .github/workflows/lint.yml
-steps:
-  - uses: actions/checkout@v4
-  - uses: alxleo/coding-standards/docker-action@v1
-```
+### 2. Structural validation (conftest/Rego policies)
 
-Consumer repos inherit the baseline config via EXTENDS URL in their `.mega-linter.yml`:
+- `policies/compose/` — Docker Compose: healthchecks, resource limits, image pinning
+- `policies/repo-standards/` — Repo setup: CI config, pre-commit hooks, dependencies, naming
 
-```yaml
-# .mega-linter.yml (in consumer repo root)
-EXTENDS:
-  - https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml
+### 3. Change impact analysis
 
-# Override what you need — consumer keys win over the baseline
-ENABLE_LINTERS:
-  - BASH_SHELLCHECK
-  - PYTHON_RUFF
-  # ... (full list replaces, not merges)
+`scripts/blast_radius.py` — answers "how hard is it to make a correct change?"
+- Blast radius (filename reference count)
+- Temporal coupling (Jaccard on git co-changes)
+- CIRank (PageRank weighted by co-change)
+- Naming entropy (convention consistency per directory)
 
-# Use repo's own linter config instead of baked baseline
-PYTHON_RUFF_CONFIG_FILE: ruff.toml
-```
+Usage: `docker run ... blast-radius --pr FILE [FILE ...]`
 
-### For local development
+## Dev workflow
 
 ```bash
-# Full suite via Docker
-docker run --rm -v $PWD:/tmp/lint -e DEFAULT_WORKSPACE=/tmp/lint ghcr.io/alxleo/coding-standards:latest
-
-# Or test individual tools without Docker (faster iteration)
-uvx ruff check --config lint-configs-626465/ruff.toml .
-uvx semgrep scan --config semgrep-rules/ .
-shellcheck scripts/*.sh
+just check       # all checks — identical to CI (35 pre-commit hooks)
+just lint         # full MegaLinter via Docker (branch configs mounted)
+just verify       # both + rego tests
+just show-config  # which config each linter uses + shadow detection
+just measure      # blast radius / coupling / entropy analysis
 ```
 
-### Image details
+`just check` is THE command. CI calls it. No duplication.
 
-- 41 linters (28 cupcake built-in + 13 custom plugins)
-- Allowlist activation (ENABLE_LINTERS) — no surprise linters on upgrades
-- Two-tier blocking: security/correctness blocks, style/formatting warns
-- JSON report at `megalinter-reports/mega-linter-report.json`
-- Semver-tagged: `:latest`, `:v1`, `:v1.2.3`, `:sha-xxx`
-- Daily rebuilt for trivy DB freshness
+## Key rules
 
-### Key files
+**`_CONFIG_FILE` must be bare filenames** — `ruff.toml` not `/opt/.../ruff.toml`. MegaLinter concatenates `workspace + _CONFIG_FILE`; absolute paths break silently. Enforced by `check-megalinter-config-paths` hook.
 
-- `Dockerfile` — cupcake base + custom tool installs (SHA-pinned)
-- `.mega-linter-default.yml` — complete baseline config (inherited by consumers via EXTENDS URL)
-- `docker-action/action.yml` — composite action for CI (uses `docker run` — works on Gitea + GitHub)
-- `plugins/` — 13 MegaLinter plugin descriptors for custom tools
-- `lint-configs-626465/` — linter config files (baked into image at `/opt/coding-standards/configs/`)
-- `semgrep-rules/` — centralized semgrep rules (shell hygiene, compose security, justfile safety)
-- `policies/` — shared Conftest Rego policies (compose resource limits, healthchecks, image tags)
-- `scripts/ci/check-drift.sh` — generated file drift checker
-- `scripts/ci/check-expiry.py` — expiry/TTL enforcement
-- `scripts/report-statuses.py` — reads JSON report, posts Gitea/GitHub commit statuses
-- `.github/workflows/docker-build.yml` — builds + pushes image to GHCR (semver tags on release)
-- `.ci.json` — data-driven smoke tests (adopted from docker-images-public)
-- `docs/consumer-guide.md` — single consumer getting-started doc
-- `docs/config-decisions.md` — every decision with rationale
-- `renovate.json` — automates SHA-pin updates
-- `.zizmor.yml` — suppress false positives on action definitions
+**Every pre-commit hook must have `--config`** — explicit config flags, no auto-discovery. Enforced by `check-config-flags` hook.
 
-### Developing the image
+**CI calls `just check`, not inline linting** — one source of truth. Enforced by `ci_delegates_to_runner` repo-standard policy.
 
-```bash
-# Build locally (amd64 for matching CI)
-docker build --platform linux/amd64 -t coding-standards:test .
+**Merge, don't rebase** — squash-merge on GitHub makes branch history irrelevant. Rebase requires force-push which breaks parallel agents.
 
-# Test rules without rebuilding
-uvx ruff check --config lint-configs-626465/ruff.toml .
-uvx semgrep scan --config semgrep-rules/ .
+## Repository layout
 
-# Test against a consumer repo
-docker run --rm --platform linux/amd64 -v ~/personal/home-network:/tmp/lint -e DEFAULT_WORKSPACE=/tmp/lint coding-standards:test
+```
+Dockerfile                          # MegaLinter cupcake + custom tools
+.mega-linter-default.yml            # Baseline config (inherited via EXTENDS)
+docker-action/action.yml            # Composite action for consumer CI
 
-# Just recipes
-just docker-lint              # full suite
-just docker-lint-fix          # with auto-fix
-just docker-lint-only PYTHON_RUFF  # single linter
-just docker-lint-report       # show results from last run (no re-run)
-just docker-lint-errors ruff  # detailed errors for one linter
+lint-configs/                       # Baked linter configs
+  .pre-commit-config.yaml           # Pre-commit hooks (authoritative config)
+  ruff.toml, .yamllint, .prettierrc, eslint.config.mjs, etc.
+
+plugins/                            # MegaLinter plugin descriptors
+policies/
+  compose/                          # Compose file validation
+  repo-standards/                   # Repo setup validation (44 Rego tests)
+
+semgrep-rules/                      # Custom rules (silent-fallbacks, typing, etc.)
+
+scripts/
+  blast_radius.py                   # Change impact analysis (6 algorithms, 93 tests)
+  show_config.py                    # Config observability (which config each linter uses)
+  generate_repo_manifest.py         # Manifest generator for repo standards
+  generate_catalog.py               # Auto-generates docs/catalog.md
+  megalinter_report_statuses.py     # Per-linter commit statuses (Gitea + GitHub)
+  hooks/                            # Pre-commit validation hooks
+    check-config-flags              # Every linter hook has --config
+    check-hook-deps                 # Pytest hook has all dependencies
+    check-ci-json-coverage          # Every Dockerfile tool has a smoke test
+    check-megalinter-config-paths   # _CONFIG_FILE values are relative
+    regenerate-catalog              # Auto-regen on config changes
+    shell-hygiene                   # Bare python, mktemp cleanup, npx pinning
+
+docs/
+  catalog.md                        # GENERATED — full check inventory
+  change-impact-techniques.md       # Algorithm registry (6 implemented, 4 planned)
+  consumer-guide.md                 # Getting started + customization
+  config-decisions.md               # Every decision with rationale
+
+.github/workflows/
+  ci.yml                            # Pipeline: fast-checks → self-lint + build → push
+  scheduled.yml                     # Weekly: rebuild + trivy + dive + action updates
+  gate.yml                          # Branch protection
+  release.yml                       # Auto-release v1.x.y on CI success
 ```
 
-## Legacy reusable workflow
+## Contributing new checks
 
-Consumer repos add a short workflow stub. The reusable workflow:
+| Check type | Files to touch |
+|---|---|
+| **Repo setup** | `generate_repo_manifest.py` + `manifest_schema.py` + `policies/repo-standards/*.rego` + `*_test.rego` + `test/` |
+| **Code pattern** | `semgrep-rules/*.yml` |
+| **Config validation** | `policies/compose/*.rego` + `*_test.rego` |
+| **Code quality** | `lint-configs/ruff.toml` |
+| **New linter** | `Dockerfile` + `plugins/*.yml` + `.mega-linter-default.yml` (3 places) + `.ci.json` |
 
-1. Checks out the consumer repo + this repo's configs (sparse checkout)
-2. Installs Python, Node.js, pre-commit (all cached)
-3. Self-selects tool installs (just, OpenTofu, TFLint) based on file presence
-4. Copies linter configs into the workspace (skips files that already exist)
-5. Runs each linter group as a separate visible step
-6. Runs security scanning (Trivy + Semgrep)
-7. Posts per-group commit statuses via the Commit Status API (GitHub + Gitea)
-8. Writes a step summary (GitHub only — Gitea does not render `$GITHUB_STEP_SUMMARY`)
-9. Prints a summary table and fails the job if any group failed
+### New linter checklist
 
-## Key files
-
-- `.github/workflows/lint.yml` — reusable workflow (main entry point for consumers)
-- `.github/workflows/ci.yml` — self-test that calls lint.yml on this repo
-- `action.yml` — composite action (calls `apply-configs.sh`, used internally)
-- `lint-configs-626465/` — all linter configs (referenced via `--config` paths at runtime)
-- `lint-configs-626465/.pre-commit-config.yaml` — source of truth for all pre-commit hooks
-- `scripts/ci/groups.conf` — single source of truth for linter group metadata
-- `scripts/ci/lint-run.sh` — lint step wrapper (logs, outcomes, error annotations)
-- `scripts/ci/summary.py` — summary table + GitHub step summary (Python)
-- `scripts/ci/report_statuses.py` — per-group commit status posting (Python)
-- `scripts/ci/lint_helpers.py` — shared parsing + error extraction (Python)
-- `scripts/ci/run-{hygiene,cruft,actions,python}.sh` — extracted multi-hook group runners
-- `scripts/ci/install-tool.sh` — data-driven binary tool installer
-- `scripts/ci/apply-configs.sh` — config application + consumer override merging
-- `scripts/hooks/` — custom hook scripts referenced by pre-commit config
-- `test/*.bats` — bats-core tests for CI scripts and hooks
-- `test/test_*.py` — pytest tests for Python CI scripts
-- `docs/architecture-decisions.md` — evaluated alternatives + future options
-- `examples/lint.yml` — example consumer workflow
-- `examples/.coding-standards.yml` — example override file
-
-## Commit status reporting
-
-Each linter group posts its own commit status (e.g. `coding-standards: python`) via `POST /repos/{owner}/{repo}/statuses/{sha}`. This API is supported by both GitHub and Gitea.
-
-- Statuses are posted for all groups that ran (success or failure)
-- Skipped groups do not post a status
-- Each status includes a `target_url` linking to the workflow run
-- Requires `statuses: write` permission in the caller workflow
-
-LLM agents can query `GET /repos/{owner}/{repo}/commits/{sha}/statuses` and filter by `coding-standards:` prefix to programmatically check results.
-
-## Override mechanism
-
-Consumer repos can:
-
-1. **Skip groups** — via `skip-hooks` workflow input or `.coding-standards.yml` in repo root
-2. **Extend linter configs** — for tools with native extends support (yamllint, gitleaks, markdownlint, commitlint), specify an override file in `.coding-standards.yml` that extends the baseline. The consumer's file chains to our `.baseline` config via the tool's native inheritance.
-3. **Replace linter configs** — for tools without extends (hadolint, jscpd, prettier, shellcheck, editorconfig), drop the config at repo root for full replacement.
-
-The `.pre-commit-config.yaml` always comes from this repo (it defines which hooks run).
-
-## Adding a new config
-
-1. Add the file to `lint-configs-626465/`
-2. Add it to the `configs` array in `.github/workflows/lint.yml` (the "Apply coding-standards configs" step)
-3. Update the README tables
-
-## Adding a custom hook
-
-1. Create `scripts/hooks/{name}` — executable, with comments explaining the rule
-2. Add the hook entry to `lint-configs-626465/.pre-commit-config.yaml` with `entry: scripts/hooks/{name}`, `language: system`
-
-## Adding a new linter group
-
-1. Add a new step in `.github/workflows/lint.yml` with a unique `id`, `continue-on-error: true`, and the `!contains(env.SKIP_HOOKS, 'group-name')` guard, wrapping the command with `/tmp/lint-run.sh <logkey> <command>`
-2. Add a line in `scripts/ci/groups.conf` with `logkey|display_name|status_context|step_name`
-3. Update the README linter groups table
-4. Update `examples/.coding-standards.yml` available groups comment
-
-That's it — `report_statuses.py` and `summary.py` are data-driven from `groups.conf`.
-
-## Running tests
-
-```bash
-just test     # pytest + bats-core tests
-just lint     # full lint suite (mirrors CI)
-```
-
-## CI self-test
-
-`.github/workflows/ci.yml` calls `./.github/workflows/lint.yml` (local ref) to test the workflow against this repo.
-
-Self-test mode is auto-detected: if `lint-configs-626465/` exists in the workspace, lint.yml creates a symlink (`.coding-standards` → `.`) instead of checking out from `alxleo/coding-standards`. This means:
-
-- Branch changes to scripts/configs are tested before merge
-- Works on Gitea (no GitHub repo reference to resolve)
-- Consumer repos are unaffected (they don't have `lint-configs-626465/`)
-
-## Local development hooks
-
-CI-only enforcement — no local lint gate. All formatting and linting runs on Gitea CI. Local hooks only catch things that can't be fixed after the fact:
-
-- **pre-commit**: secret detection only (`detect-private-key` + `gitleaks`) — secrets must never reach any remote
-- **commit-msg**: commitlint (conventional commits) — bad messages can't be fixed without rewriting history
-- **post-commit**: cruft cleanup + async push to Gitea (triggers CI)
-- **pre-push**: gates `git push origin` on Gitea CI passing (not local lint)
-
-To reinstall hooks: `gitea-ci wire ~/personal/coding-standards`
-
-## Gitea compatibility
-
-The workflow targets both GitHub Actions and Gitea Actions. Key differences:
-
-- **Commit Status API**: Works identically on both platforms
-- **Self-test detection**: lint.yml auto-detects this repo and uses local files (no GitHub checkout needed)
-- **`$GITHUB_STEP_SUMMARY`**: Not rendered in Gitea (harmless no-op — file is written, just not displayed)
-- **Third-party actions** (trivy-action, cache, setup-node): Gitea runners must be able to resolve GitHub-hosted action references
+1. Install in `Dockerfile` (pip/npm + version pin)
+2. Create `plugins/<tool>.megalinter-descriptor.yml`
+3. Add to `.mega-linter-default.yml`: `ENABLE_LINTERS` + `DISABLE_ERRORS_LINTERS` + `PLUGINS`
+4. Add `_CONFIG_FILE: <filename>` (bare filename, resolved via `LINTER_RULES_PATH`)
+5. Add `<tool> --version` to `.ci.json`
+6. Pre-commit regenerates catalog automatically
+7. `just build && just lint <LINTER>` to verify

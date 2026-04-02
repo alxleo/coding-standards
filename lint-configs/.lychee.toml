@@ -1,0 +1,15 @@
+# Lychee link checker config — cache results, cap timeouts.
+# Without this, a single 502 turns a 2s check into 19s.
+
+cache = true
+max_cache_age = "1d"
+
+# Cap per-URL timeout to prevent retry storms on transient failures
+timeout = 10
+
+# Don't check external URLs that are flaky or rate-limited.
+# Internal/relative links are still checked.
+exclude = [
+  "^https://github\\.com/.*$",    # rate-limited without token, frequent 502s
+  "^https://megalinter\\.io/.*$", # auto-generated descriptor links
+]

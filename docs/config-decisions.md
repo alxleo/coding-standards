@@ -38,7 +38,7 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 - v8r: include with bundled schemas. Soft-fail (endpoints go down).
 - npm-package-json-lint: no universal baseline.
 - markdown-table-formatter: cosmetic, conflicts with LLM tables.
-- markdownlint-cli vs cli2: MegaLinter ships cli1. Verify config compat.
+- markdownlint replaced by rumdl: MegaLinter ships markdownlint-cli (v1) which can't parse cli2 config format, and cli2 silently treats `-c` as a glob. rumdl reads existing `.markdownlint-cli2.yaml` natively, has `--config` that works with `_CONFIG_FILE`, and is 23x faster (Rust).
 
 ### Spelling: codespell (warn tier)
 
@@ -72,6 +72,22 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 
 - stylelint (CSS), sqlfluff (SQL), ansible-lint, kubeconform (K8s). All self-selecting.
 
+### ESLint baseline: unicorn + security + sonarjs
+
+- eslint-plugin-unicorn: filename conventions (kebab-case), modernization, best practices. filename-case rule catches non-importable Python modules.
+- eslint-plugin-security: eval injection, unsafe regex, timing attacks, prototype pollution.
+- eslint-plugin-sonarjs: cognitive complexity, duplicate strings, identical functions, collapsible if.
+- eslint-plugin-jest: already in cupcake image. Consumer adds to their config for expect-expect, no-disabled-tests.
+- Biome not adopted: faster but shallower ecosystem. ESLint already in image with deeper plugin support.
+- Baseline config baked at `/opt/coding-standards/configs/eslint.config.mjs`. Consumers override with their own eslint config.
+
+### Filename conventions: Python snake_case enforced
+
+- Hyphens in Python filenames prevent importing (old `generate-repo-manifest.py` couldn't be imported — renamed to snake_case).
+- JS/TS: eslint-plugin-unicorn enforces kebab-case or PascalCase.
+- Python: no existing linter checks filenames. Added as repo-standard manifest check.
+- Shell: no enforcement (not imported, convention only).
+
 ### Watch list
 
 - oxlint: when v1.0 + type-aware linting stabilizes.
@@ -94,13 +110,16 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 - Default: APPLY_FIXES=none (check only).
 - `-e APPLY_FIXES=all` to auto-fix. Explicit, no surprises.
 
-### Config paths: `_CONFIG_FILE` only, never `_ARGUMENTS`
+### Config paths: `_CONFIG_FILE` preferred, PRE_COMMANDS for auto-discovery tools
 
-- Every linter with a config file gets `_CONFIG_FILE` pointing to baked path.
-- MegaLinter auto-passes `_CONFIG_FILE` as the correct CLI flag via `cli_config_arg_name` in each descriptor.
-- `_ARGUMENTS` with config paths is harmful: it short-circuits consumer `_CONFIG_FILE` overrides (MegaLinter sees the flag already in cmd and skips injection).
+- Most linters: `_CONFIG_FILE` pointing to baked config. MegaLinter auto-passes it via `cli_config_arg_name`.
 - Consumer repos override via `<LINTER>_CONFIG_FILE: myconfig.toml` — one line, works correctly.
-- Exception: v8r uses cosmiconfig, not CLI flags. `_CONFIG_FILE` tells MegaLinter; v8r auto-discovers.
+- Exceptions (tools where `_CONFIG_FILE` injects the wrong flag):
+  - **JSON v8r**: built-in descriptor's `-c` means `--catalogs`, not config. Config copied to workspace via PRE_COMMANDS; cosmiconfig discovers it.
+  - **shellcheck**: built-in descriptor inherits default `-c` which shellcheck has never accepted (uses `--rcfile` since v0.10, auto-discovery since v0.7). Config copied to workspace via PRE_COMMANDS.
+  - **shfmt**: reads `.editorconfig` from file's directory tree. Symlinked at repo root, copied to workspace via PRE_COMMANDS.
+  - **editorconfig-checker**: built-in `-config` expects `.ecrc` (tool JSON config), not `.editorconfig`. Auto-discovers `.editorconfig` from workspace.
+- PRE_COMMANDS copies use `test ! -f` guards — consumer files at workspace root take precedence over baked defaults.
 
 ### Config distribution: baked + override
 
@@ -130,7 +149,19 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 ### PRE_COMMANDS
 
 - git safe.directory + autocrlf fix (Docker UID mismatch).
+- Copy baked configs to workspace root for tools that auto-discover (v8r, shellcheck, shfmt, editorconfig-checker, codespell, ls-lint). Uses `cp` not symlinks (prettier rejects symlinks). NOTE: MegaLinter checks `active_only_if_file_found` BEFORE PRE_COMMANDS, so these copies provide config, not activation. commitlint excluded — needs git history (HEAD~1) which Docker-mounted workspaces lack.
 - npm ci guard (runs only if package-lock.json exists).
+
+### Self-lint: MEGALINTER_CONFIG override
+
+- CI self-lint uses `MEGALINTER_CONFIG=/opt/coding-standards/.mega-linter-default.yml` — the baked image config, not the workspace `.mega-linter.yml` (which uses EXTENDS from a stale main branch).
+- This ensures the self-lint validates the config that consumers will actually get.
+
+### `_CONFIG_FILE` must be relative (bare filenames)
+
+- MegaLinter concatenates `LINTER_RULES_PATH + _CONFIG_FILE`. Absolute paths break silently.
+- Enforced by `check-megalinter-config-paths` pre-commit hook.
+- All `_CONFIG_FILE` values are bare filenames: `ruff.toml`, `.hadolint.yaml`, etc.
 
 ### Supply chain
 

@@ -4,7 +4,7 @@
 setup() {
   WORKDIR=$(mktemp -d)
   CSDIR="$WORKDIR/.coding-standards"
-  CONFIGS="$CSDIR/lint-configs-626465"
+  CONFIGS="$CSDIR/lint-configs"
 
   # Create minimal coding-standards directory structure
   mkdir -p "$CONFIGS" "$CSDIR/scripts/hooks"

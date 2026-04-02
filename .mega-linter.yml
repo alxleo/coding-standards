@@ -1,0 +1,6 @@
+EXTENDS:
+  - https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml
+
+PYTHON_PYRIGHT_ARGUMENTS:
+  - "--level"
+  - "error"

@@ -1,11 +1,14 @@
-# Local dev symlinks (justfile creates these so config paths resolve)
-/.coding-standards
+# Root .pre-commit-config.yaml (local dev only, not tracked)
 /.pre-commit-config.yaml
-
-# Configs copied to root by setup (originals in lint-configs-626465/)
-/.shellcheckrc
-/.editorconfig
 
 # npm (bats-core test runner)
 /node_modules/
 megalinter-reports/
+
+# Generated at runtime
+repo-manifest.json
+uv.lock
+.venv/
+
+# Claude session data
+.claude/

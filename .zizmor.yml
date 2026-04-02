@@ -1,8 +1,0 @@
-# zizmor configuration — suppress known false positives
-rules:
-  excessive-permissions:
-    ignore:
-      # Composite/Docker actions can't set permissions — only workflows can.
-      # These are inherently false positives for action definitions.
-      - action.yml
-      - docker-action/action.yml

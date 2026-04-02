@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+"""Verify .ci.json has smoke tests for every CLI tool installed in Dockerfile.
+
+Parses Dockerfile for npm/pip install lines, checks each CLI tool has a
+corresponding entry in .ci.json. Libraries (eslint-plugin-*, config-*) skipped.
+Also validates that script paths in .ci.json actually exist on disk.
+"""
+
+import json
+import re
+import sys
+from pathlib import Path
+
+# Libraries/frameworks, not CLIs — no --version to test
+SKIP = re.compile(r"eslint-plugin-|@commitlint/config-|typescript$|networkx|pydantic|pyyaml")
+
+# Package name → CLI binary name (when they differ)
+ALIASES = {
+    "dependency-cruiser": "depcruise",
+    "import-linter": "lint-imports",
+    "@commitlint/cli": "commitlint",
+}
+
+root = Path(__file__).resolve().parent.parent.parent
+dockerfile = root / "Dockerfile"
+ci_json = root / ".ci.json"
+
+# Parse tools from Dockerfile
+tools: list[str] = []
+for line in dockerfile.read_text().splitlines():
+    tools.extend(re.findall(r"(\S+)@[\d.]+", line))  # npm: pkg@version
+    tools.extend(re.findall(r"(\S+)==[\d.]+", line))  # pip: pkg==version
+
+ci_text = ci_json.read_text().lower()
+
+missing = []
+for tool in tools:
+    if SKIP.search(tool):
+        continue
+    short = tool.rsplit("/", 1)[-1]  # @commitlint/cli → cli
+    alias = ALIASES.get(tool)
+    names = [short, tool] + ([alias] if alias else [])
+    if not any(name in ci_text for name in names):
+        missing.append(tool)
+
+if missing:
+    for tool in missing:
+        print(f".ci.json missing smoke test for: {tool}")
+    sys.exit(1)
+
+# Verify Dockerfile COPY source paths exist on disk
+dockerfile_stale = []
+for line in dockerfile.read_text().splitlines():
+    if line.strip().startswith("COPY "):
+        # Skip multi-stage COPY (COPY --from=builder ...)
+        if "--from=" in line:
+            continue
+        parts = line.strip().split()
+        # COPY src1 src2 ... dest/ — all but last are sources
+        sources = parts[1:-1]
+        for src in sources:
+            if src.startswith("--"):
+                continue
+            src_path = root / src
+            if not src_path.exists():
+                dockerfile_stale.append(src)
+
+if dockerfile_stale:
+    print("Stale COPY paths in Dockerfile:")
+    for s in dockerfile_stale:
+        print(f"  ✗ {s}")
+    sys.exit(1)
+
+# Verify script paths in .ci.json actually exist
+ci_data = json.loads(ci_json.read_text())
+stale = []
+for cmd in ci_data.get("test_commands", []):
+    for path_match in re.findall(r"(?:scripts/\S+\.(?:py|sh))", cmd):
+        local_path = root / path_match.replace("/opt/coding-standards/", "")
+        if not local_path.exists():
+            stale.append(f"{path_match} (in command: {cmd[:60]}...)")
+
+if stale:
+    print("Stale script paths in .ci.json:")
+    for s in stale:
+        print(f"  ✗ {s}")
+    sys.exit(1)

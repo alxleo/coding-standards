@@ -5,10 +5,22 @@ node_modules
 megalinter-reports
 test
 docs
+!docs/catalog.md
 examples
 *.md
 !CLAUDE.md
 .pre-commit-config.yaml
 .claude
-.coding-standards
 pyrightconfig.json
+
+# Dev/CI-only files not needed in the image
+docker-action
+justfile
+pyproject.toml
+uv.lock
+package.json
+package-lock.json
+renovate.json
+repo-manifest.json
+.ci.json
+.repo-standards.yml

@@ -85,6 +85,28 @@ Or inline in code: `# nosemgrep: rule-id`
 
 Do NOT override `REPOSITORY_SEMGREP_RULESETS` — it contains absolute image paths that break when merged with consumer values.
 
+### Built-in commands
+
+The image has a command router — no setup needed:
+
+```bash
+docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest              # full lint
+docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest lint PYTHON_RUFF     # single linter
+docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest fix           # auto-fix all
+docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest standards     # repo-standards only
+docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest catalog       # show what's checked
+docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest help          # list commands
+```
+
+For shorter commands, copy `examples/justfile` into your repo root:
+
+```bash
+just cs-lint PYTHON_RUFF      # same as the docker run above
+just cs-fix            # auto-fix
+just cs-standards      # repo-standards
+```
+
+
 ### Auto-fix
 
 ```bash
@@ -115,7 +137,7 @@ Add a second CI step:
             -e GITHUB_RUN_ID=${{ github.run_id }} \
             -e GITHUB_SERVER_URL=${{ github.server_url }} \
             ghcr.io/alxleo/coding-standards:latest \
-            /opt/coding-standards/scripts/report-statuses.py \
+            /opt/coding-standards/scripts/megalinter_report_statuses.py \
             megalinter-reports/mega-linter-report.json
 ```
 
@@ -124,7 +146,7 @@ Or add as an opt-in POST_COMMAND in your `.mega-linter.yml`:
 ```yaml
 POST_COMMANDS:
   - command: >-
-      python3 /opt/coding-standards/scripts/report-statuses.py
+      python3 /opt/coding-standards/scripts/megalinter_report_statuses.py
       megalinter-reports/mega-linter-report.json
     cwd: workspace
     secured_env: false
@@ -170,7 +192,7 @@ Use the baked-in drift checker via POST_COMMANDS:
 
 ```yaml
 POST_COMMANDS:
-  - command: /opt/coding-standards/scripts/check-drift.sh "python3 scripts/generate-catalog.py" catalog.json
+  - command: /opt/coding-standards/scripts/check-drift.sh "python3 scripts/generate_catalog.py" catalog.json
     cwd: workspace
     continue_if_failed: false
 ```
@@ -199,8 +221,8 @@ When coding-standards adds new ruff rules, your repo may get hundreds of new fin
 
 ```bash
 # Auto-fix what's fixable, suppress the rest with inline comments
-uvx ruff check --config lint-configs-626465/ruff.toml --fix . && \
-uvx ruff check --config lint-configs-626465/ruff.toml --add-noqa .
+uvx ruff check --config lint-configs/ruff.toml --fix . && \
+uvx ruff check --config lint-configs/ruff.toml --add-noqa .
 ```
 
 This gets your CI green immediately. Clean up the `# noqa` suppressions over time — each one is a TODO, not permanent tech debt.
@@ -253,3 +275,78 @@ for l in r['linters']:
     print(f'{s} {l[\"name\"]:40s} {l.get(\"total_number_errors\",0)} errors')
 "
 ```
+
+## Repo standards (setup validation)
+
+The image checks whether your repo is set up to benefit from the enforcement layer. These are warnings, not blockers — they tell you what's missing and how to fix it.
+
+Checks auto-detect your stack: Python-only repos won't get JS/TS warnings.
+
+See `docs/catalog.md` for the full list of checks (generated, always current).
+
+### Acknowledge warnings
+
+If a check doesn't apply, silence it with a reason in `.repo-standards.yml`:
+
+```yaml
+# .repo-standards.yml
+acknowledged:
+  # Permanent: string reason — check doesn't apply to this repo
+  commitlint_config: "uses baked commitlint from coding-standards image"
+  pydantic: "scripts only, no boundary-crossing data"
+
+  # Temporary: will fix later — MUST have expires date
+  pytest_randomly:
+    reason: "adding next sprint"
+    expires: 2026-04-15
+    tracking: "#123"
+
+  # Per-file: list of {path, reason} excludes specific files from counts
+  large_shell_scripts:
+    - path: scripts/backup-docker-volumes.sh
+      reason: "orchestrates 5 backup targets sequentially"
+```
+
+**String = permanent** ("not applicable"). **Object with `expires` = temporary** ("will fix"). Expired temporaries are automatically stripped — the warning reappears when the date passes.
+
+The acknowledgment IS the documentation — versioned, reviewable, lives next to the code.
+
+### Promote to blocking
+
+Add a `.rego` file in your `policy/repo-standards/` that uses `deny` instead of `warn`:
+
+```rego
+package repo_standards.local
+
+import data.repo_standards.python
+
+deny := python.warn
+```
+
+## Full catalog
+
+See `docs/catalog.md` — auto-generated inventory of all linters, semgrep rules, conftest policies, and repo-standards checks. Run `python3 scripts/generate_catalog.py` to regenerate.
+
+## Contributing new checks
+
+Adding a check to the coding-standards image:
+
+1. **Decide where it lives:**
+   - File/config presence → repo-standards Rego policy + manifest field
+   - Code pattern → semgrep rule
+   - Config content → conftest compose policy
+   - Code quality → ruff rule category
+
+2. **For repo-standards checks:**
+   - Add manifest field in `scripts/generate_repo_manifest.py`
+   - Add `warn contains msg` rule in `policies/repo-standards/<category>.rego`
+   - Add unit test in `policies/repo-standards/<category>_test.rego`
+   - Run `conftest verify -p policies/repo-standards/`
+
+3. **For semgrep rules:**
+   - Add rule to existing or new file in `semgrep-rules/`
+   - Run `semgrep scan --config semgrep-rules/<file>.yml --validate`
+
+4. **Regenerate catalog:** `python3 scripts/generate_catalog.py`
+
+5. **Test against a real repo:** `python3 scripts/generate_repo_manifest.py ~/path/to/repo`

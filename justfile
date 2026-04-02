@@ -1,146 +1,101 @@
-# coding-standards — dev tasks for this repo only.
-# Consumers use the GitHub Action, not this justfile.
+# coding-standards — dev tasks for this repo.
+#
+# Three layers of verification:
+#   just check    — fast local checks via pre-commit (~15s)
+#   just lint     — full MegaLinter suite via Docker image
+#   just verify   — both: check + lint + rego tests
 
 set unstable := true
 
-pre-commit-config := "lint-configs-626465/.pre-commit-config.yaml"
+image := "coding-standards:test"
+docker_args := '-v "$PWD:/tmp/lint" -e DEFAULT_WORKSPACE=/tmp/lint'
 
-# ── Docker lint (MegaLinter) ────────────────────────────────
-# Primary lint path — runs the same image as CI
+# Mount branch configs over baked configs — always test current code, not stale image
 
-image := "coding-standards:prototype"
+config_mounts := '-v "$PWD/lint-configs:/opt/coding-standards/configs" -v "$PWD/semgrep-rules:/opt/coding-standards/semgrep-rules" -v "$PWD/policies:/opt/coding-standards/policies" -v "$PWD/plugins:/mega-linter-plugin-custom" -v "$PWD/scripts:/opt/coding-standards/scripts" -v "$PWD/.mega-linter-default.yml:/opt/coding-standards/.mega-linter-default.yml"'
+precommit_cfg := "lint-configs/.pre-commit-config.yaml"
 
-[doc('Run full MegaLinter suite via Docker')]
-[group('docker-lint')]
-docker-lint:
-    docker run --rm -v "$PWD:/tmp/lint" {{ image }}
+# ── Dev workflow (use these) ───────────────────────────────
 
-[doc('Run MegaLinter with auto-fix enabled')]
-[group('docker-lint')]
-docker-lint-fix:
-    docker run --rm -v "$PWD:/tmp/lint" -e APPLY_FIXES=all {{ image }}
-
-[doc('Run a single linter (e.g. just docker-lint-only BASH_SHELLCHECK)')]
-[group('docker-lint')]
-docker-lint-only linter:
-    docker run --rm -v "$PWD:/tmp/lint" -e ENABLE_LINTERS={{ linter }} {{ image }}
-
-[doc('Show results from last MegaLinter run (no re-run)')]
-[group('docker-lint')]
-docker-lint-report:
-    @python3 -c "\
-    import json, sys; \
-    r = json.load(open('megalinter-reports/mega-linter-report.json')); \
-    blockers = [l for l in r['linters'] if l['return_code'] != 0]; \
-    warns = [l for l in r['linters'] if l['return_code'] == 0 and l.get('total_number_errors', 0) > 0]; \
-    passing = [l for l in r['linters'] if l['return_code'] == 0 and l.get('total_number_errors', 0) == 0]; \
-    print(f'BLOCKING ({len(blockers)}):'); \
-    [print(f'  ❌ {l[\"name\"]:35s} {l.get(\"total_number_errors\",0)} errors') for l in blockers]; \
-    print(f'WARNINGS ({len(warns)}):'); \
-    [print(f'  ⚠️  {l[\"name\"]:35s} {l.get(\"total_number_errors\",0)} issues') for l in warns]; \
-    print(f'PASSING ({len(passing)}):'); \
-    [print(f'  ✅ {l[\"name\"]}') for l in passing]; \
-    "
-
-[doc('Show detailed errors for a specific linter from last run')]
-[group('docker-lint')]
-docker-lint-errors linter:
-    @python3 -c "\
-    import json; \
-    r = json.load(open('megalinter-reports/mega-linter-report.json')); \
-    matches = [l for l in r['linters'] if '{{ linter }}'.upper() in l['name']]; \
-    [print(f'{l[\"name\"]}: {l[\"status\"]} ({l.get(\"total_number_errors\",0)} errors)\n') for l in matches]; \
-    " && cat megalinter-reports/linters_logs/*{{ linter }}* 2>/dev/null || echo "No log found for {{ linter }}"
-
-# ── Pre-commit lint (legacy) ───────────────────────────────
-
-[doc('Run the full lint suite locally (mirrors CI)')]
-[group('lint')]
-lint: _setup-pre-commit
-    #!/usr/bin/env bash
-    set -uo pipefail
-    rc=0
-
-    run_group() {
-        local name="$1"; shift
-        printf "%-30s" "$name"
-        if "$@" > /dev/null 2>&1; then
-            echo "pass"
-        else
-            echo "FAIL"
-            rc=1
-        fi
-    }
-
-    # Pre-commit groups
-    run_group "File hygiene" uvx pre-commit run check-yaml --all-files -c {{ pre-commit-config }}
-    run_group "YAML (yamllint)" uvx pre-commit run yamllint --all-files -c {{ pre-commit-config }}
-    run_group "Secret scanning" uvx pre-commit run gitleaks --all-files -c {{ pre-commit-config }}
-    run_group "GitHub Actions" uvx pre-commit run actionlint --all-files -c {{ pre-commit-config }}
-    run_group "Zizmor" uvx pre-commit run zizmor --all-files -c {{ pre-commit-config }}
-    run_group "Markdown" uvx pre-commit run markdownlint-cli2 --all-files -c {{ pre-commit-config }}
-    run_group "Prettier" uvx pre-commit run prettier --all-files -c {{ pre-commit-config }}
-    run_group "Shell hygiene" uvx pre-commit run shell-hygiene --all-files -c {{ pre-commit-config }}
-
-    if [ $rc -ne 0 ]; then
-        echo ""
-        echo "Some checks failed. Run 'just lint-verbose' for details."
-        exit 1
-    fi
-    echo ""
-    echo "All checks passed."
-
-[doc('Run the full lint suite with verbose output')]
-[group('lint')]
-lint-verbose: _setup-pre-commit
-    uvx pre-commit run --all-files -c {{ pre-commit-config }}
-
-[doc('Run a single lint group (e.g. just lint-group actionlint)')]
-[group('lint')]
-lint-group hook: _setup-pre-commit
-    uvx pre-commit run {{ hook }} --all-files -c {{ pre-commit-config }}
-
-[doc('Validate all workflow YAML')]
-[group('lint')]
-lint-yaml:
-    uv run --no-project --with pyyaml python3 -c "import yaml, glob; [yaml.safe_load(open(f)) or print(f'  valid: {f}') for f in glob.glob('.github/workflows/*.yml')]"
-
-# ── Tests ─────────────────────────────────────────────────────
-
-[doc('Run all tests (pytest + bats)')]
-[group('test')]
-test:
-    uv run --no-project --with pyyaml pytest test/ -v
-    npx bats@1 test/*.bats
-
-# ── Setup ───────────────────────────────────────────────────
-# Only configs without --config flag support need copying to root
-
-[private]
-_copied-configs := ".shellcheckrc .editorconfig"
-
-[doc('Install pre-commit hooks and apply configs')]
-_setup-pre-commit:
+[doc('All checks — identical to CI. Pre-commit runs ruff, pytest, semgrep, catalog, etc.')]
+[group('workflow')]
+check:
     #!/usr/bin/env bash
     set -euo pipefail
-    # Create symlink so .coding-standards/ paths in pre-commit args resolve
-    if [ ! -e .coding-standards ]; then
-        ln -s . .coding-standards
-    fi
-    uvx pre-commit install-hooks -c {{ pre-commit-config }} > /dev/null 2>&1
-    # Copy configs that don't support --config (shellcheckrc, editorconfig)
-    cs="lint-configs-626465"
-    for cfg in {{ _copied-configs }}; do
-        if [ ! -f "$cfg" ] && [ -f "$cs/$cfg" ]; then
-            cp "$cs/$cfg" "$cfg"
+    # Warn if branch is behind main (CI merges main, so stale branches can fail)
+    if git rev-parse --git-dir > /dev/null 2>&1; then
+        git fetch origin main --quiet 2>/dev/null || true
+        if ! git merge-base --is-ancestor origin/main HEAD 2>/dev/null; then
+            echo "⚠ Branch is behind main — merge before pushing: git merge origin/main"
         fi
-    done
+    fi
+    uvx pre-commit run --all-files -c {{ precommit_cfg }}
 
-[doc('Remove temporarily copied lint configs and symlink')]
-[group('lint')]
-clean:
-    #!/usr/bin/env bash
-    for cfg in {{ _copied-configs }}; do
-        if [ -f "$cfg" ]; then rm "$cfg"; echo "  removed $cfg"; fi
-    done
-    if [ -L .coding-standards ]; then rm .coding-standards; echo "  removed .coding-standards symlink"; fi
+[doc('Full MegaLinter suite via Docker image (mounts branch configs)')]
+[group('workflow')]
+lint *LINTER:
+    docker run --rm --platform linux/amd64 {{ docker_args }} {{ config_mounts }} {{ image }} lint {{ LINTER }}
+
+[doc('Both: fast checks + full image lint + rego tests')]
+[group('workflow')]
+verify: check lint test-rego
+
+# ── Image commands (via entrypoint) ──────────────────────────
+
+[doc('Build the image locally')]
+[group('image')]
+build:
+    docker build --platform linux/amd64 -t {{ image }} .
+
+[doc('Auto-fix all fixable issues')]
+[group('image')]
+fix:
+    docker run --rm --platform linux/amd64 {{ docker_args }} {{ config_mounts }} {{ image }} fix
+
+[doc('Repo-standards checks only')]
+[group('image')]
+standards:
+    docker run --rm --platform linux/amd64 {{ docker_args }} {{ config_mounts }} {{ image }} standards
+
+[doc('Show warnings from last run')]
+[group('image')]
+warnings:
+    docker run --rm --platform linux/amd64 {{ docker_args }} {{ config_mounts }} {{ image }} warnings
+
+[doc('Show linter config sources + local overrides')]
+[group('image')]
+show-config:
+    docker run --rm --platform linux/amd64 {{ docker_args }} {{ config_mounts }} {{ image }} show-config
+
+[doc('Show full catalog')]
+[group('image')]
+catalog:
+    docker run --rm --platform linux/amd64 {{ docker_args }} {{ image }} catalog
+
+# ── Individual checks ──────────────────────────────────────
+
+[doc('Run pytest only')]
+[group('check')]
+test:
+    uv run --with pydantic --with pyyaml --with pytest pytest test/ -v
+
+[doc('Validate Rego policies')]
+[group('check')]
+test-rego:
+    docker run --rm --entrypoint conftest -v "$PWD/policies:/policies" {{ image }} verify -p /policies/repo-standards/
+    docker run --rm --entrypoint conftest -v "$PWD/policies:/policies" {{ image }} verify -p /policies/compose/
+
+[doc('Validate semgrep rules')]
+[group('check')]
+test-semgrep:
+    uvx semgrep scan --config semgrep-rules/ --validate
+
+[doc('Regenerate catalog')]
+[group('check')]
+catalog-gen:
+    uv run --with pydantic --with pyyaml python3 scripts/generate_catalog.py
+
+[doc('Change impact analysis (blast radius, coupling, criticality)')]
+[group('check')]
+measure *ARGS:
+    uv run --with networkx python3 scripts/blast_radius.py {{ ARGS }}
