@@ -20,6 +20,7 @@ import os
 import sys
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 _DEFAULT_REPORT = "megalinter-reports/mega-linter-report.json"
 
@@ -27,7 +28,7 @@ _DEFAULT_REPORT = "megalinter-reports/mega-linter-report.json"
 def main() -> None:
     report_path = sys.argv[1] if len(sys.argv) > 1 else _DEFAULT_REPORT
 
-    with open(report_path) as f:
+    with Path(report_path).open() as f:
         report = json.load(f)
 
     # Detect platform

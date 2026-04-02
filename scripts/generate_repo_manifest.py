@@ -66,7 +66,7 @@ def _load_toml(path: Path) -> dict[str, Any]:
     """Load a TOML file using stdlib tomllib (requires Python 3.11+)."""
     import tomllib
 
-    with open(path, "rb") as f:
+    with Path.open(path, "rb") as f:
         return tomllib.load(f)
 
 
@@ -499,7 +499,7 @@ def load_acknowledged(root: Path) -> dict[str, Any]:
     if not rs.exists():
         return {}
     try:
-        with open(rs) as f:
+        with rs.open() as f:
             data = yaml.safe_load(f) or {}  # nosemgrep: coding-standards.python-silent-fallback-or
         ack = data.get("acknowledged", {}) or {}  # nosemgrep: coding-standards.python-silent-fallback-or
 

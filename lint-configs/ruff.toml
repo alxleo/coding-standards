@@ -35,19 +35,26 @@ select = [
   "RSE",     # flake8-raise (unnecessary parens in raise)
   "PT011",   # pytest.raises() without match= (overly broad exception catch in tests)
   "N",       # pep8-naming (N999 catches hyphenated/non-importable module filenames)
+  "TCH",     # type-checking: move type-only imports to TYPE_CHECKING block (faster runtime)
+  "PTH",     # pathlib: os.path → pathlib migration
+  "TRY",     # tryceratops: exception handling anti-patterns (bare raise Exception, broad except)
+  "ERA",     # eradicate: commented-out code detection
+  "LOG",     # logging: anti-patterns (lazy %, extra dict formatting)
 ]
 # ISC001: conflicts with ruff formatter (produces code that ISC001 flags).
 # FURB110: "use or instead of ternary" conflicts with our semgrep
 #   python-silent-fallback-or rule which correctly flags or-fallbacks.
 #   The ternary is the idiomatic fix semgrep recommends.
-extend-per-file-ignores = { "**" = ["ISC001", "FURB110"] }
+# TRY300: moving return to else block is less readable in simple key-walk patterns.
+extend-per-file-ignores = { "**" = ["ISC001", "FURB110", "TRY300"] }
 
 [lint.per-file-ignores]
 # Test files: allow assert, /tmp, subprocess, magic values, unused args, imports
 "test/**" = ["S101", "S108", "S603", "S607", "PLR2004", "ARG", "PLC0415", "T20"]
 "test_*" = ["S101", "S108", "S603", "S607", "PLR2004", "ARG", "PLC0415", "T20"]
 # CI scripts: allow /tmp, urllib, subprocess, print (scripts ARE the interface)
-"scripts/**" = ["S108", "S310", "S603", "S607", "T20", "PLC0415"]
+# ERA001 false-positives on nosemgrep comments (colon makes them look like code)
+"scripts/**" = ["S108", "S310", "S603", "S607", "T20", "PLC0415", "ERA001"]
 
 [format]
 quote-style = "double"

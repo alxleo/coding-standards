@@ -66,7 +66,7 @@ Generated from config files — this IS the source of truth.
 - MAKEFILE_CHECKMAKE
 - GO_GOLANGCI_LINT
 
-## Ruff rule categories (29)
+## Ruff rule categories (34)
 
 - E — pycodestyle errors
 - W — pycodestyle warnings
@@ -97,6 +97,11 @@ Generated from config files — this IS the source of truth.
 - RSE — flake8-raise (unnecessary parens in raise)
 - PT011 — pytest.raises() without match= (overly broad exception catch in tests)
 - N — pep8-naming (N999 catches hyphenated/non-importable module filenames)
+- TCH — type-checking: move type-only imports to TYPE_CHECKING block (faster runtime)
+- PTH — pathlib: os.path → pathlib migration
+- TRY — tryceratops: exception handling anti-patterns (bare raise Exception, broad except)
+- ERA — eradicate: commented-out code detection
+- LOG — logging: anti-patterns (lazy %, extra dict formatting)
 
 ## Semgrep rules (22)
 
