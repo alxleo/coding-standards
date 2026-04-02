@@ -84,6 +84,25 @@ jobs:
             docker push "$tag"
           done
 
+  # Prune stale GHA caches — safety net for residual buildkit blobs.
+  # Primary fix is type=registry in ci.yml; this catches any leftovers.
+  cache-prune:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Delete buildkit blob caches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          echo "Pruning buildkit caches..."
+          gh cache list --repo "$REPO" --limit 500 --json id,key \
+            --jq '.[] | select(.key | startswith("buildkit-")) | .id' |
+            xargs -I {} gh cache delete {} --repo "$REPO" 2>/dev/null || true
+          echo "Remaining caches:"
+          gh cache list --repo "$REPO" --limit 500 --json key --jq '. | length'
+
   # Dive layer efficiency — non-blocking
   dive:
     runs-on: ubuntu-latest
