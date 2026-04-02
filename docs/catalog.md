@@ -66,42 +66,47 @@ Generated from config files — this IS the source of truth.
 - MAKEFILE_CHECKMAKE
 - GO_GOLANGCI_LINT
 
-## Ruff rule categories (34)
+## Ruff rule categories (39)
 
 - E — pycodestyle errors
 - W — pycodestyle warnings
 - F — pyflakes
 - I — isort
+- N — pep8-naming
 - B — flake8-bugbear
 - S — flake8-bandit (security)
-- UP — pyupgrade
+- BLE — blind exceptions
 - SIM — flake8-simplify
 - C4 — flake8-comprehensions
 - RUF — ruff-specific rules
-- BLE — blind exceptions (except Exception swallowing errors)
-- DTZ — naive datetimes (datetime.now() without timezone)
-- PERF — performance anti-patterns (loop-append vs comprehension)
-- FURB — modernization (patterns Python 3.11+ handles natively)
-- RET — return style (unnecessary elif after return)
-- PLW1510 — subprocess.run without check= (unchecked exit codes)
-- PLW2901 — loop variable overwritten inside loop body
-- T20 — print statements (use logging in application code)
-- PLR2004 — magic values (use named constants)
-- PLC0415 — imports not at top of file
+- PIE — flake8-pie
+- ISC — implicit string concatenation
+- A — flake8-builtins (shadowing list, dict, type, id)
+- INP — implicit namespace packages (missing init files)
+- PLC — pylint convention
+- PLE — pylint error
+- PLR — pylint refactor
+- PLW — pylint warning
+- UP — pyupgrade
+- FURB — modernize patterns for Python 3.11+
+- PTH — pathlib: os.path → pathlib
+- FA — future annotations (deferred evaluation, pairs with TCH)
+- PERF — performance anti-patterns
+- C90 — mccabe cyclomatic complexity
+- TCH — move type-only imports to TYPE_CHECKING
+- PGH — blanket type-ignore / noqa without codes
+- FBT — boolean positional args
 - ARG — unused function arguments
-- FBT — boolean positional args (use keyword-only)
-- PIE — flake8-pie (unnecessary spread, reimported names, no-op pass)
-- ISC — implicit string concatenation (catches accidental tuple-in-list)
-- A — flake8-builtins (shadowing list, dict, type, id — LLMs do this constantly)
-- PGH — pygrep-hooks (blanket type-ignore / noqa without codes)
-- RSE — flake8-raise (unnecessary parens in raise)
-- PT011 — pytest.raises() without match= (overly broad exception catch in tests)
-- N — pep8-naming (N999 catches hyphenated/non-importable module filenames)
-- TCH — type-checking: move type-only imports to TYPE_CHECKING block (faster runtime)
-- PTH — pathlib: os.path → pathlib migration
-- TRY — tryceratops: exception handling anti-patterns (bare raise Exception, broad except)
-- ERA — eradicate: commented-out code detection
-- LOG — logging: anti-patterns (lazy %, extra dict formatting)
+- TRY — tryceratops
+- EM — flake8-errmsg (greppable exception messages)
+- RET — return style
+- RSE — raise style
+- SLF — private member access from outside class
+- ERA — commented-out code
+- DTZ — naive datetimes
+- T20 — print statements (use logging)
+- LOG — logging anti-patterns
+- PT011 — pytest.raises() without match=
 
 ## Semgrep rules (22)
 
