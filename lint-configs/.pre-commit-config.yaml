@@ -109,7 +109,7 @@ repos:
         entry: scripts/hooks/shell-hygiene
         language: system
         types_or: [shell, yaml]
-        exclude: '(\.bats$|scripts/entrypoint\.sh|semgrep-rules/)'
+        exclude: '(\.bats$|scripts/entrypoint\.sh|scripts/download-.*\.sh|semgrep-rules/)'
 
   # ── Justfile formatting ─────────────────────────────────────
   - repo: local

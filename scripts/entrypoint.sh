@@ -17,6 +17,18 @@ if [[ -d "$WORKSPACE" ]]; then
   git config --global --add safe.directory "$WORKSPACE"
 fi
 
+# Rewrite EXTENDS URLs to local paths — eliminates runtime dependency on
+# raw.githubusercontent.com (rate limits, transient 429s, offline CI).
+# The config is already baked into the image; no need to fetch it.
+CONSUMER_CONFIG="$WORKSPACE/.mega-linter.yml"
+if [[ -f "$CONSUMER_CONFIG" ]]; then
+  BAKED_CONFIG="/opt/coding-standards/.mega-linter-default.yml"
+  EXTENDS_URL="https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml"
+  if grep -q "$EXTENDS_URL" "$CONSUMER_CONFIG" 2>/dev/null; then
+    sed -i "s|$EXTENDS_URL|$BAKED_CONFIG|g" "$CONSUMER_CONFIG"
+  fi
+fi
+
 case "${1:-}" in
 lint)
     # Single linter: lint <name> or lint (full suite)
