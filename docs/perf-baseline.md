@@ -7,7 +7,7 @@ Captured 2026-04-02. Basis for measuring optimization impact.
 - **CI runner**: GitHub-hosted `ubuntu-latest`
 - **Local runner**: Apple Silicon (M-series), Docker Desktop
 - **Repo snapshot**: `ab7caff` (coding-standards main, 2026-04-02)
-- **Image tag**: `ghcr.io/alxleo/coding-standards:latest` (digest `sha256:536e52ac...`)
+- **Image digest**: `ghcr.io/alxleo/coding-standards@sha256:536e52ac054e80cf007cfa8b4b4e3b779a64908d26bfe376ad6f155b0173b188`
 - **Image arch**: amd64 only (no arm64 build)
 - **MegaLinter version**: 9.4.0
 - **Timing source**: `megalinter-reports/megalinter-report.md` table (JSON `elapsed_time_s` is not populated — MegaLinter gap)
