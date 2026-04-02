@@ -197,6 +197,13 @@ repos:
         pass_filenames: false
         files: '\.mega-linter-default\.yml$'
 
+      - id: check-image-integrity
+        name: Image integrity (Dockerfile ↔ config ↔ plugins)
+        entry: bash -c 'python3 scripts/generate_image_manifest.py > /tmp/image-manifest.json && docker run --rm -v /tmp/image-manifest.json:/data/image-manifest.json -v "$PWD/policies/image-integrity:/policies" --entrypoint conftest coding-standards:alpine-arm64 test /data/image-manifest.json --all-namespaces --no-color -p /policies/'
+        language: system
+        pass_filenames: false
+        files: '(Dockerfile|\.mega-linter-default\.yml|plugins/|lint-configs/|\.github/workflows/ci\.yml)'
+
       - id: check-blast-radius
         name: Attention load warnings (advisory)
         entry: python3 scripts/hooks/check-blast-radius
