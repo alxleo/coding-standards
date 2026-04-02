@@ -284,6 +284,9 @@ COPY --chmod=755 scripts/entrypoint.sh /opt/coding-standards/entrypoint.sh
 # nosemgrep: dockerfile.security.missing-user-entrypoint.missing-user-entrypoint
 ENTRYPOINT ["/bin/bash", "/opt/coding-standards/entrypoint.sh"]
 
+# ── Consumer justfile (progressive disclosure) ──────────────
+COPY consumer.just /opt/coding-standards/consumer.just
+
 # ── Generated catalog ────────────────────────────────────────
 COPY docs/catalog.md /opt/coding-standards/docs/catalog.md
 
