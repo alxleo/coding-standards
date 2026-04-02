@@ -36,9 +36,6 @@ select = [
   "PT011",   # pytest.raises() without match= (overly broad exception catch in tests)
   "N",       # pep8-naming (N999 catches hyphenated/non-importable module filenames)
 ]
-# ISC001 (single-line implicit concat) conflicts with ruff formatter —
-# formatter can produce code that ISC001 flags, creating a loop.
-# Ruff docs recommend this exclusion when using the formatter.
 # ISC001: conflicts with ruff formatter (produces code that ISC001 flags).
 # FURB110: "use or instead of ternary" conflicts with our semgrep
 #   python-silent-fallback-or rule which correctly flags or-fallbacks.
