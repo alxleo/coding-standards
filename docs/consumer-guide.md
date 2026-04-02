@@ -156,11 +156,11 @@ POST_COMMANDS:
 
 ## Adding custom checks
 
-Five mechanisms are available — use the one that fits your check category.
+Drop a directory — it runs alongside the baked rules with zero config.
 
 ### 1. Semgrep rules (pattern matching)
 
-Add a `.semgrep/` directory with YAML rules. MegaLinter auto-discovers them.
+Add a `.semgrep/` directory with YAML rules. The entrypoint auto-discovers it and merges with the baked rules (security-audit, trailofbits, coding-standards custom). Your rules run alongside ours in a single pass.
 
 ```yaml
 # .semgrep/my-rules.yml
@@ -172,9 +172,11 @@ rules:
     severity: ERROR
 ```
 
+Rule IDs get a `semgrep.` prefix from the directory name. Suppress with `# nosemgrep: semgrep.no-latest-tag`.
+
 ### 2. Conftest policies (structural validation)
 
-Create `conftest.toml` + `policy/` directory with Rego policies.
+Add a `policy/` directory + `conftest.toml` in your repo. The `REPOSITORY_CONFTEST` linter auto-activates and runs your policies against config files. This runs independently alongside the baked repo-standards and compose policies — no conflict.
 
 ```rego
 # policy/compose/resources.rego
@@ -185,6 +187,16 @@ deny contains msg if {
     not svc.deploy.resources.limits.memory
     msg := sprintf("service '%s' missing memory limit", [name])
 }
+```
+
+To extend the baked repo-standards checks (promote warnings to errors, or add domain rules):
+
+```rego
+# policy/repo-standards/local.rego
+package repo_standards.local
+import data.repo_standards.python
+# Promote Python warnings to blocking errors in this repo
+deny := python.warn
 ```
 
 ### 3. Generated file drift

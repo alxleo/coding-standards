@@ -29,6 +29,15 @@ if [[ -f "$CONSUMER_CONFIG" ]] && grep -q "$EXTENDS_URL" "$CONSUMER_CONFIG" 2>/d
   export MEGALINTER_CONFIG="$REWRITTEN_CONFIG"
 fi
 
+# Auto-discover consumer rules and merge with baked rules.
+# Consumer drops a directory → it "just works" alongside our baked rules.
+#
+# Semgrep: .semgrep/ in workspace → appended to REPOSITORY_SEMGREP_RULESETS
+# Conftest: policy/ in workspace → already handled by REPOSITORY_CONFTEST plugin
+if [[ -d "$WORKSPACE/.semgrep" ]]; then
+  export REPOSITORY_SEMGREP_RULESETS="/rules/security-audit.json,/rules/trailofbits.json,/rules/custom/,$WORKSPACE/.semgrep/"
+fi
+
 case "${1:-}" in
 lint)
     # Single linter: lint <name> or lint (full suite)
