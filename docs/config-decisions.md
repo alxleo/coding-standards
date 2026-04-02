@@ -183,9 +183,7 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 
 ### Performance optimizations applied
 
-- jscpd → PMD-CPD: 177s → 5s (Java vs Node.js, Karp-Rabin matching)
-- Trivy DB pre-cached at build time: 12.6s → 3s (--skip-db-update at runtime)
-- Semgrep: replaced `auto` (1,063 rules, 15.3s) with `p/security-audit` + `p/trailofbits` (367 rules, 10.0s). `auto` downloads and parses every community rule; pinned rulesets cover our languages without the overhead. Prior note: "local rules backfired (10x slower)" referred to an older experiment, not this change.
+- Semgrep: cached rulesets as JSON at build time (23.5s → 18.5s). Eliminates network fetch + YAML parsing (json.loads is 381x faster than ruamel.yaml). Rules refresh on image rebuild.
 - v8r ignore patterns: 28.5s → 5.7s (was validating files in node_modules/megalinter-reports)
 - Lychee cache + timeout: 19s → 1.8s (network timeout storms on transient 502s)
 - Trivy scanner trim: 9.5s → 5.3s (dropped secret/license, covered by gitleaks/license-checker)
