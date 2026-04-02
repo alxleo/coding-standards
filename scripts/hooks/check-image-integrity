@@ -112,6 +112,14 @@ if dockerignore_path.exists():
 help_dir = root / "docs" / "help"
 help_topics = {f.stem for f in help_dir.glob("*.md")} if help_dir.exists() else set()
 
+# Recommend coverage — tools mentioned in recommend.py
+recommend_path = root / "scripts" / "recommend.py"
+recommended_tools: set[str] = set()
+if recommend_path.exists():
+    recommend_text = recommend_path.read_text()
+    # Extract tool names from "tool": "..." entries
+    recommended_tools = set(re.findall(r'"tool":\s*"([^"]+)"', recommend_text))
+
 # ── Linter → executable mapping ──────────────────────────────
 
 BUILTIN_EXES = {
@@ -284,6 +292,31 @@ if dockerignore_path.exists():
             covered_by_unignore = any(src.startswith(u.rstrip("/")) for u in unignored)
             if not covered_by_unignore:
                 errors.append(f"Dockerfile COPY '{src}' is excluded by .dockerignore (add !{src})")
+
+# Invariant 9: consumer-configurable tools have recommend entries.
+# Tools that benefit from consumer config (config file, policy dir, etc.)
+# should appear in recommend.py so consumers discover them.
+CONSUMER_CONFIGURABLE_TOOLS = {
+    "conftest",
+    "semgrep",
+    "pyright",
+    "gitleaks",
+    "trivy",
+    "dependency-cruiser",
+    "ansible-lint",
+    "commitlint",
+    "repo-standards",
+    "ruff",
+    "eslint",
+    "yamllint",
+    "shellcheck",
+}
+if recommended_tools:
+    for tool in sorted(CONSUMER_CONFIGURABLE_TOOLS):
+        # Check if the tool name appears in any recommendation entry
+        covered = any(tool in rec_tool.lower() for rec_tool in recommended_tools)
+        if not covered:
+            warnings.append(f"Tool '{tool}' is consumer-configurable but not in recommend.py")
 
 # ── Report ────────────────────────────────────────────────────
 
