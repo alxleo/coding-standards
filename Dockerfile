@@ -89,11 +89,12 @@ RUN PMD_VERSION="7.12.0" && \
   echo "${SHFMT_SHA256}  /usr/local/bin/shfmt" | sha256sum -c - && \
   chmod +x /usr/local/bin/shfmt
 
-# ── Schema download (parallel) ───────────────────────────────
-COPY scripts/download-schemas.sh /tmp/download-schemas.sh
-RUN chmod +x /tmp/download-schemas.sh && \
+# ── Schema + semgrep rule download ───────────────────────────
+COPY scripts/download-schemas.sh scripts/download-semgrep-rules.sh /tmp/
+RUN chmod +x /tmp/download-schemas.sh /tmp/download-semgrep-rules.sh && \
     /tmp/download-schemas.sh /opt/coding-standards/schemas && \
-    rm /tmp/download-schemas.sh
+    /tmp/download-semgrep-rules.sh /opt/coding-standards/semgrep-cached-rules && \
+    rm /tmp/download-schemas.sh /tmp/download-semgrep-rules.sh
 
 # ── Plugin descriptors ────────────────────────────────────────
 COPY plugins/ /mega-linter-plugin-custom/

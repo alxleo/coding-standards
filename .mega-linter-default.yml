@@ -182,14 +182,13 @@ SPELL_CODESPELL_CONFIG_FILE: .codespellrc
 # (which means --catalogs, not config). Cosmiconfig finds it via PRE_COMMANDS symlink.
 YAML_V8R_CONFIG_FILE: .v8rrc.yml
 
-# Semgrep: pinned rulesets (not auto).
-# auto downloads 1,063 rules and parses all of them even for a 16-file repo.
-# p/security-audit (225 rules) covers the same security surface for languages
-# we care about. p/trailofbits adds audit-specific rules. Custom rules are local.
-# Measured: 15.3s (auto) → 10.0s (pinned) on this repo under Rosetta.
+# Semgrep: cached rulesets (no network at runtime).
+# Rules downloaded as JSON at Docker build time — 381x faster to parse than YAML.
+# Refreshed on every image rebuild (weekly scheduled + every merge to main).
+# Custom rules in semgrep-rules/ are always local.
 REPOSITORY_SEMGREP_RULESETS:
-  - p/security-audit
-  - p/trailofbits
+  - /opt/coding-standards/semgrep-cached-rules/security-audit.json
+  - /opt/coding-standards/semgrep-cached-rules/trailofbits.json
   - /opt/coding-standards/semgrep-rules/
 
 # ── Formatting / style ────────────────────────────────────────
