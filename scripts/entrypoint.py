@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import tempfile
 from pathlib import Path
 
 import typer
@@ -60,16 +61,15 @@ def _setup() -> None:
             "",
             content,
         )
-        os.environ["MEGALINTER_CONFIG"] = str(BAKED_CONFIG)
-        if content.strip():
-            overrides = yaml.safe_load(content)
-            if not overrides:
-                overrides = {}
-            for key, value in overrides.items():
-                if isinstance(value, list):
-                    os.environ[key] = ",".join(str(v) for v in value)
-                elif isinstance(value, str):
-                    os.environ[key] = value
+        # Write a merged config: baked defaults + consumer overrides (without EXTENDS).
+        # Can't use env vars for _ARGUMENTS (MegaLinter doesn't parse JSON arrays).
+        baked = yaml.safe_load(BAKED_CONFIG.read_text())
+        overrides = yaml.safe_load(content) if content.strip() else {}
+        if overrides:
+            baked.update(overrides)
+        with tempfile.NamedTemporaryFile(suffix=".yml", prefix="mega-linter-merged-", delete=False, mode="w") as f:
+            yaml.dump(baked, f, default_flow_style=False)
+            os.environ["MEGALINTER_CONFIG"] = f.name
 
     # Auto-discover consumer semgrep rules
     semgrep_dir = workspace / ".semgrep"

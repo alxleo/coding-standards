@@ -16,6 +16,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -28,7 +29,7 @@ def _find_root() -> Path:
     return Path.cwd()
 
 
-def _parse_megalinter_config(root: Path) -> dict[str, object]:
+def _parse_megalinter_config(root: Path) -> dict[str, Any]:
     """Extract linter lists and config entries from .mega-linter-default.yml."""
     config_path = root / ".mega-linter-default.yml"
     data = yaml.safe_load(config_path.read_text())
@@ -52,7 +53,7 @@ def _parse_megalinter_config(root: Path) -> dict[str, object]:
     }
 
 
-def _parse_plugins(root: Path) -> dict[str, object]:
+def _parse_plugins(root: Path) -> dict[str, Any]:
     """Extract cli_executable from each plugin descriptor."""
     plugins = {}
     for f in sorted((root / "plugins").glob("*.megalinter-descriptor.yml")):
@@ -68,7 +69,7 @@ def _parse_plugins(root: Path) -> dict[str, object]:
     return plugins
 
 
-def _parse_dockerfile(root: Path) -> dict[str, object]:
+def _parse_dockerfile(root: Path) -> dict[str, Any]:
     """Extract installed tools, binary checksums, and COPY sources from Dockerfile."""
     text = (root / "Dockerfile").read_text()
 
@@ -167,7 +168,7 @@ def _parse_ci_json(root: Path) -> list[str]:
     return data.get("test_commands", [])
 
 
-def generate_manifest(root: Path) -> dict[str, object]:
+def generate_manifest(root: Path) -> dict[str, Any]:
     """Generate the complete image manifest."""
     ml_config = _parse_megalinter_config(root)
     plugins = _parse_plugins(root)
