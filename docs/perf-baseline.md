@@ -79,5 +79,13 @@ Captured 2026-04-02. Basis for measuring optimization impact.
 | B2 | trivy drop secret+license scanners | 2-3s | -4.2s (9.45→5.27s) | done PR#83 |
 | B3 | v8r ignore patterns | 2-4s | -22.7s (28.5→5.7s) | done PR#83 |
 | B4 | pyright add excludes | 1-3s | ~0s (file-mode, not project) | done PR#83 |
+| B5 | lychee cache + timeout + exclude | 12-15s | -17.3s (19.1→1.8s) | done PR#83 |
 | C1 | CI skip rebuild on cache hit | 3 min | — | pending #90 |
 | A | Alpine multi-arch migration | major (arch + size) | — | pending #84 |
+
+## After B-series optimizations
+
+Total lint time: **116.70s → 87.68s (25% reduction)**
+
+Key changes: v8r ignore patterns (-23s), lychee cache/timeout (-17s), trivy scanner trim (-4s).
+Remaining top bottlenecks: semgrep (23s), pyright (11s), pmd-cpd (6s).

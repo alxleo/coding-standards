@@ -58,14 +58,16 @@ def parse_report_markdown(report_path: Path) -> list[dict]:
         except ValueError:
             warning_count = 0
 
-        timings.append({
-            "linter": linter,
-            "descriptor": descriptor,
-            "elapsed_s": float(elapsed),
-            "files": file_count,
-            "errors": error_count,
-            "warnings": warning_count,
-        })
+        timings.append(
+            {
+                "linter": linter,
+                "descriptor": descriptor,
+                "elapsed_s": float(elapsed),
+                "files": file_count,
+                "errors": error_count,
+                "warnings": warning_count,
+            }
+        )
 
     return timings
 
@@ -81,10 +83,7 @@ def format_table(timings: list[dict]) -> str:
 
     for t in sorted_t:
         files_str = str(t["files"]) if t["files"] >= 0 else "repo"
-        lines.append(
-            f"{t['linter']:<25} {t['descriptor']:<14} {t['elapsed_s']:>6.2f}s "
-            f"{files_str:>6} {t['errors']:>7}"
-        )
+        lines.append(f"{t['linter']:<25} {t['descriptor']:<14} {t['elapsed_s']:>6.2f}s {files_str:>6} {t['errors']:>7}")
 
     lines.append("-" * 65)
     lines.append(f"{'TOTAL':<25} {'':14} {total:>6.2f}s {len(sorted_t):>6} linters")
