@@ -1,0 +1,8 @@
+[codespell]
+# Default dictionaries: clear (unambiguous) + rare (likely typos)
+builtin = clear,rare
+# Skip generated/vendored content
+skip = *.tfstate,*.tfstate.backup,*.min.js,*.min.css,package-lock.json,yarn.lock,*.egg-info,dist/*,build/*,.terraform/*
+# Common false positives across infrastructure codebases
+# Consumer repos add their own terms in their .codespellrc
+ignore-words-list = hass

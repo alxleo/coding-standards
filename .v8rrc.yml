@@ -2,9 +2,7 @@
 # Schemas downloaded at Docker build time to /opt/coding-standards/schemas/.
 # Files not matching customCatalog fall through to SchemaStore.org.
 
-# Skip files in directories that v8r can't usefully validate.
-# megalinter-reports/ excluded globally via ADDITIONAL_EXCLUDED_DIRECTORIES
-# but v8r runs in project mode and ignores that setting — needs its own exclude.
+# Skip files in directories that v8r can't usefully validate
 ignorePatterns:
   - "**/node_modules/**"
   - "**/.venv/**"

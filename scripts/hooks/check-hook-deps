@@ -158,10 +158,12 @@ for f in root.glob("scripts/*.py"):
         elif isinstance(node, ast.ImportFrom) and node.module:
             test_imports.add(node.module.split(".")[0])
 
-# Local modules (scripts in this repo) — not external deps
+# Local modules (scripts in this repo) — not external deps.
+# Includes directory names that pytest resolves via pythonpath=["."] in pyproject.toml.
 local_modules = {f.stem for f in root.glob("scripts/*.py")}
 local_modules.update(f.stem for f in root.glob("scripts/ci/*.py"))
 local_modules.update(f.stem for f in (root / "test").rglob("*.py"))
+local_modules.add("scripts")  # `from scripts.x import y` via pythonpath
 
 # Find imports that need to be in additional_dependencies
 missing = []
