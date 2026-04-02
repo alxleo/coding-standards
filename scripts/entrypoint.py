@@ -11,10 +11,12 @@ Usage:
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 from pathlib import Path
 
 import typer
+import yaml
 
 SCRIPTS = Path("/opt/coding-standards/scripts")
 BAKED_CONFIG = Path("/opt/coding-standards/.mega-linter-default.yml")
@@ -44,15 +46,30 @@ def _setup() -> None:
             capture_output=True,
         )
 
-    # Config resolution (zero-config by default)
+    # Config resolution (zero-config by default).
+    # MegaLinter resolves EXTENDS relative to workspace — absolute paths break.
+    # Strip EXTENDS, use baked config as MEGALINTER_CONFIG, inject consumer
+    # overrides as environment variables.
     consumer_config = workspace / ".mega-linter.yml"
     if not consumer_config.exists():
         os.environ["MEGALINTER_CONFIG"] = str(BAKED_CONFIG)
     elif EXTENDS_URL in consumer_config.read_text():
-        rewritten = Path("/tmp/.mega-linter-rewritten.yml")
-        content = consumer_config.read_text().replace(EXTENDS_URL, str(BAKED_CONFIG))
-        rewritten.write_text(content)
-        os.environ["MEGALINTER_CONFIG"] = str(rewritten)
+        content = consumer_config.read_text()
+        content = re.sub(
+            r"EXTENDS:\s*\n\s*-\s*" + re.escape(EXTENDS_URL) + r"\s*\n?",
+            "",
+            content,
+        )
+        os.environ["MEGALINTER_CONFIG"] = str(BAKED_CONFIG)
+        if content.strip():
+            overrides = yaml.safe_load(content)
+            if not overrides:
+                overrides = {}
+            for key, value in overrides.items():
+                if isinstance(value, list):
+                    os.environ[key] = ",".join(str(v) for v in value)
+                elif isinstance(value, str):
+                    os.environ[key] = value
 
     # Auto-discover consumer semgrep rules
     semgrep_dir = workspace / ".semgrep"
