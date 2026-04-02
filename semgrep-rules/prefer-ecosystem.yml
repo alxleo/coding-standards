@@ -31,4 +31,3 @@ rules:
       os.system() has no error checking, no output capture, and is a shell injection risk.
     languages: [python]
     severity: ERROR
-
