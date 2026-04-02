@@ -92,6 +92,22 @@ for match in re.finditer(r"COPY\s+(?:--chmod=\S+\s+)?(\S+)", dockerfile):
     if not src.startswith("--"):
         copy_sources.append(src)
 
+# Dockerignore — check COPY sources aren't excluded
+dockerignore_path = root / ".dockerignore"
+if dockerignore_path.exists():
+    ignored = set()
+    unignored = set()
+    for raw_line in dockerignore_path.read_text().splitlines():
+        entry = raw_line.strip()
+        if entry == "":
+            continue
+        if entry.startswith("#"):
+            continue
+        if entry.startswith("!"):
+            unignored.add(entry[1:])
+        else:
+            ignored.add(entry)
+
 # Help topics
 help_dir = root / "docs" / "help"
 help_topics = {f.stem for f in help_dir.glob("*.md")} if help_dir.exists() else set()
@@ -257,6 +273,17 @@ for cat in sorted(categories):
     topic = CATEGORY_TO_HELP.get(cat)
     if topic and topic not in help_topics:
         warnings.append(f"Linter category '{cat}' maps to help topic '{topic}' which doesn't exist")
+
+# Invariant 8: COPY sources not excluded by .dockerignore
+if dockerignore_path.exists():
+    for src in copy_sources:
+        # Get the top-level directory or filename
+        top = src.rstrip("/").split("/")[0]
+        if top in ignored and src not in unignored and f"!{src}" not in {f"!{u}" for u in unignored}:
+            # Check if any unignore pattern covers this path
+            covered_by_unignore = any(src.startswith(u.rstrip("/")) for u in unignored)
+            if not covered_by_unignore:
+                errors.append(f"Dockerfile COPY '{src}' is excluded by .dockerignore (add !{src})")
 
 # ── Report ────────────────────────────────────────────────────
 
