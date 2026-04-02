@@ -101,17 +101,16 @@ ENABLE_LINTERS:
 # Tier 1: everything not listed below BLOCKS the build
 # Tier 2: warn but don't fail
 DISABLE_ERRORS_LINTERS:
-  - BASH_SHELLCHECK # MegaLinter passes -c flag (v0.9), shellcheck v0.11 removed it. Upstream bug.
+  # Formatters (auto-fixable via cs-fix, warn so they don't block before fixing)
   - JAVASCRIPT_PRETTIER
   - TYPESCRIPT_PRETTIER
   - JSON_PRETTIER
   - YAML_PRETTIER
-  - BASH_SHFMT
   - MARKDOWN_RUMDL
-  - YAML_YAMLLINT
+  - CSS_STYLELINT
+  # Style/advisory (judgement calls, not bugs)
   - COPYPASTE_PMD_CPD
   - EDITORCONFIG_EDITORCONFIG_CHECKER
-  - CSS_STYLELINT
   - SPELL_LYCHEE
   - SPELL_CODESPELL
   - JSON_V8R
@@ -121,7 +120,6 @@ DISABLE_ERRORS_LINTERS:
   - REPOSITORY_LS_LINT
   - REPOSITORY_OXLINT
   - REPOSITORY_TYPE_COVERAGE
-
   - GO_GOLANGCI_LINT
   - MAKEFILE_CHECKMAKE
   - PYTHON_VULTURE
@@ -130,9 +128,6 @@ DISABLE_ERRORS_LINTERS:
   - REPOSITORY_ATTW
   - ENV_DOTENV_LINTER
   - API_SPECTRAL
-  - SQL_SQLFLUFF
-  - ANSIBLE_ANSIBLE_LINT
-  - KUBERNETES_KUBECONFORM
 
 # ── Per-linter configuration ──────────────────────────────────
 # _CONFIG_FILE is sufficient — MegaLinter auto-passes it as the correct CLI
