@@ -108,7 +108,7 @@ Generated from config files — this IS the source of truth.
 - LOG — logging anti-patterns
 - PT011 — pytest.raises() without match=
 
-## Semgrep rules (22)
+## Semgrep rules (25)
 
 | Rule | Severity | Source | Description |
 |------|----------|--------|-------------|
@@ -119,6 +119,9 @@ Generated from config files — this IS the source of truth.
 | coding-standards.justfile-curl-pipe-sh | ERROR | justfile-safety.yml | Piping curl output to sh/bash is a security risk. Download to a file, verify checksum, then execute. |
 | coding-standards.python-no-bare-print | WARNING | observability.yml | Bare print() in application code. Use structured logging (structlog or logging with JSON formatter) for production code. Print statements are invisible to log aggregators. |
 | coding-standards.javascript-no-console-log | WARNING | observability.yml | console.log() in application code. Use a structured logger (pino, winston) for production code. Console output is unstructured and invisible to log aggregators. |
+| coding-standards.prefer-pytest-over-unittest | WARNING | prefer-ecosystem.yml | Use pytest instead of unittest. pytest has simpler assertions (plain assert), fixtures, parametrize, and better output. unittest's class-based pattern is verbose and discourages test isolation. |
+| coding-standards.prefer-pathlib-over-os-path | WARNING | prefer-ecosystem.yml | Use pathlib.Path instead of os.path. pathlib is the modern Python API: Path.exists(), Path.read_text(), Path / "child", etc. |
+| coding-standards.prefer-subprocess-over-os-system | ERROR | prefer-ecosystem.yml | Use subprocess.run(shlex.split(...), check=True) instead of os.system(). os.system() has no error checking, no output capture, and is a shell injection risk. |
 | coding-standards.no-bare-dict-params | WARNING | python-typing.yml | Use a TypedDict or specific dict[K, V] instead of bare `dict`. Bare dict parameters lose all type information — callers can pass anything, and the function body has no contract to enforce. |
 | coding-standards.no-bare-dict-return | WARNING | python-typing.yml | Use a TypedDict or specific dict[K, V] instead of bare `dict` return. Callers get no type information about the returned structure. |
 | coding-standards.shell-json-parsing | INFO | shell-complexity.yml | JSON parsing in shell with jq pipeline. Consider Python instead — shell + jq is brittle, hard to test, and lacks error handling. Python's json module does the same with types and try/except. |

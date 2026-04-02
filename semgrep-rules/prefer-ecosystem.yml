@@ -1,0 +1,34 @@
+rules:
+  - id: coding-standards.prefer-pytest-over-unittest
+    patterns:
+      - pattern: |
+          import unittest
+      - pattern-not-inside: |
+          # nosemgrep: ...
+    message: >
+      Use pytest instead of unittest. pytest has simpler assertions (plain assert),
+      fixtures, parametrize, and better output. unittest's class-based pattern is
+      verbose and discourages test isolation.
+    languages: [python]
+    severity: WARNING
+    paths:
+      include:
+        - "test*"
+        - "tests*"
+
+  - id: coding-standards.prefer-pathlib-over-os-path
+    pattern: os.path.$FUNC(...)
+    message: >
+      Use pathlib.Path instead of os.path. pathlib is the modern Python API:
+      Path.exists(), Path.read_text(), Path / "child", etc.
+    languages: [python]
+    severity: WARNING
+
+  - id: coding-standards.prefer-subprocess-over-os-system
+    pattern: os.system(...)
+    message: >
+      Use subprocess.run(shlex.split(...), check=True) instead of os.system().
+      os.system() has no error checking, no output capture, and is a shell injection risk.
+    languages: [python]
+    severity: ERROR
+
