@@ -67,11 +67,10 @@ install_aliases := {
 	"depcruise": "dependency-cruiser",
 	"lint-imports": "import-linter",
 	"tsc": "typescript",
-	"yamllint": "yamllint",
 	"npm": "npm",
 	"spectral": "@stoplight/spectral-cli",
 	"ls-lint": "@ls-lint/ls-lint",
-	"yamllint": "megalinter", # transitive dep of megalinter
+	"yamllint": "megalinter",
 }
 
 # Check if a binary name appears in any install list

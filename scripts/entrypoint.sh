@@ -27,7 +27,7 @@ if [[ ! -f "$CONSUMER_CONFIG" ]]; then
   export MEGALINTER_CONFIG="/opt/coding-standards/.mega-linter-default.yml"
 else
   EXTENDS_URL="https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml"
-  if grep -q "$EXTENDS_URL" "$CONSUMER_CONFIG" 2>/dev/null; then
+  if grep -qF "$EXTENDS_URL" "$CONSUMER_CONFIG" 2>/dev/null; then
     # Rewrite EXTENDS URL to local path (avoids rate limits / network dependency)
     REWRITTEN_CONFIG="/tmp/.mega-linter-rewritten.yml"
     sed "s|$EXTENDS_URL|/opt/coding-standards/.mega-linter-default.yml|g" \

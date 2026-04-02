@@ -287,12 +287,14 @@ PRE_COMMANDS:
   # to root (cosmiconfig only searches project root).
   - command: >-
       mkdir -p .mega-linter-config &&
-      for f in .shellcheckrc .codespellrc .ls-lint.yml .v8rrc.yml .v8rignore; do
+      for f in .shellcheckrc .codespellrc .ls-lint.yml .v8rrc.yml; do
         test ! -f ".mega-linter-config/$f" &&
           cp "/opt/coding-standards/configs/$f" ".mega-linter-config/$f" 2>/dev/null || true;
       done &&
       test ! -f .editorconfig &&
         cp /opt/coding-standards/configs/.editorconfig .editorconfig 2>/dev/null || true &&
+      test ! -f .v8rignore &&
+        cp /opt/coding-standards/configs/.v8rignore .v8rignore 2>/dev/null || true &&
       test ! -f .v8rrc.yml && test -f .mega-linter-config/.v8rrc.yml &&
         ln -sf .mega-linter-config/.v8rrc.yml .v8rrc.yml 2>/dev/null || true
     cwd: workspace
