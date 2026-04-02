@@ -3,5 +3,6 @@
   "reportMissingImports": "warning",
   "reportMissingModuleSource": "none",
   "reportMissingTypeStubs": "none",
-  "pythonVersion": "3.11"
+  "pythonVersion": "3.11",
+  "exclude": ["**/node_modules", "**/.venv", "**/__pycache__", "examples/"]
 }
