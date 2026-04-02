@@ -1,81 +1,80 @@
 # coding-standards
 
-Drop-in Docker image that turns any repo into a well-linted, secure, type-checked codebase. Tells you what to set up, catches bugs, and improves over time.
+Drop-in linting image. Add one workflow file — everything else is automatic. Detects your stack, runs the right checks, tells you what to fix.
 
-Built on MegaLinter. Works on GitHub Actions and Gitea Actions.
+Native arm64. Works on GitHub Actions and Gitea Actions. Built on MegaLinter.
 
-## Quick Start
-
-```yaml
-# .github/workflows/lint.yml
-steps:
-  - uses: actions/checkout@v4
-    with:
-      fetch-depth: 0
-  - uses: alxleo/coding-standards/docker-action@v1
-```
-
-```yaml
-# .mega-linter.yml
-EXTENDS:
-  - https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml
-```
-
-## What It Does
-
-Three layers of checks — all automatic:
-
-**Enforcement** — linters catch code bugs. Error-tier blocks, warn-tier reports.
-
-**Structural validation** — conftest policies check Docker Compose files for healthchecks, resource limits, restart policies, security issues.
-
-**Repo standards** — checks your repo is set up correctly. Missing pyrightconfig.json? No .gitleaks.toml? Error messages tell you what's missing and how to fix it. [Full catalog →](docs/catalog.md)
-
-## Local Development
+## Quick start
 
 ```bash
-# One-time: extract consumer justfile
-docker run --rm ghcr.io/alxleo/coding-standards:latest cat /opt/coding-standards/consumer.just > consumer.just
+# Get the consumer justfile (one-time, no Docker needed)
+curl -fsSL https://raw.githubusercontent.com/alxleo/coding-standards/main/consumer.just > consumer.just
 echo 'import? "consumer.just"' >> justfile
 
-# Then:
-just cs-lint              # full suite
-just cs-fix               # auto-fix
-just cs-help              # all commands + setup guides
-just cs-help setup        # first-time CI setup
-just cs-help semgrep      # add custom rules
-just cs-help migrate      # get to green CI fast
+# Generate CI workflow + .gitignore
+just cs-init
+
+# Run locally
+just cs-lint
 ```
 
-## Consumer Override
+That's it. No `.mega-linter.yml` needed — the image auto-detects your stack and runs all applicable checks.
 
-Override any linter's config with a single line in `.mega-linter.yml`:
+## What happens automatically
 
-```yaml
-PYTHON_RUFF_CONFIG_FILE: ruff.toml
-REPOSITORY_GITLEAKS_CONFIG_FILE: .gitleaks.toml
+The image detects files and activates the right tools:
+
+| Your repo has | Image runs |
+|---|---|
+| `*.py` | ruff, pyright, vulture, deptry, semgrep |
+| `*.js`/`*.ts`/`*.tsx` | eslint, prettier, typescript, knip, oxlint |
+| `*.sh` | shellcheck, shfmt |
+| `Dockerfile` | hadolint, trivy, dclint |
+| `docker-compose.yml` | conftest policies (healthchecks, resource limits, security) |
+| `*.tf` | tflint |
+| `*.yml`/`*.yaml` | yamllint, prettier, v8r (schema validation) |
+| `ansible/` | ansible-lint |
+| `*.go` | golangci-lint |
+| `package.json` | npm-audit, license-checker, knip, publint |
+| `pyproject.toml` | deptry, import-linter |
+| `.github/workflows/` | actionlint, zizmor |
+| Any code | semgrep (security), gitleaks (secrets), trivy (vulnerabilities), codespell |
+| Any repo | repo-standards (setup validation — tells you what's missing) |
+
+## Customize (only when you need to)
+
+```
+just cs-help              All commands + available topics
+just cs-help setup        First-time CI setup
+just cs-help migrate      Get from 200 errors to green CI fast
+just cs-help semgrep      Add your own pattern-matching rules
+just cs-help conftest     Add your own structural validation policies
+just cs-help ruff         Override Python lint config
+just cs-help eslint       Override JS/TS lint config
+just cs-help suppress     Suppress specific findings
+just cs-help disable      Turn off linters that don't apply
+just cs-help debug        Troubleshoot a failing linter
 ```
 
-Suppress semgrep rules without touching the ruleset:
+## Add your own rules
+
+Drop a directory — it runs alongside the baked rules with zero config:
+
+- **`.semgrep/`** — custom semgrep rules (auto-discovered, merged with baked rules)
+- **`policy/`** + `conftest.toml` — custom Rego policies (runs alongside baked policies)
+
+## Override config
 
 ```yaml
-REPOSITORY_SEMGREP_ARGUMENTS: >-
-  --exclude-rule=trailofbits.python.some-rule
-```
-
-Acknowledge repo-standards warnings with documented reasons:
-
-```yaml
-# .repo-standards.yml
-acknowledged:
-  pydantic: "scripts only, no boundary-crossing data"
-  pytest_randomly:
-    reason: "adding next sprint"
-    expires: 2026-04-15
+# .mega-linter.yml (only create if you need to customize)
+DISABLE_LINTERS:
+  - TERRAFORM_TFLINT      # no terraform here
+PYTHON_RUFF_CONFIG_FILE: ruff.toml    # use your own ruff config
 ```
 
 ## Docs
 
-- [Consumer guide](docs/consumer-guide.md) — setup, customization, contributing
+- `just cs-help <topic>` — progressive disclosure, per-topic guides
 - [Full catalog](docs/catalog.md) — auto-generated inventory of all checks
+- [Consumer guide](docs/consumer-guide.md) — detailed setup + customization
 - [Config decisions](docs/config-decisions.md) — every decision with rationale
