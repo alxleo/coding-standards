@@ -96,6 +96,8 @@ ENABLE_LINTERS:
   - GO_GOLANGCI_LINT
   # Git
   - REPOSITORY_GIT_DIFF
+  # Change impact analysis
+  - REPOSITORY_BLAST_RADIUS
 
 # ── Blocking policy (two tiers) ──────────────────────────────
 # Tier 1: everything not listed below BLOCKS the build
@@ -122,6 +124,7 @@ DISABLE_ERRORS_LINTERS:
   - REPOSITORY_TYPE_COVERAGE
   - GO_GOLANGCI_LINT
   - MAKEFILE_CHECKMAKE
+  - REPOSITORY_BLAST_RADIUS
   - PYTHON_VULTURE
   - REPOSITORY_IMPORT_LINTER
   - REPOSITORY_PUBLINT
@@ -353,3 +356,4 @@ PLUGINS:
   - "file:///mega-linter-plugin-custom/publint.megalinter-descriptor.yml"
   - "file:///mega-linter-plugin-custom/attw.megalinter-descriptor.yml"
   - "file:///mega-linter-plugin-custom/rumdl.megalinter-descriptor.yml"
+  - "file:///mega-linter-plugin-custom/blast-radius.megalinter-descriptor.yml"

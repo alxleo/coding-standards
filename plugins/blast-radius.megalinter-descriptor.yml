@@ -12,7 +12,7 @@ linters:
     cli_executable: python3
     cli_lint_extra_args:
       - /opt/coding-standards/scripts/blast_radius.py
-      - --megalinter
+      - megalinter
     cli_help_arg_name: --help
     cli_version_arg_name: --version
     files_sub_directory: ""

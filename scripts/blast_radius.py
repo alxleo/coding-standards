@@ -27,7 +27,6 @@ References:
 
 from __future__ import annotations
 
-import argparse
 import json
 import math
 import re
@@ -39,6 +38,7 @@ from pathlib import Path
 from typing import Any
 
 import networkx as nx
+import typer
 
 EXCLUDED_DIRS = {
     ".git",
@@ -680,90 +680,171 @@ def print_pr_review(review: dict[str, Any]) -> None:
         print("\nNo missing coupled files detected.")
 
 
-def main() -> None:  # noqa: C901, PLR0912, PLR0915
-    parser = argparse.ArgumentParser(
-        description="Repo change-impact analysis",
+app = typer.Typer(
+    name="blast-radius",
+    help="Repo change-impact analysis: blast radius, temporal coupling, criticality.",
+    add_completion=False,
+    invoke_without_command=True,
+)
+
+
+def _root() -> Path:
+    return Path(__file__).resolve().parent.parent
+
+
+def _git_changed_files(root: Path) -> list[str]:
+    """Get changed files from git diff (PR mode)."""
+    result = subprocess.run(
+        ["git", "diff", "--name-only", "origin/main...HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=root,
     )
-    parser.add_argument("--top", type=int, help="Show top N files")
-    parser.add_argument("--file", help="Deep dive on a specific file")
-    parser.add_argument("--pr", nargs="+", metavar="FILE", help="PR review mode: list changed files")
-    parser.add_argument("--coupling", action="store_true", help="Show temporal coupling")
-    parser.add_argument("--entropy", action="store_true", help="Show naming entropy")
-    parser.add_argument("--rank", action="store_true", help="Show CIRank criticality")
-    parser.add_argument("--json", action="store_true", help="JSON output (all signals)")
-    parser.add_argument("--min-coupling", type=float, default=0.3)
-    parser.add_argument("--min-co-changes", type=int, default=3)
-    args = parser.parse_args()
+    changed = result.stdout.strip().splitlines()
+    if not changed:
+        result = subprocess.run(
+            ["git", "diff", "--name-only", "HEAD~1"],
+            capture_output=True,
+            text=True,
+            check=False,
+            cwd=root,
+        )
+        changed = result.stdout.strip().splitlines()
+    return changed
 
-    root = Path(__file__).resolve().parent.parent
 
-    if args.pr:
-        review = pr_review(root, args.pr)
-        if args.json:
-            json.dump(review, sys.stdout, indent=2)
-            print()
-        else:
-            print_pr_review(review)
-        return
-
-    if args.json:
-        data = {
-            "blast_radius": compute_blast_radius(root),
-            "temporal_coupling": compute_temporal_coupling(
-                root,
-                args.min_co_changes,
-                args.min_coupling,
-            ),
-            "naming_entropy": compute_naming_entropy(root),
-            "criticality": compute_criticality(root),
-        }
-        json.dump(data, sys.stdout, indent=2)
-        print()
-        return
-
-    if args.file:
-        radius = compute_blast_radius(root)
-        matches = [r for r in radius if any((args.file in r["file"], args.file == r["name"]))]
-        for m in matches:
-            print(f"\n{m['file']} (blast radius: {m['blast_radius']})")
-            for ref in m["referencing_files"]:
-                print(f"  ← {ref}")
-
-        coupling = compute_temporal_coupling(root, args.min_co_changes, args.min_coupling)
-        file_couplings = [c for c in coupling if any((args.file in c["file_a"], args.file in c["file_b"]))]
-        if file_couplings:
-            print("\nTemporal coupling:")
-            for c in file_couplings:
-                other = c["file_b"] if args.file in c["file_a"] else c["file_a"]
-                print(f"  ↔ {other} ({c['coupling']:.0%}, {c['co_changes']} co-changes)")
-
-        crit = compute_criticality(root)
-        file_crit = [r for r in crit if args.file in r["file"]]
-        if file_crit:
-            c = file_crit[0]
-            print(f"\nCriticality: {c['criticality']:.6f} (in:{c['in_degree']} out:{c['out_degree']})")
-        return
-
-    if args.coupling:
-        print_coupling(compute_temporal_coupling(root, args.min_co_changes, args.min_coupling))
-        return
-
-    if args.entropy:
+@app.callback()
+def default(
+    ctx: typer.Context,
+    top: int = typer.Option(15, help="Show top N files"),
+    min_coupling: float = typer.Option(0.3, help="Minimum Jaccard coupling"),
+    min_co_changes: int = typer.Option(3, help="Minimum co-change count"),
+) -> None:
+    """Full report (all four signals) when no subcommand given."""
+    ctx.ensure_object(dict)
+    ctx.obj["top"] = top
+    ctx.obj["min_coupling"] = min_coupling
+    ctx.obj["min_co_changes"] = min_co_changes
+    if ctx.invoked_subcommand is None:
+        root = _root()
+        print_blast_radius(compute_blast_radius(root), top)
+        print_coupling(compute_temporal_coupling(root, min_co_changes, min_coupling))
         print_entropy(compute_naming_entropy(root))
+        print_criticality(compute_criticality(root), 10)
+
+
+@app.command(context_settings={"allow_extra_args": True, "allow_interspersed_args": False})
+def pr(ctx: typer.Context) -> None:
+    """PR review mode: analyze changed files for impact. Pass files as args."""
+    files = ctx.args
+    use_json = "--json" in files
+    files = [f for f in files if f != "--json"]
+    review = pr_review(_root(), files)
+    if use_json:
+        json.dump(review, sys.stdout, indent=2)
+        print()
+    else:
+        print_pr_review(review)
+
+
+@app.command()
+def megalinter() -> None:
+    """MegaLinter plugin mode: get changed files from git, output warnings."""
+    root = _root()
+    changed = _git_changed_files(root)
+    if not changed:
+        print("No changed files detected", file=sys.stderr)
         return
 
-    if args.rank:
-        top_rank = args.top if args.top else 20
-        print_criticality(compute_criticality(root), top_rank)
-        return
+    review = pr_review(root, changed)
+    findings = 0
+    for h in review.get("high_blast_radius", []):
+        print(
+            f"[WARNING] {h['file']}: blast radius {h['blast_radius']} — "
+            f"changes here affect {h['blast_radius']} other files",
+            file=sys.stderr,
+        )
+        findings += 1
+    for m in review.get("possibly_missing", []):
+        print(
+            f"[WARNING] {m['missing']}: usually changes with {m['coupled_to']} "
+            f"({m['coupling']:.0%} coupling) — missing from this change?",
+            file=sys.stderr,
+        )
+        findings += 1
+    if findings == 0:
+        print("No change impact warnings", file=sys.stderr)
+    else:
+        print(f"\n{findings} change impact warning(s)", file=sys.stderr)
 
-    # Default: all four signals
-    top_radius = args.top if args.top else 15
-    print_blast_radius(compute_blast_radius(root), top_radius)
-    print_coupling(compute_temporal_coupling(root, args.min_co_changes, args.min_coupling))
-    print_entropy(compute_naming_entropy(root))
-    print_criticality(compute_criticality(root), 10)
+
+@app.command(name="json")
+def json_output(ctx: typer.Context) -> None:
+    """JSON output of all four signals."""
+    root = _root()
+    mc = ctx.obj.get("min_co_changes", 3)
+    mcoup = ctx.obj.get("min_coupling", 0.3)
+    data = {
+        "blast_radius": compute_blast_radius(root),
+        "temporal_coupling": compute_temporal_coupling(root, mc, mcoup),
+        "naming_entropy": compute_naming_entropy(root),
+        "criticality": compute_criticality(root),
+    }
+    json.dump(data, sys.stdout, indent=2)
+    print()
+
+
+@app.command()
+def file(ctx: typer.Context, name: str = typer.Argument(..., help="File to analyze")) -> None:
+    """Deep dive on a specific file."""
+    root = _root()
+    mc = ctx.obj.get("min_co_changes", 3)
+    mcoup = ctx.obj.get("min_coupling", 0.3)
+
+    radius = compute_blast_radius(root)
+    matches = [r for r in radius if any((name in r["file"], name == r["name"]))]
+    for m in matches:
+        print(f"\n{m['file']} (blast radius: {m['blast_radius']})")
+        for ref in m["referencing_files"]:
+            print(f"  ← {ref}")
+
+    coupling = compute_temporal_coupling(root, mc, mcoup)
+    file_couplings = [c for c in coupling if name in c["file_a"] or name in c["file_b"]]
+    if file_couplings:
+        print("\nTemporal coupling:")
+        for c in file_couplings:
+            other = c["file_b"] if name in c["file_a"] else c["file_a"]
+            print(f"  ↔ {other} ({c['coupling']:.0%}, {c['co_changes']} co-changes)")
+
+    crit = compute_criticality(root)
+    file_crit = [r for r in crit if name in r["file"]]
+    if file_crit:
+        c = file_crit[0]
+        print(f"\nCriticality: {c['criticality']:.6f} (in:{c['in_degree']} out:{c['out_degree']})")
+
+
+@app.command()
+def coupling(ctx: typer.Context) -> None:
+    """Show temporal coupling (files that always change together)."""
+    root = _root()
+    mc = ctx.obj.get("min_co_changes", 3)
+    mcoup = ctx.obj.get("min_coupling", 0.3)
+    print_coupling(compute_temporal_coupling(root, mc, mcoup))
+
+
+@app.command()
+def entropy() -> None:
+    """Show naming entropy per directory."""
+    print_entropy(compute_naming_entropy(_root()))
+
+
+@app.command()
+def rank(ctx: typer.Context) -> None:
+    """Show CIRank criticality ranking."""
+    top = ctx.obj.get("top", 20)
+    print_criticality(compute_criticality(_root()), top)
 
 
 if __name__ == "__main__":
-    main()
+    app()

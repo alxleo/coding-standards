@@ -157,6 +157,7 @@ BUILTIN_EXES = {
     "GO_GOLANGCI_LINT": "golangci-lint",
     "HTML_HTMLHINT": "htmlhint",
     "REPOSITORY_LS_LINT": "ls-lint",
+    "REPOSITORY_BLAST_RADIUS": "python3",
 }
 
 # Package name → binary name aliases
