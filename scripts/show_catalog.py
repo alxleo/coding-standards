@@ -120,7 +120,6 @@ def extract_ruff_categories(root: Path) -> list[str]:
 
 def generate(root: Path) -> str:
     lines = [
-        "<!-- GENERATED — do not edit. Run: python3 scripts/show_catalog.py -->",
         "# Coding Standards Catalog",
         "",
         "Complete inventory of what the coding-standards image checks.",
