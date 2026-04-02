@@ -38,13 +38,13 @@ ENABLE_LINTERS:
 PYTHON_RUFF_CONFIG_FILE: ruff.toml
 ```
 
-Without a `.mega-linter.yml`, the image runs with its baked defaults (all 41 linters, baseline configs).
+Without a `.mega-linter.yml`, the image runs with its baked defaults (all 55 linters, baseline configs).
 
 The image auto-detects which linters apply based on files in your repo.
 
 ## What runs
 
-41 linters covering: Python, Shell, YAML, JSON, Markdown, Dockerfile, GitHub Actions, Terraform, CSS, SQL, Ansible, Kubernetes, and more. See `docs/config-decisions.md` for the full list.
+55 linters covering: Python, Shell, YAML, JSON, Markdown, Dockerfile, GitHub Actions, Terraform, CSS, SQL, Ansible, Kubernetes, and more. Run `catalog` for the full list, or see `docs/config-decisions.md` for rationale.
 
 Two-tier blocking:
 
@@ -287,7 +287,7 @@ If the image breaks, revert to upstream MegaLinter directly:
       - run: |
           docker run --rm -v $PWD:/tmp/lint \
             -e ENABLE_LINTERS=BASH_SHELLCHECK,PYTHON_RUFF,YAML_YAMLLINT \
-            oxsecurity/megalinter-cupcake:v9
+            oxsecurity/megalinter:v9
 ```
 
 Add your own `.mega-linter.yml` for configuration when using upstream directly.
@@ -312,7 +312,7 @@ The image checks whether your repo is set up to benefit from the enforcement lay
 
 Checks auto-detect your stack: Python-only repos won't get JS/TS warnings.
 
-See `docs/catalog.md` for the full list of checks (generated, always current).
+Run `docker run --rm ghcr.io/alxleo/coding-standards:latest catalog` to see the full list of checks.
 
 ### Acknowledge warnings
 
@@ -355,7 +355,7 @@ deny := python.warn
 
 ## Full catalog
 
-See `docs/catalog.md` — auto-generated inventory of all linters, semgrep rules, conftest policies, and repo-standards checks. Run `python3 scripts/generate_catalog.py` to regenerate.
+Run `docker run --rm ghcr.io/alxleo/coding-standards:latest catalog` for the full inventory of linters, semgrep rules, conftest policies, and repo-standards checks.
 
 ## Contributing new checks
 
@@ -377,6 +377,6 @@ Adding a check to the coding-standards image:
    - Add rule to existing or new file in `semgrep-rules/`
    - Run `semgrep scan --config semgrep-rules/<file>.yml --validate`
 
-4. **Regenerate catalog:** `python3 scripts/generate_catalog.py`
+4. **Verify catalog:** `docker run --rm ghcr.io/alxleo/coding-standards:latest catalog`
 
 5. **Test against a real repo:** `python3 scripts/generate_repo_manifest.py ~/path/to/repo`
