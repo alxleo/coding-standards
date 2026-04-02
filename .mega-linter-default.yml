@@ -196,10 +196,12 @@ YAML_V8R_CONFIG_FILE: .v8rrc.yml
 # Rules downloaded as JSON at Docker build time — 381x faster to parse than YAML.
 # Refreshed on every image rebuild (weekly scheduled + every merge to main).
 # Custom rules in semgrep-rules/ are always local.
+# Rule ID prefixes: rules.security-audit.<id>, rules.trailofbits.<id>, rules.custom.<id>
+# Consumers can --exclude-rule with these predictable short prefixes.
 REPOSITORY_SEMGREP_RULESETS:
-  - /opt/coding-standards/semgrep-cached-rules/security-audit.json
-  - /opt/coding-standards/semgrep-cached-rules/trailofbits.json
-  - /opt/coding-standards/semgrep-rules/
+  - /rules/security-audit.json
+  - /rules/trailofbits.json
+  - /rules/custom/
 
 # ── Formatting / style ────────────────────────────────────────
 FORMATTERS_DISABLE_ERRORS: true # formatters warn, don't block (explicit)

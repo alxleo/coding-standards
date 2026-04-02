@@ -12,7 +12,7 @@ docker_args := '-v "$PWD:/tmp/lint" -e DEFAULT_WORKSPACE=/tmp/lint'
 
 # Mount branch configs over baked configs — always test current code, not stale image
 
-config_mounts := '-v "$PWD/lint-configs:/opt/coding-standards/configs" -v "$PWD/semgrep-rules:/opt/coding-standards/semgrep-rules" -v "$PWD/policies:/opt/coding-standards/policies" -v "$PWD/plugins:/mega-linter-plugin-custom" -v "$PWD/scripts:/opt/coding-standards/scripts" -v "$PWD/.mega-linter-default.yml:/opt/coding-standards/.mega-linter-default.yml"'
+config_mounts := '-v "$PWD/lint-configs:/opt/coding-standards/configs" -v "$PWD/semgrep-rules:/rules/custom" -v "$PWD/policies:/opt/coding-standards/policies" -v "$PWD/plugins:/mega-linter-plugin-custom" -v "$PWD/scripts:/opt/coding-standards/scripts" -v "$PWD/.mega-linter-default.yml:/opt/coding-standards/.mega-linter-default.yml"'
 precommit_cfg := "lint-configs/.pre-commit-config.yaml"
 
 # ── Dev workflow (use these) ───────────────────────────────

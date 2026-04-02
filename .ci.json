@@ -47,7 +47,7 @@
     "conftest verify -p /opt/coding-standards/policies/repo-standards/",
     "conftest verify -p /opt/coding-standards/policies/compose/",
     "conftest verify -p /opt/coding-standards/policies/image-integrity/",
-    "semgrep scan --config /opt/coding-standards/semgrep-rules/ --validate",
+    "semgrep scan --config /rules/custom/ --validate",
     "cd /tmp && python3 /opt/coding-standards/scripts/generate_repo_manifest.py && test -f repo-manifest.json"
   ]
 }

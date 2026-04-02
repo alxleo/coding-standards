@@ -41,9 +41,8 @@ def _parse_megalinter_config(root: Path) -> dict[str, object]:
     for key, value in data.items():
         if key.endswith("_CONFIG_FILE"):
             config_files[key] = value
-        elif key.endswith("_ARGUMENTS"):
-            if isinstance(value, list):
-                config_arguments[key] = value
+        elif key.endswith("_ARGUMENTS") and isinstance(value, list):
+            config_arguments[key] = value
 
     return {
         "enable_linters": enable,
@@ -157,9 +156,7 @@ def _list_lint_configs(root: Path) -> list[str]:
     configs_dir = root / "lint-configs"
     skip_suffixes = ("_cache",)
     return sorted(
-        f.name
-        for f in configs_dir.iterdir()
-        if f.is_file() and not any(f.name.endswith(s) for s in skip_suffixes)
+        f.name for f in configs_dir.iterdir() if f.is_file() and not any(f.name.endswith(s) for s in skip_suffixes)
     )
 
 
@@ -201,9 +198,11 @@ def main() -> None:
 
     if "--check" in sys.argv:
         # Verify manifest can be generated without errors
-        print(f"Image manifest: {len(manifest['enable_linters'])} linters, "
-              f"{len(manifest['plugins'])} plugins, "
-              f"{len(manifest['dockerfile_tools']['binary'])} binaries")
+        print(
+            f"Image manifest: {len(manifest['enable_linters'])} linters, "
+            f"{len(manifest['plugins'])} plugins, "
+            f"{len(manifest['dockerfile_tools']['binary'])} binaries"
+        )
         return
 
     print(json.dumps(manifest, indent=2))

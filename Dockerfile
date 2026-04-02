@@ -260,14 +260,14 @@ RUN set -eux && \
 COPY scripts/download-schemas.sh scripts/download-semgrep-rules.sh /tmp/
 RUN chmod +x /tmp/download-schemas.sh /tmp/download-semgrep-rules.sh && \
     /tmp/download-schemas.sh /opt/coding-standards/schemas && \
-    /tmp/download-semgrep-rules.sh /opt/coding-standards/semgrep-cached-rules && \
+    /tmp/download-semgrep-rules.sh /rules && \
     rm /tmp/download-schemas.sh /tmp/download-semgrep-rules.sh
 
 # ── Plugin descriptors ────────────────────────────────────────
 COPY plugins/ /mega-linter-plugin-custom/
 
 # ── Centralized semgrep rules ─────────────────────────────────
-COPY semgrep-rules/ /opt/coding-standards/semgrep-rules/
+COPY semgrep-rules/ /rules/custom/
 
 # ── Shared Conftest policies ─────────────────────────────────
 COPY policies/ /opt/coding-standards/policies/
