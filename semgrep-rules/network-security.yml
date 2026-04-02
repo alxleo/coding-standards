@@ -1,0 +1,139 @@
+# Network-aware replacements for upstream Trail of Bits rules (#82).
+# The upstream rules flag legitimate private-network patterns (RFC1918 binds,
+# localhost healthchecks, internal Compose DSNs). These replacements catch the
+# dangerous cases while allowing private/internal usage.
+#
+# Excluded upstream rule IDs (via REPOSITORY_SEMGREP_ARGUMENTS):
+#   trailofbits.yaml.docker-compose.port-all-interfaces.port-all-interfaces
+#   trailofbits.generic.curl-unencrypted-url.curl-unencrypted-url
+#   trailofbits.generic.wget-unencrypted-url.wget-unencrypted-url
+#   trailofbits.generic.postgres-insecure-sslmode.postgres-insecure-sslmode
+
+rules:
+  # ── Port exposure ──────────────────────────────────────────────
+  # Flags ports bound to all interfaces (0.0.0.0 or bare host-port mapping).
+  # Allows explicit RFC1918 binds (192.168.x.x, 10.x.x.x, 172.16-31.x.x).
+  - id: coding-standards.compose-port-all-interfaces
+    message: >
+      Port bound to all interfaces. Bind to a specific IP
+      (e.g., 192.168.1.10:8080:80) or use 127.0.0.1 for local-only.
+      Bare host:container mappings (80:80) expose to the entire network.
+    languages: [generic]
+    severity: WARNING
+    pattern-regex: |
+      (?x)
+      (?:^|\s*-\s*)
+      (?:
+        "?0\.0\.0\.0:\d+:\d+(?:/(?:tcp|udp))?"?        |  # explicit 0.0.0.0 bind
+        "?\d+:\d+(?:/(?:tcp|udp))?"?                       # bare host:container (no IP)
+      )
+      \s*$
+    paths:
+      include:
+        - "**/docker-compose*.yml"
+        - "**/compose*.yml"
+    metadata:
+      category: security
+      technology: [docker-compose]
+      references:
+        - "https://github.com/trailofbits/semgrep-rules"
+
+  # ── Plaintext HTTP downloads ───────────────────────────────────
+  # Flags curl/wget with http:// URLs to external hosts.
+  # Allows localhost, 127.0.0.1, and RFC1918 addresses.
+  - id: coding-standards.curl-unencrypted-external
+    message: >
+      curl fetching from an unencrypted external URL. Use https://
+      for any non-local endpoint. Localhost, 127.0.0.1, and private
+      network addresses (10.x, 172.16-31.x, 192.168.x) are allowed.
+    languages: [generic]
+    severity: WARNING
+    pattern-regex: |
+      (?x)
+      curl\s[^|]*?
+      http://
+      (?!
+        localhost[:/\s]       |
+        127\.0\.0\.\d+[:/\s]  |
+        10\.\d+\.\d+\.\d+    |
+        172\.(?:1[6-9]|2\d|3[01])\.\d+\.\d+ |
+        192\.168\.\d+\.\d+   |
+        \[::1\]               |
+        [a-zA-Z][a-zA-Z0-9_-]*:  # container/service name (e.g., pihole:80)
+      )
+    paths:
+      include:
+        - "*.sh"
+        - "*.bash"
+        - "**/docker-compose*.yml"
+        - "**/compose*.yml"
+        - Dockerfile
+    metadata:
+      category: security
+      technology: [generic]
+
+  - id: coding-standards.wget-unencrypted-external
+    message: >
+      wget fetching from an unencrypted external URL. Use https://
+      for any non-local endpoint. Localhost, 127.0.0.1, and private
+      network addresses (10.x, 172.16-31.x, 192.168.x) are allowed.
+    languages: [generic]
+    severity: WARNING
+    pattern-regex: |
+      (?x)
+      wget\s[^|]*?
+      http://
+      (?!
+        localhost[:/\s]       |
+        127\.0\.0\.\d+[:/\s]  |
+        10\.\d+\.\d+\.\d+    |
+        172\.(?:1[6-9]|2\d|3[01])\.\d+\.\d+ |
+        192\.168\.\d+\.\d+   |
+        \[::1\]               |
+        [a-zA-Z][a-zA-Z0-9_-]*:  # container/service name
+      )
+    paths:
+      include:
+        - "*.sh"
+        - "*.bash"
+        - "**/docker-compose*.yml"
+        - "**/compose*.yml"
+        - Dockerfile
+    metadata:
+      category: security
+      technology: [generic]
+
+  # ── Postgres insecure SSL ──────────────────────────────────────
+  # Flags sslmode=disable on external Postgres connections.
+  # Allows internal Compose service-name DSNs (no dots in hostname).
+  - id: coding-standards.postgres-insecure-sslmode-external
+    message: >
+      Postgres connection uses sslmode=disable to a remote host.
+      Use sslmode=require or sslmode=verify-full for non-local
+      connections. Internal Compose service names are allowed.
+    languages: [generic]
+    severity: WARNING
+    pattern-regex: |
+      (?x)
+      postgres(?:ql)?://
+      [^@]*@                           # user:pass@
+      (?!
+        localhost[:/]                 |
+        127\.0\.0\.\d+[:/]            |
+        10\.\d+\.\d+\.\d+[:/]        |
+        172\.(?:1[6-9]|2\d|3[01])\.\d+\.\d+[:/] |
+        192\.168\.\d+\.\d+[:/]       |
+        [a-zA-Z][a-zA-Z0-9_-]*[:/]    # bare service name (no dots = internal)
+      )
+      [^?]*\?[^#]*sslmode=disable
+    paths:
+      include:
+        - "*.yml"
+        - "*.yaml"
+        - "*.sh"
+        - "*.env"
+        - "*.env.*"
+        - "*.py"
+    metadata:
+      category: security
+      technology: [postgres]
