@@ -12,3 +12,4 @@ uv.lock
 
 # Claude session data
 .claude/
+.lycheecache

@@ -183,11 +183,14 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 
 ### Performance optimizations applied
 
-- jscpd → PMD-CPD: 177s → 5s (Java vs Node.js, Karp-Rabin matching)
+- Semgrep: cached rulesets as JSON at build time (23.5s → 18.5s). Eliminates network fetch + YAML parsing (json.loads is 381x faster than ruamel.yaml). Rules refresh on image rebuild.
+- v8r ignore patterns: 28.5s → 5.7s (was validating files in node_modules/megalinter-reports)
+- Lychee cache + timeout: 19s → 1.8s (network timeout storms on transient 502s)
+- Trivy scanner trim: 9.5s → 5.3s (dropped secret/license, covered by gitleaks/license-checker)
 - Trivy DB pre-cached at build time: 12.6s → 3s (--skip-db-update at runtime)
-- Semgrep: local rules backfired (10x slower). Kept --config auto (server-side curation worth the 10s download)
-- v8r schema caching: pending (11+12s savings expected)
-- Wall clock: 3+ min → 31s under emulation, estimated 15-20s native amd64
+- jscpd → PMD-CPD: 177s → 5s (Java vs Node.js, Karp-Rabin matching)
+- Docker buildkit cache: `type=gha` → `type=registry` (moves off 10GB Actions quota, works on Gitea)
+- CI skip-rebuild: context-hash check, pull from GHCR on hit (3m23s → 10-30s)
 
 ### Monorepo scoping
 
