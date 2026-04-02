@@ -287,7 +287,7 @@ PRE_COMMANDS:
   # to root (cosmiconfig only searches project root).
   - command: >-
       mkdir -p .mega-linter-config &&
-      for f in .shellcheckrc .codespellrc .ls-lint.yml .v8rrc.yml; do
+      for f in .shellcheckrc .codespellrc .ls-lint.yml .v8rrc.yml .v8rignore; do
         test ! -f ".mega-linter-config/$f" &&
           cp "/opt/coding-standards/configs/$f" ".mega-linter-config/$f" 2>/dev/null || true;
       done &&
@@ -302,6 +302,19 @@ PRE_COMMANDS:
   - command: >-
       test -f package-lock.json &&
       npm ci --ignore-scripts || true
+    cwd: workspace
+    continue_if_failed: true
+
+# ── POST_COMMANDS ─────────────────────────────────────────────
+POST_COMMANDS:
+  # Fix file ownership for self-hosted runners. Container runs as root,
+  # creating files the runner user can't clean up. Restore ownership to
+  # the original workspace owner (passed via WORKSPACE_UID/GID env vars).
+  # nosemgrep: coding-standards.unexpanded-env-var-in-yaml — shell vars in command block
+  - command: >-
+      if [ -n "${WORKSPACE_UID:-}" ]; then
+        chown -R "${WORKSPACE_UID}:${WORKSPACE_GID:-${WORKSPACE_UID}}" . 2>/dev/null || true;
+      fi
     cwd: workspace
     continue_if_failed: true
 

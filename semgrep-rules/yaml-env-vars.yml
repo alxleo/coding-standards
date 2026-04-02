@@ -18,3 +18,5 @@ rules:
         - "**/docker-action/**"
         - "**/dags/**"
         - "**/semgrep-rules/**"
+        - "**/.mega-linter-default.yml"
+        - "**/.mega-linter*.yml"
