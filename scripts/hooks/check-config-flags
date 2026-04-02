@@ -49,6 +49,7 @@ SKIP_HOOKS = {
     "check-hook-deps",
     "check-megalinter-config-paths",
     "check-blast-radius",
+    "check-image-integrity",
 }
 
 CONFIG_FLAGS = {"--config", "-c", "--config-file"}

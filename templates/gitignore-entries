@@ -1,0 +1,7 @@
+# coding-standards lint artifacts
+.mega-linter-config/
+megalinter-reports/
+repo-manifest.json
+.lycheecache
+.ruff_cache/
+.v8rrc.yml

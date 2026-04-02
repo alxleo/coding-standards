@@ -1,0 +1,40 @@
+# First-time setup
+
+## 1. Add CI workflow
+
+```yaml
+# .github/workflows/lint.yml (or .gitea/workflows/)
+name: Lint
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: alxleo/coding-standards/docker-action@v1
+```
+
+Or run `just cs-init` to auto-generate this.
+
+## 2. Add .gitignore entries
+
+Run `just cs-help gitignore` for the list, or `just cs-init` adds them automatically.
+
+## 3. Run locally
+
+```bash
+just cs-lint
+```
+
+## 4. Expect many findings on first run
+
+See `just cs-help migrate` for the fast path to green CI.
+
+## No .mega-linter.yml needed
+
+The image works zero-config. Only create `.mega-linter.yml` if you need to customize (disable linters, override configs). See `just cs-help override`.
