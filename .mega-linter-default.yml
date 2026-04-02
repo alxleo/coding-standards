@@ -138,9 +138,11 @@ DISABLE_ERRORS_LINTERS:
 #
 # Consumer repos override by setting <LINTER>_CONFIG_FILE in their .mega-linter.yml.
 
-# shellcheck: built-in descriptor has no cli_config_arg_name, inheriting the
-# default -c which shellcheck has never accepted. Auto-discovery via .shellcheckrc
-# copied to workspace in PRE_COMMANDS (no _CONFIG_FILE needed).
+# shellcheck: --rcfile points at .mega-linter-config/.shellcheckrc (no root pollution).
+BASH_SHELLCHECK_ARGUMENTS:
+  - "--rcfile=.mega-linter-config/.shellcheckrc"
+# editorconfig-checker: .editorconfig MUST be at project root per EditorConfig spec.
+# The -config flag is for .ecrc (tool config), not .editorconfig. Stays in PRE_COMMANDS root copy.
 # rumdl: custom plugin with cli_config_arg_name: --config. Clean _CONFIG_FILE.
 MARKDOWN_RUMDL_CONFIG_FILE: .markdownlint-cli2.yaml
 REPOSITORY_COMMITLINT_CONFIG_FILE: commitlint.config.mjs
@@ -158,7 +160,9 @@ PYTHON_VULTURE_ARGUMENTS:
   - "80"
 SPELL_LYCHEE_CONFIG_FILE: .lychee.toml
 PYTHON_RUFF_CONFIG_FILE: ruff.toml
-REPOSITORY_LS_LINT_CONFIG_FILE: .ls-lint.yml
+REPOSITORY_LS_LINT_ARGUMENTS:
+  - "-config"
+  - ".mega-linter-config/.ls-lint.yml"
 API_SPECTRAL_CONFIG_FILE: .spectral.yaml
 JAVASCRIPT_ES_CONFIG_FILE: eslint.config.mjs
 TYPESCRIPT_ES_CONFIG_FILE: eslint.config.mjs
@@ -174,11 +178,15 @@ TYPESCRIPT_PRETTIER_CONFIG_FILE: .prettierrc
 REPOSITORY_GITLEAKS_CONFIG_FILE: .gitleaks.toml
 # editorconfig-checker: _CONFIG_FILE expects an .ecrc (tool config), not .editorconfig.
 # The tool auto-discovers .editorconfig from the workspace root (copied via PRE_COMMANDS).
-SPELL_CODESPELL_CONFIG_FILE: .codespellrc
+SPELL_CODESPELL_ARGUMENTS:
+  - "--config=.mega-linter-config/.codespellrc"
 # v8r: uses cosmiconfig auto-discovery, not CLI flags.
 # YAML_V8R works via _CONFIG_FILE (descriptor has no cli_config_arg_name).
 # JSON_V8R MUST NOT set _CONFIG_FILE — its built-in descriptor injects -c
 # (which means --catalogs, not config). Cosmiconfig finds it via PRE_COMMANDS symlink.
+# v8r: cosmiconfig auto-discovers .v8rrc.yml from cwd. Symlink from
+# .mega-linter-config/ to workspace root so v8r finds it without root pollution.
+# Consumer override: place own .v8rrc.yml at repo root (skips symlink via test -f).
 YAML_V8R_CONFIG_FILE: .v8rrc.yml
 
 # Semgrep: cached rulesets (no network at runtime).
@@ -268,15 +276,20 @@ PRE_COMMANDS:
       python3 /opt/coding-standards/scripts/generate_repo_manifest.py
     cwd: workspace
     continue_if_failed: true
-  # Copy baked configs to workspace root for tools that auto-discover there.
-  # NOTE: MegaLinter checks active_only_if_file_found BEFORE PRE_COMMANDS,
-  # so these copies provide config, not activation. Consumer repos that have
-  # these files at root activate the linters naturally.
-  # Uses cp (not symlinks) — prettier rejects symlinks.
+  # Copy baked configs to .mega-linter-config/ — keeps consumer workspace clean.
+  # Consumer overrides: place own config file (checked via test ! -f).
+  # Exceptions: .editorconfig at root (EditorConfig spec), .v8rrc.yml symlinked
+  # to root (cosmiconfig only searches project root).
   - command: >-
-      for f in .v8rrc.yml .editorconfig .shellcheckrc .codespellrc .ls-lint.yml; do
-        test ! -f "$f" && cp "/opt/coding-standards/configs/$f" "$f" 2>/dev/null || true;
-      done
+      mkdir -p .mega-linter-config &&
+      for f in .shellcheckrc .codespellrc .ls-lint.yml .v8rrc.yml; do
+        test ! -f ".mega-linter-config/$f" &&
+          cp "/opt/coding-standards/configs/$f" ".mega-linter-config/$f" 2>/dev/null || true;
+      done &&
+      test ! -f .editorconfig &&
+        cp /opt/coding-standards/configs/.editorconfig .editorconfig 2>/dev/null || true &&
+      test ! -f .v8rrc.yml && test -f .mega-linter-config/.v8rrc.yml &&
+        ln -sf .mega-linter-config/.v8rrc.yml .v8rrc.yml 2>/dev/null || true
     cwd: workspace
     continue_if_failed: true
   # Install JS deps if package-lock.json exists
