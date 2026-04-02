@@ -1,5 +1,5 @@
 rules:
-  - id: python-silent-fallback-or
+  - id: coding-standards.python-silent-fallback-or
     patterns:
       - pattern: $X or $DEFAULT
       # Exclude boolean logic — two comparisons joined by or
@@ -28,7 +28,7 @@ rules:
       category: maintainability
       technology: [python]
 
-  - id: python-bare-except-pass
+  - id: coding-standards.python-bare-except-pass
     pattern: |
       except:
           pass
@@ -41,7 +41,7 @@ rules:
       category: correctness
       technology: [python]
 
-  - id: javascript-silent-catch
+  - id: coding-standards.javascript-silent-catch
     pattern: |
       catch ($ERR) {}
     message: >

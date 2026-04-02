@@ -1,5 +1,5 @@
 rules:
-  - id: python-sql-string-interpolation
+  - id: coding-standards.python-sql-string-interpolation
     pattern-either:
       - pattern: |
           $CURSOR.execute(f"...", ...)
@@ -18,7 +18,7 @@ rules:
       technology: [python]
       cwe: ["CWE-89"]
 
-  - id: javascript-sql-string-interpolation
+  - id: coding-standards.javascript-sql-string-interpolation
     pattern-either:
       - pattern: |
           $DB.query(`...${...}...`)

@@ -53,7 +53,7 @@ def _is_excluded(rel: Path) -> bool:
         return True
     rel_str = rel.as_posix()
     return any(
-        rel_str == prefix or rel_str.startswith(prefix + "/")  # nosemgrep: python-silent-fallback-or
+        rel_str == prefix or rel_str.startswith(prefix + "/")  # nosemgrep: coding-standards.python-silent-fallback-or
         for prefix in _EXCLUDE_PREFIXES
     )
 
@@ -89,11 +89,15 @@ def check_pyproject_dep(root: Path, dep_name: str) -> bool:
     project = data.get("project", {})
     dep_lists.append(project.get("dependencies", []))
     # optional-dependencies may be absent; default to empty dict for .values()
-    dep_lists.extend((project.get("optional-dependencies") or {}).values())  # nosemgrep: python-silent-fallback-or
+    dep_lists.extend(
+        (project.get("optional-dependencies") or {}).values()  # nosemgrep: coding-standards.python-silent-fallback-or
+    )
     dep_lists.extend(
         [e for e in group if isinstance(e, str)]
         # dependency-groups may be absent; default to empty dict for .values()
-        for group in (data.get("dependency-groups") or {}).values()  # nosemgrep: python-silent-fallback-or
+        for group in (  # nosemgrep: coding-standards.python-silent-fallback-or
+            data.get("dependency-groups") or {}
+        ).values()
     )
     # Check each dependency spec for an exact package name match
     dep_re = re.compile(rf"^{re.escape(dep_name)}(\s*[\[><=!~;@]|$)", re.IGNORECASE)
@@ -193,7 +197,7 @@ def _has_toml_section(path: Path, *keys: str) -> bool:
         data = _load_toml(path)
         for key in keys:
             # Guard: TOML values may be non-dict at any nesting level
-            if not isinstance(data, dict) or key not in data:  # nosemgrep: python-silent-fallback-or
+            if not isinstance(data, dict) or key not in data:  # nosemgrep: coding-standards.python-silent-fallback-or
                 return False
             data = data[key]
         return True
@@ -277,7 +281,7 @@ def extract_extends_url(root: Path) -> str | None:
             while j < len(lines):
                 next_line = lines[j].strip()
                 # Skip blank lines and YAML comments between EXTENDS: and list items
-                if not next_line or next_line.startswith("#"):  # nosemgrep: python-silent-fallback-or
+                if not next_line or next_line.startswith("#"):  # nosemgrep: coding-standards.python-silent-fallback-or
                     j += 1
                     continue
                 if next_line.startswith("-"):
@@ -496,8 +500,8 @@ def load_acknowledged(root: Path) -> dict[str, Any]:
         return {}
     try:
         with open(rs) as f:
-            data = yaml.safe_load(f) or {}  # nosemgrep: python-silent-fallback-or
-        ack = data.get("acknowledged", {}) or {}  # nosemgrep: python-silent-fallback-or
+            data = yaml.safe_load(f) or {}  # nosemgrep: coding-standards.python-silent-fallback-or
+        ack = data.get("acknowledged", {}) or {}  # nosemgrep: coding-standards.python-silent-fallback-or
 
         # Strip expired temporary acknowledgments
         today = datetime.now(tz=UTC).date()

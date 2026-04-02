@@ -1,5 +1,5 @@
 rules:
-  - id: test-over-mocking
+  - id: coding-standards.test-over-mocking
     patterns:
       - pattern: |
           @patch(...)
@@ -22,7 +22,7 @@ rules:
       category: test-quality
       technology: [python]
 
-  - id: test-mock-call-count
+  - id: coding-standards.test-mock-call-count
     pattern: assert $MOCK.call_count == $N
     message: >
       Asserting exact call count is brittle — breaks on any refactor.
@@ -38,7 +38,7 @@ rules:
       category: test-quality
       technology: [python]
 
-  - id: test-mock-assert-called-with-literals
+  - id: coding-standards.test-mock-assert-called-with-literals
     pattern: $MOCK.assert_called_with("...", ...)
     message: >
       assert_called_with verifies implementation details (exact args).
@@ -54,7 +54,7 @@ rules:
       category: test-quality
       technology: [python]
 
-  - id: test-hardcoded-dict-assertion
+  - id: coding-standards.test-hardcoded-dict-assertion
     patterns:
       - pattern: |
           assert $X == {$K1: $V1, $K2: $V2, $K3: $V3, $K4: $V4, $K5: $V5, ...}

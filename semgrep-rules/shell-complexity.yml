@@ -2,7 +2,7 @@
 # expressed in semgrep's bash parser. The shell-scripts-over-50-lines
 # repo-standard catches the consequence (scripts that outgrew shell).
 rules:
-  - id: shell-json-parsing
+  - id: coding-standards.shell-json-parsing
     pattern-either:
       - pattern: |
           ... | jq $FILTER | ...

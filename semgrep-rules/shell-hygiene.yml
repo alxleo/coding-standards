@@ -1,5 +1,5 @@
 rules:
-  - id: no-bare-python
+  - id: coding-standards.no-bare-python
     message: >
       Use 'uv run python3' instead of bare 'python3' to ensure
       consistent virtual environment and dependency management.
@@ -13,7 +13,7 @@ rules:
         - "**/scripts/entrypoint.sh"
         - "**/Dockerfile"
 
-  - id: pin-npm-versions
+  - id: coding-standards.pin-npm-versions
     message: >
       npx invocations must pin a version (e.g., npx jscpd@4.0.8).
       Unpinned npx pulls latest, which breaks reproducibility.

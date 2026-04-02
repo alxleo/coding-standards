@@ -101,28 +101,28 @@ Generated from config files — this IS the source of truth.
 
 | Rule | Severity | Source | Description |
 |------|----------|--------|-------------|
-| python-deep-nesting | WARNING | complexity.yml | Function $FUNC has 4+ levels of nesting. Extract inner logic into helper functions or use early returns to flatten the structure. |
-| no-privileged-containers | ERROR | compose-security.yml | Do not use privileged: true. Use specific capabilities (cap_add) or security_opt instead. |
-| no-env-file-secrets | WARNING | compose-security.yml | Do not use env_file to inject secrets. Use Docker secrets or SOPS-encrypted environment variables instead. |
-| justfile-eval-usage | WARNING | justfile-safety.yml | Avoid eval in justfile recipes. Use direct command invocation or just's built-in variable interpolation. |
-| justfile-curl-pipe-sh | ERROR | justfile-safety.yml | Piping curl output to sh/bash is a security risk. Download to a file, verify checksum, then execute. |
-| python-no-bare-print | WARNING | observability.yml | Bare print() in application code. Use structured logging (structlog or logging with JSON formatter) for production code. Print statements are invisible to log aggregators. |
-| javascript-no-console-log | WARNING | observability.yml | console.log() in application code. Use a structured logger (pino, winston) for production code. Console output is unstructured and invisible to log aggregators. |
-| no-bare-dict-params | WARNING | python-typing.yml | Use a TypedDict or specific dict[K, V] instead of bare `dict`. Bare dict parameters lose all type information — callers can pass anything, and the function body has no contract to enforce. |
-| no-bare-dict-return | WARNING | python-typing.yml | Use a TypedDict or specific dict[K, V] instead of bare `dict` return. Callers get no type information about the returned structure. |
-| shell-json-parsing | INFO | shell-complexity.yml | JSON parsing in shell with jq pipeline. Consider Python instead — shell + jq is brittle, hard to test, and lacks error handling. Python's json module does the same with types and try/except. |
-| no-bare-python | WARNING | shell-hygiene.yml | Use 'uv run python3' instead of bare 'python3' to ensure consistent virtual environment and dependency management. |
-| pin-npm-versions | WARNING | shell-hygiene.yml | npx invocations must pin a version (e.g., npx jscpd@4.0.8). Unpinned npx pulls latest, which breaks reproducibility. |
-| python-silent-fallback-or | INFO | silent-fallbacks.yml | Silent fallback: `or $DEFAULT` may hide a bug. Idiomatic fixes (don't suppress — refactor instead): |
-| python-bare-except-pass | WARNING | silent-fallbacks.yml | Bare except with pass swallows all errors including KeyboardInterrupt. Catch a specific exception, or at minimum log the error. |
-| javascript-silent-catch | WARNING | silent-fallbacks.yml | Empty catch block silently swallows errors. Either handle the error, re-throw, or add a comment explaining why it's safe to ignore. |
-| python-sql-string-interpolation | ERROR | sql-safety.yml | SQL query uses string interpolation — use parameterized queries instead. String interpolation in SQL enables injection attacks, even for "trusted" internal data. Use ? placeholders or a query builder. |
-| javascript-sql-string-interpolation | ERROR | sql-safety.yml | SQL query uses template literal interpolation — use parameterized queries instead. Use ? placeholders or a query builder. |
-| test-over-mocking | WARNING | test-quality.yml | Test $FUNC uses 4+ @patch decorators. Tests that mock everything verify mocks, not code. Consider testing with fewer mocks or using integration tests. |
-| test-mock-call-count | WARNING | test-quality.yml | Asserting exact call count is brittle — breaks on any refactor. Test the behavior (output, side effects) instead of how many times something was called. |
-| test-mock-assert-called-with-literals | INFO | test-quality.yml | assert_called_with verifies implementation details (exact args). Prefer testing the observable outcome instead of how the code internally calls its dependencies. |
-| test-hardcoded-dict-assertion | WARNING | test-quality.yml | Large hardcoded dict assertion is likely tautological — copied from a single run. Test specific properties or use snapshot testing. |
-| unexpanded-env-var-in-yaml | WARNING | yaml-env-vars.yml | YAML value contains ${VAR} that won't be expanded by most YAML-consuming tools. Use envsubst, the tool's native env mechanism, or inject the value at runtime. |
+| coding-standards.python-deep-nesting | WARNING | complexity.yml | Function $FUNC has 4+ levels of nesting. Extract inner logic into helper functions or use early returns to flatten the structure. |
+| coding-standards.no-privileged-containers | ERROR | compose-security.yml | Do not use privileged: true. Use specific capabilities (cap_add) or security_opt instead. |
+| coding-standards.no-env-file-secrets | WARNING | compose-security.yml | Do not use env_file to inject secrets. Use Docker secrets or SOPS-encrypted environment variables instead. |
+| coding-standards.justfile-eval-usage | WARNING | justfile-safety.yml | Avoid eval in justfile recipes. Use direct command invocation or just's built-in variable interpolation. |
+| coding-standards.justfile-curl-pipe-sh | ERROR | justfile-safety.yml | Piping curl output to sh/bash is a security risk. Download to a file, verify checksum, then execute. |
+| coding-standards.python-no-bare-print | WARNING | observability.yml | Bare print() in application code. Use structured logging (structlog or logging with JSON formatter) for production code. Print statements are invisible to log aggregators. |
+| coding-standards.javascript-no-console-log | WARNING | observability.yml | console.log() in application code. Use a structured logger (pino, winston) for production code. Console output is unstructured and invisible to log aggregators. |
+| coding-standards.no-bare-dict-params | WARNING | python-typing.yml | Use a TypedDict or specific dict[K, V] instead of bare `dict`. Bare dict parameters lose all type information — callers can pass anything, and the function body has no contract to enforce. |
+| coding-standards.no-bare-dict-return | WARNING | python-typing.yml | Use a TypedDict or specific dict[K, V] instead of bare `dict` return. Callers get no type information about the returned structure. |
+| coding-standards.shell-json-parsing | INFO | shell-complexity.yml | JSON parsing in shell with jq pipeline. Consider Python instead — shell + jq is brittle, hard to test, and lacks error handling. Python's json module does the same with types and try/except. |
+| coding-standards.no-bare-python | WARNING | shell-hygiene.yml | Use 'uv run python3' instead of bare 'python3' to ensure consistent virtual environment and dependency management. |
+| coding-standards.pin-npm-versions | WARNING | shell-hygiene.yml | npx invocations must pin a version (e.g., npx jscpd@4.0.8). Unpinned npx pulls latest, which breaks reproducibility. |
+| coding-standards.python-silent-fallback-or | INFO | silent-fallbacks.yml | Silent fallback: `or $DEFAULT` may hide a bug. Idiomatic fixes (don't suppress — refactor instead): |
+| coding-standards.python-bare-except-pass | WARNING | silent-fallbacks.yml | Bare except with pass swallows all errors including KeyboardInterrupt. Catch a specific exception, or at minimum log the error. |
+| coding-standards.javascript-silent-catch | WARNING | silent-fallbacks.yml | Empty catch block silently swallows errors. Either handle the error, re-throw, or add a comment explaining why it's safe to ignore. |
+| coding-standards.python-sql-string-interpolation | ERROR | sql-safety.yml | SQL query uses string interpolation — use parameterized queries instead. String interpolation in SQL enables injection attacks, even for "trusted" internal data. Use ? placeholders or a query builder. |
+| coding-standards.javascript-sql-string-interpolation | ERROR | sql-safety.yml | SQL query uses template literal interpolation — use parameterized queries instead. Use ? placeholders or a query builder. |
+| coding-standards.test-over-mocking | WARNING | test-quality.yml | Test $FUNC uses 4+ @patch decorators. Tests that mock everything verify mocks, not code. Consider testing with fewer mocks or using integration tests. |
+| coding-standards.test-mock-call-count | WARNING | test-quality.yml | Asserting exact call count is brittle — breaks on any refactor. Test the behavior (output, side effects) instead of how many times something was called. |
+| coding-standards.test-mock-assert-called-with-literals | INFO | test-quality.yml | assert_called_with verifies implementation details (exact args). Prefer testing the observable outcome instead of how the code internally calls its dependencies. |
+| coding-standards.test-hardcoded-dict-assertion | WARNING | test-quality.yml | Large hardcoded dict assertion is likely tautological — copied from a single run. Test specific properties or use snapshot testing. |
+| coding-standards.unexpanded-env-var-in-yaml | WARNING | yaml-env-vars.yml | YAML value contains ${VAR} that won't be expanded by most YAML-consuming tools. Use envsubst, the tool's native env mechanism, or inject the value at runtime. |
 
 ## Compose policies (16)
 

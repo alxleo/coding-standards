@@ -1,5 +1,5 @@
 rules:
-  - id: justfile-eval-usage
+  - id: coding-standards.justfile-eval-usage
     message: >
       Avoid eval in justfile recipes. Use direct command invocation
       or just's built-in variable interpolation.
@@ -12,7 +12,7 @@ rules:
         - Justfile
         - "*.just"
 
-  - id: justfile-curl-pipe-sh
+  - id: coding-standards.justfile-curl-pipe-sh
     message: >
       Piping curl output to sh/bash is a security risk.
       Download to a file, verify checksum, then execute.

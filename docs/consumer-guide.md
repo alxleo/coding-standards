@@ -72,16 +72,18 @@ REPOSITORY_GITLEAKS_CONFIG_FILE: .gitleaks.toml
 
 ### Suppress specific semgrep rules
 
-The baseline ships `auto` + `p/trailofbits` + custom rules. To suppress specific rules without touching the rulesets array (which breaks due to EXTENDS array merge):
+The baseline ships cached rulesets (security-audit, trailofbits) + custom rules. To suppress specific rules without touching the rulesets array (which breaks due to EXTENDS array merge):
 
 ```yaml
 # .mega-linter.yml — suppress individual semgrep rules
 REPOSITORY_SEMGREP_ARGUMENTS: >-
+  --exclude-rule=coding-standards.python-silent-fallback-or
   --exclude-rule=trailofbits.python.some-noisy-rule
-  --exclude-rule=generic.secrets.false-positive
 ```
 
-Or inline in code: `# nosemgrep: rule-id`
+Or inline in code: `# nosemgrep: coding-standards.python-silent-fallback-or`
+
+Custom rules from this image use the `coding-standards.` prefix. Third-party rules keep their original prefixes (e.g. `trailofbits.`).
 
 Do NOT override `REPOSITORY_SEMGREP_RULESETS` — it contains absolute image paths that break when merged with consumer values.
 

@@ -1,5 +1,5 @@
 rules:
-  - id: no-bare-dict-params
+  - id: coding-standards.no-bare-dict-params
     pattern-either:
       - pattern: |
           def $FUNC(..., $PARAM: dict, ...):
@@ -17,7 +17,7 @@ rules:
       category: maintainability
       technology: [python]
 
-  - id: no-bare-dict-return
+  - id: coding-standards.no-bare-dict-return
     pattern-either:
       - pattern: |
           def $FUNC(...) -> dict:

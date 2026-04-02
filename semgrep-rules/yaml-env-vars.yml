@@ -1,5 +1,5 @@
 rules:
-  - id: unexpanded-env-var-in-yaml
+  - id: coding-standards.unexpanded-env-var-in-yaml
     message: >
       YAML value contains ${VAR} that won't be expanded by most
       YAML-consuming tools. Use envsubst, the tool's native env
