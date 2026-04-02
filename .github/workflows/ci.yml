@@ -85,7 +85,7 @@ jobs:
         id: ctx
         env:
           # hashFiles() is a GHA expression — hash all files baked into the image.
-          CTX_HASH: ctx-${{ hashFiles('Dockerfile', 'plugins/**', 'semgrep-rules/**', 'policies/**', 'scripts/entrypoint.sh', 'scripts/ci/**', 'scripts/generate_catalog.py', 'scripts/generate_repo_manifest.py', 'scripts/manifest_schema.py', 'scripts/show_config.py', 'scripts/show_warnings.py', 'scripts/blast_radius.py', 'scripts/megalinter_report_statuses.py', 'scripts/download-schemas.sh', 'lint-configs/**', 'docs/catalog.md', '.mega-linter-default.yml') }}
+          CTX_HASH: ctx-${{ hashFiles('Dockerfile', 'plugins/**', 'semgrep-rules/**', 'policies/**', 'scripts/entrypoint.sh', 'scripts/ci/**', 'scripts/generate_catalog.py', 'scripts/generate_repo_manifest.py', 'scripts/manifest_schema.py', 'scripts/show_config.py', 'scripts/show_warnings.py', 'scripts/blast_radius.py', 'scripts/megalinter_report_statuses.py', 'scripts/download-schemas.sh', 'scripts/download-semgrep-rules.sh', 'lint-configs/**', 'docs/catalog.md', '.mega-linter-default.yml') }}
         run: |
           # Truncate to ctx- prefix + 16 hex chars for tag readability
           SHORT="${CTX_HASH:0:20}"

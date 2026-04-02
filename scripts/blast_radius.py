@@ -83,7 +83,7 @@ def _is_excluded(path: Path) -> bool:
 
 
 def _is_scannable(path: Path) -> bool:
-    # nosemgrep: python-silent-fallback-or — boolean logic, not fallback
+    # nosemgrep: coding-standards.python-silent-fallback-or — boolean logic, not fallback
     return path.suffix in SCANNABLE_EXTS or path.name in SCANNABLE_NAMES
 
 
@@ -217,7 +217,7 @@ def compute_temporal_coupling(
     for (a, b), co_count in co_changes.items():
         if co_count < min_co_changes:
             continue
-        # nosemgrep: python-silent-fallback-or — boolean comparison, not fallback
+        # nosemgrep: coding-standards.python-silent-fallback-or — boolean comparison, not fallback
         if file_changes[a] < min_revisions or file_changes[b] < min_revisions:
             continue
         union = file_changes[a] + file_changes[b] - co_count
