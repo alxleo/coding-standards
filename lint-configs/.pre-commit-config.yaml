@@ -199,7 +199,7 @@ repos:
 
       - id: check-image-integrity
         name: Image integrity (Dockerfile ↔ config ↔ plugins)
-        entry: bash -c 'python3 scripts/generate_image_manifest.py > /tmp/image-manifest.json && docker run --rm -v /tmp/image-manifest.json:/data/image-manifest.json -v "$PWD/policies/image-integrity:/policies" --entrypoint conftest coding-standards:alpine-arm64 test /data/image-manifest.json --all-namespaces --no-color -p /policies/'
+        entry: bash -c 'python3 scripts/generate_image_manifest.py > /tmp/image-manifest.json && if command -v conftest >/dev/null 2>&1; then conftest test /tmp/image-manifest.json --all-namespaces --no-color -p policies/image-integrity/; elif command -v docker >/dev/null 2>&1 && docker image inspect ghcr.io/alxleo/coding-standards:latest >/dev/null 2>&1; then docker run --rm -v /tmp/image-manifest.json:/data/image-manifest.json -v "$PWD/policies/image-integrity:/policies" --entrypoint conftest ghcr.io/alxleo/coding-standards:latest test /data/image-manifest.json --all-namespaces --no-color -p /policies/; else echo "⏭ conftest not available — skipping image integrity check (validated in CI)"; fi'
         language: system
         pass_filenames: false
         files: '(Dockerfile|\.mega-linter-default\.yml|plugins/|lint-configs/|\.github/workflows/ci\.yml)'
