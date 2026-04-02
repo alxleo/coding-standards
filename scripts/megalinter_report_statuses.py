@@ -20,6 +20,7 @@ import os
 import sys
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 _DEFAULT_REPORT = "megalinter-reports/mega-linter-report.json"
 
@@ -27,21 +28,23 @@ _DEFAULT_REPORT = "megalinter-reports/mega-linter-report.json"
 def main() -> None:
     report_path = sys.argv[1] if len(sys.argv) > 1 else _DEFAULT_REPORT
 
-    with open(report_path) as f:
+    with Path(report_path).open() as f:
         report = json.load(f)
 
     # Detect platform
     gitea_url = os.environ.get("GITEA_URL", "")
     github_api = os.environ.get("GITHUB_API_URL", "https://api.github.com")
     # Gitea token takes precedence; fall back to GitHub token
-    token = os.environ.get("GITEA_TOKEN") or os.environ.get("GITHUB_TOKEN", "")  # nosemgrep: python-silent-fallback-or
+    token = os.environ.get("GITEA_TOKEN") or os.environ.get(  # nosemgrep: coding-standards.python-silent-fallback-or
+        "GITHUB_TOKEN", ""
+    )
     repo = os.environ.get("GITHUB_REPOSITORY", "")
     sha = os.environ.get("GITHUB_SHA", "")
     run_id = os.environ.get("GITHUB_RUN_ID", "")
     server_url = os.environ.get("GITHUB_SERVER_URL", "https://github.com")
 
     # All three are required to post commit statuses
-    if not token or not repo or not sha:  # nosemgrep: python-silent-fallback-or
+    if not token or not repo or not sha:  # nosemgrep: coding-standards.python-silent-fallback-or
         print("Missing GITEA_TOKEN/GITHUB_TOKEN, GITHUB_REPOSITORY, or GITHUB_SHA")
         sys.exit(1)
 

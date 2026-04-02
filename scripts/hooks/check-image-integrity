@@ -1,0 +1,336 @@
+#!/usr/bin/env python3
+"""Validate image integrity — cross-reference Dockerfile, config, and plugins.
+
+Enforces 7 invariants across data sources. No Docker or conftest dependency.
+Rego policies in policies/image-integrity/ are the authoritative definitions;
+this hook is a lightweight Python mirror that runs in CI and pre-commit.
+
+Invariants:
+  1. Every ENABLE_LINTERS entry has an installed executable
+  2. Every DISABLE_ERRORS entry is in ENABLE_LINTERS
+  3. Every _CONFIG_FILE points to a file in lint-configs/
+  4. Every lint-configs/ file is referenced somewhere
+  5. Every Dockerfile COPY source is in CI context hash
+  6. Every binary download has dual-arch checksums
+  7. Every linter category has a help doc
+"""
+
+import re
+import sys
+from pathlib import Path
+
+import yaml
+
+root = Path(__file__).resolve().parent.parent.parent
+
+# ── Parse data sources ────────────────────────────────────────
+
+ml_config = yaml.safe_load((root / ".mega-linter-default.yml").read_text())
+dockerfile = (root / "Dockerfile").read_text()
+
+enable_linters = set(ml_config.get("ENABLE_LINTERS", []))
+disable_errors = set(ml_config.get("DISABLE_ERRORS_LINTERS", []))
+
+config_files = {k: v for k, v in ml_config.items() if k.endswith("_CONFIG_FILE")}
+config_arguments = {k: v for k, v in ml_config.items() if k.endswith("_ARGUMENTS") and isinstance(v, list)}
+
+lint_configs = {f.name for f in (root / "lint-configs").iterdir() if f.is_file()}
+
+# Installed tools (pip + npm + binary names from Dockerfile)
+pip_tools = set(re.findall(r"(\S+)==[\d.]+", dockerfile))
+pip_tools.update(re.findall(r'"(\w+)\s*@\s*git\+', dockerfile))
+npm_tools = set(re.findall(r"(\S+)@[\d.]+", dockerfile))
+all_installed = pip_tools | npm_tools
+
+# Binary tools from VERSION variables
+VERSION_TO_TOOL = {
+    "SHELLCHECK": "shellcheck",
+    "HADOLINT": "hadolint",
+    "ACTIONLINT": "actionlint",
+    "GITLEAKS": "gitleaks",
+    "TRIVY": "trivy",
+    "TFLINT": "tflint",
+    "EC": "editorconfig-checker",
+    "KUBECONFORM": "kubeconform",
+    "LYCHEE": "lychee",
+    "GOLANGCI": "golangci-lint",
+    "SHFMT": "shfmt",
+    "DOTENV": "dotenv-linter",
+    "CHECKMAKE": "checkmake",
+    "PMD": "pmd",
+    "CADDY": "caddy",
+    "JUST": "just",
+    "CONFTEST": "conftest",
+}
+for match in re.finditer(r"(\w+)_VERSION=\"[\d.]+\"", dockerfile):
+    tool = VERSION_TO_TOOL.get(match.group(1), match.group(1).lower())
+    all_installed.add(tool)
+
+# Plugin executables
+plugins = {}
+for f in sorted((root / "plugins").glob("*.megalinter-descriptor.yml")):
+    data = yaml.safe_load(f.read_text())
+    for linter in data.get("linters", []):
+        if linter.get("name") and linter.get("cli_executable"):
+            plugins[linter["name"]] = linter["cli_executable"]
+
+# Binary checksums
+checksums: dict[str, set[str]] = {}
+for match in re.finditer(r"(\w+)_SHA256_(amd64|arm64)=\"[a-f0-9]{64}\"", dockerfile):
+    tool = VERSION_TO_TOOL.get(match.group(1), match.group(1).lower())
+    checksums.setdefault(tool, set()).add(match.group(2))
+arch_agnostic = {"pmd"}
+
+# CI hash patterns
+ci_text = (root / ".github" / "workflows" / "ci.yml").read_text()
+ci_match = re.search(r"CTX_HASH:.*hashFiles\(([^)]+)\)", ci_text)
+ci_patterns = re.findall(r"'([^']+)'", ci_match.group(1)) if ci_match else []
+
+# COPY sources
+copy_sources = []
+for match in re.finditer(r"COPY\s+(?:--chmod=\S+\s+)?(\S+)", dockerfile):
+    src = match.group(1)
+    if not src.startswith("--"):
+        copy_sources.append(src)
+
+# Dockerignore — check COPY sources aren't excluded
+dockerignore_path = root / ".dockerignore"
+if dockerignore_path.exists():
+    ignored = set()
+    unignored = set()
+    for raw_line in dockerignore_path.read_text().splitlines():
+        entry = raw_line.strip()
+        if entry == "":
+            continue
+        if entry.startswith("#"):
+            continue
+        if entry.startswith("!"):
+            unignored.add(entry[1:])
+        else:
+            ignored.add(entry)
+
+# Help topics
+help_dir = root / "docs" / "help"
+help_topics = {f.stem for f in help_dir.glob("*.md")} if help_dir.exists() else set()
+
+# Recommend coverage — tools mentioned in recommend.py
+recommend_path = root / "scripts" / "recommend.py"
+recommended_tools: set[str] = set()
+if recommend_path.exists():
+    recommend_text = recommend_path.read_text()
+    # Extract tool names from "tool": "..." entries
+    recommended_tools = set(re.findall(r'"tool":\s*"([^"]+)"', recommend_text))
+
+# ── Linter → executable mapping ──────────────────────────────
+
+BUILTIN_EXES = {
+    "BASH_SHELLCHECK": "shellcheck",
+    "BASH_SHFMT": "shfmt",
+    "PYTHON_RUFF": "ruff",
+    "PYTHON_PYRIGHT": "pyright",
+    "YAML_YAMLLINT": "yamllint",
+    "YAML_PRETTIER": "prettier",
+    "YAML_V8R": "v8r",
+    "JSON_PRETTIER": "prettier",
+    "JSON_V8R": "v8r",
+    "DOCKERFILE_HADOLINT": "hadolint",
+    "ACTION_ACTIONLINT": "actionlint",
+    "TERRAFORM_TFLINT": "tflint",
+    "EDITORCONFIG_EDITORCONFIG_CHECKER": "editorconfig-checker",
+    "SPELL_CODESPELL": "codespell",
+    "SPELL_LYCHEE": "lychee",
+    "REPOSITORY_GITLEAKS": "gitleaks",
+    "REPOSITORY_SEMGREP": "semgrep",
+    "REPOSITORY_GIT_DIFF": "git",
+    "JAVASCRIPT_ES": "eslint",
+    "TYPESCRIPT_ES": "eslint",
+    "JSX_ESLINT": "eslint",
+    "TSX_ESLINT": "eslint",
+    "JAVASCRIPT_PRETTIER": "prettier",
+    "TYPESCRIPT_PRETTIER": "prettier",
+    "CSS_STYLELINT": "stylelint",
+    "ANSIBLE_ANSIBLE_LINT": "ansible-lint",
+    "SQL_SQLFLUFF": "sqlfluff",
+    "API_SPECTRAL": "spectral",
+    "KUBERNETES_KUBECONFORM": "kubeconform",
+    "MAKEFILE_CHECKMAKE": "checkmake",
+    "GO_GOLANGCI_LINT": "golangci-lint",
+    "HTML_HTMLHINT": "htmlhint",
+    "REPOSITORY_LS_LINT": "ls-lint",
+}
+
+# Package name → binary name aliases
+INSTALL_ALIASES = {
+    "attw": "@arethetypeswrong/cli",
+    "depcruise": "dependency-cruiser",
+    "lint-imports": "import-linter",
+    "tsc": "typescript",
+    "spectral": "@stoplight/spectral-cli",
+    "ls-lint": "@ls-lint/ls-lint",
+    "yamllint": "megalinter",
+}
+
+SYSTEM_TOOLS = {"git", "npm"}
+
+
+def exe_is_installed(exe: str) -> bool:
+    if exe in SYSTEM_TOOLS:
+        return True
+    if exe in all_installed:
+        return True
+    pkg = INSTALL_ALIASES.get(exe)
+    if pkg and pkg in all_installed:
+        return True
+    return any(exe in t or t in exe for t in all_installed)
+
+
+# ── Linter categories → help doc mapping ─────────────────────
+
+# Map ENABLE_LINTERS prefixes to help topic names
+CATEGORY_TO_HELP = {
+    "PYTHON": "ruff",
+    "BASH": "suppress",
+    "YAML": "override",
+    "JSON": "override",
+    "MARKDOWN": "override",
+    "DOCKERFILE": "override",
+    "ACTION": "override",
+    "TERRAFORM": "disable",
+    "EDITORCONFIG": "override",
+    "SPELL": "suppress",
+    "REPOSITORY": "override",
+    "JAVASCRIPT": "eslint",
+    "TYPESCRIPT": "eslint",
+    "JSX": "eslint",
+    "TSX": "eslint",
+    "CSS": "override",
+    "ANSIBLE": "override",
+    "SQL": "override",
+    "API": "override",
+    "KUBERNETES": "disable",
+    "MAKEFILE": "disable",
+    "GO": "disable",
+    "COPYPASTE": "override",
+    "HTML": "override",
+}
+
+# Exempt files from lint-configs reference check
+EXEMPT_CONFIGS = {".pre-commit-config.yaml", ".editorconfig", ".v8rignore"}
+
+# ── Run checks ────────────────────────────────────────────────
+
+errors: list[str] = []
+warnings: list[str] = []
+
+# Invariant 1: every ENABLE_LINTERS has an executable
+for linter in sorted(enable_linters):
+    exe = BUILTIN_EXES.get(linter, plugins.get(linter))
+    if not exe:
+        if linter not in plugins:
+            warnings.append(f"ENABLE_LINTERS: {linter} has no known executable mapping")
+        continue
+    if not exe_is_installed(exe):
+        warnings.append(f"ENABLE_LINTERS: {linter} needs '{exe}' but it's not installed")
+
+# Invariant 2: DISABLE_ERRORS ⊆ ENABLE_LINTERS
+errors.extend(
+    f"DISABLE_ERRORS_LINTERS: {linter} not in ENABLE_LINTERS (orphaned)"
+    for linter in sorted(disable_errors - enable_linters)
+)
+
+# Invariant 3: _CONFIG_FILE → lint-configs/
+for key, filename in sorted(config_files.items()):
+    if filename not in lint_configs:
+        errors.append(f"{key}: '{filename}' not found in lint-configs/")
+
+# Invariant 4: lint-configs/ files are referenced
+referenced = set(config_files.values())
+arg_referenced = set()
+for args in config_arguments.values():
+    for arg in args:
+        if ".mega-linter-config/" in arg:
+            arg_referenced.add(arg.split(".mega-linter-config/")[-1])
+warnings.extend(
+    f"lint-configs/{f} is unreferenced" for f in sorted(lint_configs - referenced - arg_referenced - EXEMPT_CONFIGS)
+)
+
+
+def _pattern_covers(pattern: str, source: str) -> bool:
+    if pattern == source:
+        return True
+    return pattern.endswith("/**") and source.startswith(pattern[:-3])
+
+
+# Invariant 5: COPY sources in CI hash
+for src in copy_sources:
+    covered = any(_pattern_covers(p, src) for p in ci_patterns)
+    if not covered:
+        warnings.append(f"Dockerfile COPY '{src}' not in CI hashFiles()")
+
+# Invariant 6: dual-arch checksums
+for tool, arches in sorted(checksums.items()):
+    if tool in arch_agnostic:
+        continue
+    if "amd64" not in arches:
+        errors.append(f"Binary '{tool}' missing amd64 SHA256")
+    if "arm64" not in arches:
+        errors.append(f"Binary '{tool}' missing arm64 SHA256")
+
+# Invariant 7: help doc coverage
+categories = {linter.split("_")[0] for linter in enable_linters}
+for cat in sorted(categories):
+    topic = CATEGORY_TO_HELP.get(cat)
+    if topic and topic not in help_topics:
+        warnings.append(f"Linter category '{cat}' maps to help topic '{topic}' which doesn't exist")
+
+# Invariant 8: COPY sources not excluded by .dockerignore
+if dockerignore_path.exists():
+    for src in copy_sources:
+        # Get the top-level directory or filename
+        top = src.rstrip("/").split("/")[0]
+        if top in ignored and src not in unignored and f"!{src}" not in {f"!{u}" for u in unignored}:
+            # Check if any unignore pattern covers this path
+            covered_by_unignore = any(src.startswith(u.rstrip("/")) for u in unignored)
+            if not covered_by_unignore:
+                errors.append(f"Dockerfile COPY '{src}' is excluded by .dockerignore (add !{src})")
+
+# Invariant 9: consumer-configurable tools have recommend entries.
+# Tools that benefit from consumer config (config file, policy dir, etc.)
+# should appear in recommend.py so consumers discover them.
+CONSUMER_CONFIGURABLE_TOOLS = {
+    "conftest",
+    "semgrep",
+    "pyright",
+    "gitleaks",
+    "trivy",
+    "dependency-cruiser",
+    "ansible-lint",
+    "commitlint",
+    "repo-standards",
+    "ruff",
+    "eslint",
+    "yamllint",
+    "shellcheck",
+}
+if recommended_tools:
+    for tool in sorted(CONSUMER_CONFIGURABLE_TOOLS):
+        # Check if the tool name appears in any recommendation entry
+        covered = any(tool in rec_tool.lower() for rec_tool in recommended_tools)
+        if not covered:
+            warnings.append(f"Tool '{tool}' is consumer-configurable but not in recommend.py")
+
+# ── Report ────────────────────────────────────────────────────
+
+if errors:
+    for e in errors:
+        print(f"  ✗ {e}")
+if warnings:
+    for w in warnings:
+        print(f"  ⚠ {w}")
+
+if errors:
+    print(f"\n{len(errors)} error(s), {len(warnings)} warning(s)")
+    sys.exit(1)
+
+if warnings:
+    print(f"\n{len(warnings)} warning(s) (non-blocking)")

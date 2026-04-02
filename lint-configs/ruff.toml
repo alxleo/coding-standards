@@ -6,48 +6,74 @@ line-length = 120
 
 [lint]
 select = [
+  # Core
   "E",       # pycodestyle errors
   "W",       # pycodestyle warnings
   "F",       # pyflakes
   "I",       # isort
+  "N",       # pep8-naming
+  # Bug prevention
   "B",       # flake8-bugbear
   "S",       # flake8-bandit (security)
-  "UP",      # pyupgrade
+  "BLE",     # blind exceptions
   "SIM",     # flake8-simplify
   "C4",      # flake8-comprehensions
   "RUF",     # ruff-specific rules
-  "BLE",     # blind exceptions (except Exception swallowing errors)
-  "DTZ",     # naive datetimes (datetime.now() without timezone)
-  "PERF",    # performance anti-patterns (loop-append vs comprehension)
-  "FURB",    # modernization (patterns Python 3.11+ handles natively)
-  "RET",     # return style (unnecessary elif after return)
-  "PLW1510", # subprocess.run without check= (unchecked exit codes)
-  "PLW2901", # loop variable overwritten inside loop body
-  "T20",     # print statements (use logging in application code)
-  "PLR2004", # magic values (use named constants)
-  "PLC0415", # imports not at top of file
+  "PIE",     # flake8-pie
+  "ISC",     # implicit string concatenation
+  "A",       # flake8-builtins (shadowing list, dict, type, id)
+  "INP",     # implicit namespace packages (missing init files)
+  # Pylint (full categories, not cherry-picked — catches new rules on ruff upgrades)
+  "PLC",     # pylint convention
+  "PLE",     # pylint error
+  "PLR",     # pylint refactor
+  "PLW",     # pylint warning
+  # Modernization
+  "UP",      # pyupgrade
+  "FURB",    # modernize patterns for Python 3.11+
+  "PTH",     # pathlib: os.path → pathlib
+  "FA",      # future annotations (deferred evaluation, pairs with TCH)
+  # Performance
+  "PERF",    # performance anti-patterns
+  "C90",     # mccabe cyclomatic complexity
+  # Type safety
+  "TCH",     # move type-only imports to TYPE_CHECKING
+  "PGH",     # blanket type-ignore / noqa without codes
+  "FBT",     # boolean positional args
   "ARG",     # unused function arguments
-  "FBT",     # boolean positional args (use keyword-only)
-  "PIE",     # flake8-pie (unnecessary spread, reimported names, no-op pass)
-  "ISC",     # implicit string concatenation (catches accidental tuple-in-list)
-  "A",       # flake8-builtins (shadowing list, dict, type, id — LLMs do this constantly)
-  "PGH",     # pygrep-hooks (blanket type-ignore / noqa without codes)
-  "RSE",     # flake8-raise (unnecessary parens in raise)
-  "PT011",   # pytest.raises() without match= (overly broad exception catch in tests)
-  "N",       # pep8-naming (N999 catches hyphenated/non-importable module filenames)
+  # Exception handling
+  "TRY",     # tryceratops
+  "EM",      # flake8-errmsg (greppable exception messages)
+  # Code quality
+  "RET",     # return style
+  "RSE",     # raise style
+  "SLF",     # private member access from outside class
+  "ERA",     # commented-out code
+  "DTZ",     # naive datetimes
+  "T20",     # print statements (use logging)
+  "LOG",     # logging anti-patterns
+  "PT011",   # pytest.raises() without match=
 ]
 # ISC001: conflicts with ruff formatter (produces code that ISC001 flags).
 # FURB110: "use or instead of ternary" conflicts with our semgrep
 #   python-silent-fallback-or rule which correctly flags or-fallbacks.
 #   The ternary is the idiomatic fix semgrep recommends.
-extend-per-file-ignores = { "**" = ["ISC001", "FURB110"] }
+# TRY300: moving return to else block is less readable in simple key-walk patterns.
+extend-per-file-ignores = { "**" = ["ISC001", "FURB110", "TRY300"] }
 
 [lint.per-file-ignores]
-# Test files: allow assert, /tmp, subprocess, magic values, unused args, imports
-"test/**" = ["S101", "S108", "S603", "S607", "PLR2004", "ARG", "PLC0415", "T20"]
-"test_*" = ["S101", "S108", "S603", "S607", "PLR2004", "ARG", "PLC0415", "T20"]
-# CI scripts: allow /tmp, urllib, subprocess, print (scripts ARE the interface)
-"scripts/**" = ["S108", "S310", "S603", "S607", "T20", "PLC0415"]
+# Test files: allow assert, /tmp, subprocess, magic values, unused args, imports, private access
+"test/**" = ["S101", "S108", "S603", "S607", "PLR2004", "ARG", "PLC0415", "T20", "SLF001", "INP001"]
+"test_*" = ["S101", "S108", "S603", "S607", "PLR2004", "ARG", "PLC0415", "T20", "SLF001", "INP001"]
+# Scripts: standalone files (not packages), allow /tmp, urllib, subprocess, print
+# ERA001: false-positives on nosemgrep comments. INP001: scripts/ is not a package.
+"scripts/**" = ["S108", "S310", "S603", "S607", "T20", "PLC0415", "ERA001", "INP001"]
+
+[lint.mccabe]
+max-complexity = 12
+
+[lint.pylint]
+max-args = 8
 
 [format]
 quote-style = "double"

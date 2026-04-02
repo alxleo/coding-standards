@@ -1,7 +1,7 @@
 rules:
   # Deep nesting is a complexity smell regardless of language.
   # Functions with 4+ levels of nesting are hard to test and reason about.
-  - id: python-deep-nesting
+  - id: coding-standards.python-deep-nesting
     patterns:
       - pattern: |
           def $FUNC(...):

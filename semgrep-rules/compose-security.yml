@@ -1,5 +1,5 @@
 rules:
-  - id: no-privileged-containers
+  - id: coding-standards.no-privileged-containers
     message: >
       Do not use privileged: true. Use specific capabilities
       (cap_add) or security_opt instead.
@@ -12,7 +12,7 @@ rules:
         - "**/docker-compose*.yml"
         - "**/compose*.yml"
 
-  - id: no-env-file-secrets
+  - id: coding-standards.no-env-file-secrets
     message: >
       Do not use env_file to inject secrets. Use Docker secrets
       or SOPS-encrypted environment variables instead.

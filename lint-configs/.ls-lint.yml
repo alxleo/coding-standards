@@ -47,3 +47,11 @@ ignore:
   - .ruff_cache
   - .mypy_cache
   - .claude
+  - .github
+  - .gitea
+  - .mega-linter-config
+  - .import_linter_cache
+  - .pytest_cache
+  - .rumdl_cache
+  - lint-configs/.ruff_cache
+  - lint-configs/.rumdl_cache

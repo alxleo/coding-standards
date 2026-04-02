@@ -78,8 +78,9 @@ warn contains msg if {
 	not helpers.acknowledged("stryker")
 	msg := concat("\n", [
 		"@stryker-mutator/core not in dependencies",
-		"  Mutation testing verifies tests actually catch bugs, not just exist.",
-		"  Incremental mode runs in seconds on PRs (only mutates changed code).",
-		"  Fix: npx stryker init",
+		"  Mutation testing verifies tests catch real bugs, not just execute.",
+		"  Incremental mode mutates only changed code — fast enough for PR CI.",
+		"  Setup: npx stryker init (generates stryker.config.mjs)",
+		"  CI template: templates/stryker-mutation.yml in coding-standards repo",
 	])
 }

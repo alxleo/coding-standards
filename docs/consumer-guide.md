@@ -72,16 +72,18 @@ REPOSITORY_GITLEAKS_CONFIG_FILE: .gitleaks.toml
 
 ### Suppress specific semgrep rules
 
-The baseline ships `auto` + `p/trailofbits` + custom rules. To suppress specific rules without touching the rulesets array (which breaks due to EXTENDS array merge):
+The baseline ships cached rulesets (security-audit, trailofbits) + custom rules. To suppress specific rules without touching the rulesets array (which breaks due to EXTENDS array merge):
 
 ```yaml
 # .mega-linter.yml — suppress individual semgrep rules
 REPOSITORY_SEMGREP_ARGUMENTS: >-
+  --exclude-rule=coding-standards.python-silent-fallback-or
   --exclude-rule=trailofbits.python.some-noisy-rule
-  --exclude-rule=generic.secrets.false-positive
 ```
 
-Or inline in code: `# nosemgrep: rule-id`
+Or inline in code: `# nosemgrep: coding-standards.python-silent-fallback-or`
+
+Custom rules from this image use the `coding-standards.` prefix. Third-party rules keep their original prefixes (e.g. `trailofbits.`).
 
 Do NOT override `REPOSITORY_SEMGREP_RULESETS` — it contains absolute image paths that break when merged with consumer values.
 
@@ -154,11 +156,11 @@ POST_COMMANDS:
 
 ## Adding custom checks
 
-Five mechanisms are available — use the one that fits your check category.
+Drop a directory — it runs alongside the baked rules with zero config.
 
 ### 1. Semgrep rules (pattern matching)
 
-Add a `.semgrep/` directory with YAML rules. MegaLinter auto-discovers them.
+Add a `.semgrep/` directory with YAML rules. The entrypoint auto-discovers it and merges with the baked rules (security-audit, trailofbits, coding-standards custom). Your rules run alongside ours in a single pass.
 
 ```yaml
 # .semgrep/my-rules.yml
@@ -170,9 +172,11 @@ rules:
     severity: ERROR
 ```
 
+Rule IDs get a `semgrep.` prefix from the directory name. Suppress with `# nosemgrep: semgrep.no-latest-tag`.
+
 ### 2. Conftest policies (structural validation)
 
-Create `conftest.toml` + `policy/` directory with Rego policies.
+Add a `policy/` directory + `conftest.toml` in your repo. The `REPOSITORY_CONFTEST` linter auto-activates and runs your policies against config files. This runs independently alongside the baked repo-standards and compose policies — no conflict.
 
 ```rego
 # policy/compose/resources.rego
@@ -185,13 +189,23 @@ deny contains msg if {
 }
 ```
 
+To extend the baked repo-standards checks (promote warnings to errors, or add domain rules):
+
+```rego
+# policy/repo-standards/local.rego
+package repo_standards.local
+import data.repo_standards.python
+# Promote Python warnings to blocking errors in this repo
+deny := python.warn
+```
+
 ### 3. Generated file drift
 
-Use the baked-in drift checker via POST_COMMANDS:
+Use POST_COMMANDS to verify generated files match their generators:
 
 ```yaml
 POST_COMMANDS:
-  - command: /opt/coding-standards/scripts/check-drift.sh "python3 scripts/generate_catalog.py" catalog.json
+  - command: python3 scripts/generate_routes.py > /tmp/expected.json && diff -q routes.json /tmp/expected.json
     cwd: workspace
     continue_if_failed: false
 ```
@@ -200,7 +214,7 @@ POST_COMMANDS:
 
 ```yaml
 POST_COMMANDS:
-  - command: python3 /opt/coding-standards/scripts/check-expiry.py .
+  - command: python3 /opt/coding-standards/scripts/check_expiry.py .
     cwd: workspace
     continue_if_failed: false
 ```
@@ -232,12 +246,29 @@ For shellcheck findings (e.g., `require-double-brackets`):
 # Focus on scripts you actively maintain first
 ```
 
+## Gitignore
+
+The image creates temporary config and cache files during lint runs. Add to `.gitignore`:
+
+```gitignore
+# coding-standards lint artifacts
+.mega-linter-config/    # baked linter configs (shellcheckrc, codespellrc, etc.)
+megalinter-reports/     # lint output
+repo-manifest.json      # generated for repo-standards checks
+.lycheecache            # lychee link checker cache
+.ruff_cache/            # ruff lint cache
+.editorconfig           # only if you don't have your own
+.v8rrc.yml              # symlink to .mega-linter-config/
+```
+
+If your repo already has an `.editorconfig`, it won't be overwritten — the image only creates one if missing.
+
 ## Local development (Mac)
 
-The image is amd64. On Apple Silicon it runs under Rosetta (slower but works):
+The image supports native arm64. On Apple Silicon it runs without Rosetta:
 
 ```bash
-docker run --rm --platform linux/amd64 -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest
+docker run --rm -v $PWD:/tmp/lint ghcr.io/alxleo/coding-standards:latest
 ```
 
 For faster local linting, use the tools directly:

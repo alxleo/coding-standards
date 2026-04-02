@@ -148,7 +148,7 @@ def _print_table(rows: list[dict[str, str]]) -> None:
 def main(argv: list[str] | None = None) -> int:
     args = argv if argv is not None else sys.argv[1:]
 
-    workspace = Path(".")
+    workspace = Path()
     yml_path = Path(_DEFAULT_YML)
 
     i = 0

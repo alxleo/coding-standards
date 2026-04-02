@@ -5,7 +5,7 @@
 #   fast-checks ──→ build ──→ self-lint ──→ push (main only)
 #
 # fast-checks: `just check` — same as local dev
-# build: Docker image build + smoke tests + catalog drift
+# build: Docker image build + smoke tests
 # self-lint: runs the just-built ci-test image (not stale :latest)
 # push: tag + push to GHCR (only on main/dispatch)
 name: CI
@@ -85,7 +85,7 @@ jobs:
         id: ctx
         env:
           # hashFiles() is a GHA expression — hash all files baked into the image.
-          CTX_HASH: ctx-${{ hashFiles('Dockerfile', 'plugins/**', 'semgrep-rules/**', 'policies/**', 'scripts/entrypoint.sh', 'scripts/ci/**', 'scripts/generate_catalog.py', 'scripts/generate_repo_manifest.py', 'scripts/manifest_schema.py', 'scripts/show_config.py', 'scripts/show_warnings.py', 'scripts/blast_radius.py', 'scripts/megalinter_report_statuses.py', 'scripts/download-schemas.sh', 'lint-configs/**', 'docs/catalog.md', '.mega-linter-default.yml') }}
+          CTX_HASH: ctx-${{ hashFiles('Dockerfile', 'plugins/**', 'semgrep-rules/**', 'policies/**', 'scripts/entrypoint.py', 'scripts/ci/**', 'scripts/show_catalog.py', 'scripts/generate_repo_manifest.py', 'scripts/manifest_schema.py', 'scripts/show_config.py', 'scripts/show_warnings.py', 'scripts/blast_radius.py', 'scripts/megalinter_report_statuses.py', 'scripts/download_build_assets.py', 'scripts/recommend.py', 'build-assets.yml', 'lint-configs/**', 'docs/help/**', 'consumer.just', 'templates/**', '.mega-linter-default.yml') }}
         run: |
           # Truncate to ctx- prefix + 16 hex chars for tag readability
           SHORT="${CTX_HASH:0:20}"
@@ -114,6 +114,10 @@ jobs:
           docker pull "${REGISTRY}/${IMAGE_NAME}:${CTX_TAG}"
           docker tag "${REGISTRY}/${IMAGE_NAME}:${CTX_TAG}" \
             "${REGISTRY}/${IMAGE_NAME}:ci-test"
+
+      - name: Set up QEMU (multi-arch)
+        if: steps.cache.outputs.hit != 'true'
+        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4
 
       - name: Set up Docker Buildx
         if: steps.cache.outputs.hit != 'true'
@@ -144,7 +148,7 @@ jobs:
             type=semver,pattern=v{{version}},enable=${{ github.ref_type == 'tag' }}
             type=semver,pattern=v{{major}},enable=${{ github.ref_type == 'tag' }}
 
-      - name: Build image
+      - name: Build image (amd64 for testing)
         if: steps.cache.outputs.hit != 'true'
         uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
         with:
@@ -152,7 +156,17 @@ jobs:
           load: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ci-test
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
-          cache-to: ${{ github.event_name != 'pull_request' && format('type=registry,ref={0}/{1}:buildcache,mode=min', env.REGISTRY, env.IMAGE_NAME) || '' }}
+
+      - name: Build + push multi-arch (main only)
+        if: steps.cache.outputs.hit != 'true' && github.event_name != 'pull_request'
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=min
 
       - name: Smoke test (all tools in single container)
         run: |
@@ -180,7 +194,7 @@ jobs:
           trap 'echo "::endgroup::"' EXIT
           img="${REGISTRY}/${IMAGE_NAME}:ci-test"
           echo "  → help"
-          docker run --rm "$img" help | grep -q "Commands:"
+          docker run --rm "$img" --help | grep -q "Commands"
           echo "  → catalog"
           docker run --rm "$img" catalog | grep -q "Coding Standards Catalog"
           echo "  → standards (empty workspace)"
@@ -194,14 +208,6 @@ jobs:
           echo "x = 1" > "$workspace/test.py"
           docker run --rm -v "$workspace:/tmp/lint" -e DEFAULT_WORKSPACE=/tmp/lint \
             "$img" show-config | tee /dev/stderr | grep -q "linters with baked configs"
-
-      - name: Check catalog is up to date
-        run: |
-          echo "::group::Check catalog is up to date"
-          trap 'echo "::endgroup::"' EXIT
-          img="${REGISTRY}/${IMAGE_NAME}:ci-test"
-          docker run --rm --entrypoint="" "$img" \
-            python3 /opt/coding-standards/scripts/generate_catalog.py --check
 
       - name: Self-lint (built image against this repo)
         run: |
@@ -222,12 +228,12 @@ jobs:
           path: megalinter-reports/
           retention-days: 2
 
-      - name: Push image
-        if: github.event_name != 'pull_request'
+      - name: Push image (cache-hit only — multi-arch build pushes directly)
+        if: github.event_name != 'pull_request' && steps.cache.outputs.hit == 'true'
         env:
           TAGS: ${{ steps.meta.outputs.tags }}
         run: |
-          echo "::group::Push image"
+          echo "::group::Push image (re-tag from cache)"
           trap 'echo "::endgroup::"' EXIT
           echo "$TAGS" | while IFS= read -r tag; do
             [ -z "$tag" ] && continue

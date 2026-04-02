@@ -6,6 +6,7 @@ megalinter-reports
 test
 docs
 !docs/catalog.md
+!docs/help
 examples
 *.md
 !CLAUDE.md

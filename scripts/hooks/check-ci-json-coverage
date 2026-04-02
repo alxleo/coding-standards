@@ -12,13 +12,14 @@ import sys
 from pathlib import Path
 
 # Libraries/frameworks, not CLIs — no --version to test
-SKIP = re.compile(r"eslint-plugin-|@commitlint/config-|typescript$|networkx|pydantic|pyyaml")
+SKIP = re.compile(r"eslint-plugin-|@commitlint/config-|typescript$|networkx|pydantic|pyyaml|typer")
 
 # Package name → CLI binary name (when they differ)
 ALIASES = {
     "dependency-cruiser": "depcruise",
     "import-linter": "lint-imports",
     "@commitlint/cli": "commitlint",
+    "@stoplight/spectral-cli": "spectral",
 }
 
 root = Path(__file__).resolve().parent.parent.parent

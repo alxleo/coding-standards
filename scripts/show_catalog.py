@@ -4,7 +4,7 @@
 Parses linter config, semgrep rules, conftest policies, and ruff config
 to produce a single generated file. Run as drift check in CI:
 
-    python3 scripts/generate_catalog.py --check
+    python3 scripts/show_catalog.py --check
 
 Sources:
   .mega-linter-default.yml  → linters + tiers
@@ -15,7 +15,6 @@ Sources:
 """
 
 import re
-import sys
 from pathlib import Path
 
 
@@ -60,7 +59,7 @@ def extract_rego_rules(policy_dir: Path, _kind: str) -> list[dict]:
     rules = []
     for f in sorted(policy_dir.glob("*.rego")):
         # Skip test files and shared helper module
-        if "_test" in f.name or f.name == "helpers.rego":  # nosemgrep: python-silent-fallback-or
+        if "_test" in f.name or f.name == "helpers.rego":  # nosemgrep: coding-standards.python-silent-fallback-or
             continue
         text = f.read_text()
         # Match msg := concat/sprintf/string patterns, extract first quoted string
@@ -121,7 +120,7 @@ def extract_ruff_categories(root: Path) -> list[str]:
 
 def generate(root: Path) -> str:
     lines = [
-        "<!-- GENERATED — do not edit. Run: python3 scripts/generate_catalog.py -->",
+        "<!-- GENERATED — do not edit. Run: python3 scripts/show_catalog.py -->",
         "# Coding Standards Catalog",
         "",
         "Complete inventory of what the coding-standards image checks.",
@@ -174,21 +173,15 @@ def generate(root: Path) -> str:
     return "\n".join(lines) + "\n"
 
 
-if __name__ == "__main__":
-    root = Path(__file__).resolve().parent.parent
-    content = generate(root)
+def main() -> None:
+    # Inside Docker: configs at /opt/coding-standards/
+    # Local: repo root
+    root = Path("/opt/coding-standards")
+    if not (root / "configs").exists():
+        root = Path(__file__).resolve().parent.parent
 
-    if "--check" in sys.argv:
-        catalog = root / "docs" / "catalog.md"
-        if not catalog.exists():
-            print("docs/catalog.md does not exist — run without --check to generate")
-            sys.exit(1)
-        existing = catalog.read_text()
-        if existing != content:
-            print("docs/catalog.md is out of date — regenerate with: python3 scripts/generate_catalog.py")
-            sys.exit(1)
-        print("docs/catalog.md is up to date")
-    else:
-        out = root / "docs" / "catalog.md"
-        out.write_text(content)
-        print(f"Generated docs/catalog.md ({len(content)} bytes)")
+    print(generate(root))
+
+
+if __name__ == "__main__":
+    main()

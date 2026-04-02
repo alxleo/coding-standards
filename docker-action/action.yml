@@ -33,4 +33,6 @@ runs:
           -v "${CS_WORKSPACE}:/tmp/lint" \
           -e DEFAULT_WORKSPACE=/tmp/lint \
           -e APPLY_FIXES="${CS_APPLY_FIXES}" \
+          -e WORKSPACE_UID="$(id -u)" \
+          -e WORKSPACE_GID="$(id -g)" \
           "${CS_IMAGE}"

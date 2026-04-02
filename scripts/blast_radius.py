@@ -83,7 +83,7 @@ def _is_excluded(path: Path) -> bool:
 
 
 def _is_scannable(path: Path) -> bool:
-    # nosemgrep: python-silent-fallback-or — boolean logic, not fallback
+    # nosemgrep: coding-standards.python-silent-fallback-or — boolean logic, not fallback
     return path.suffix in SCANNABLE_EXTS or path.name in SCANNABLE_NAMES
 
 
@@ -217,7 +217,7 @@ def compute_temporal_coupling(
     for (a, b), co_count in co_changes.items():
         if co_count < min_co_changes:
             continue
-        # nosemgrep: python-silent-fallback-or — boolean comparison, not fallback
+        # nosemgrep: coding-standards.python-silent-fallback-or — boolean comparison, not fallback
         if file_changes[a] < min_revisions or file_changes[b] < min_revisions:
             continue
         union = file_changes[a] + file_changes[b] - co_count
@@ -243,7 +243,7 @@ def compute_temporal_coupling(
 # ── Signal 3: Naming Entropy ────────────────────────────────────────
 
 
-def _classify_name(name: str) -> str:
+def _classify_name(name: str) -> str:  # noqa: PLR0911
     stem = Path(name).stem
     stem = stem.removeprefix(".")
     if not stem:
@@ -273,7 +273,7 @@ def compute_naming_entropy(root: Path) -> list[dict[str, Any]]:
     dirs: dict[str, list[str]] = {}
     for f in _collect_files(root):
         rel = f.relative_to(root)
-        parent = str(rel.parent) if rel.parent != Path(".") else "."
+        parent = str(rel.parent) if rel.parent != Path() else "."
         dirs.setdefault(parent, []).append(f.name)
 
     results = []
@@ -298,7 +298,7 @@ def compute_naming_entropy(root: Path) -> list[dict[str, Any]]:
 # ── Signal 4: CIRank (PageRank weighted by co-change) ──────────────
 
 
-def _extract_python_imports(root: Path) -> list[tuple[str, str]]:
+def _extract_python_imports(root: Path) -> list[tuple[str, str]]:  # noqa: C901, PLR0912
     """Extract Python import dependencies via stdlib ast.
 
     Returns (importer, imported_file) pairs for files within the repo.
@@ -680,7 +680,7 @@ def print_pr_review(review: dict[str, Any]) -> None:
         print("\nNo missing coupled files detected.")
 
 
-def main() -> None:
+def main() -> None:  # noqa: C901, PLR0912, PLR0915
     parser = argparse.ArgumentParser(
         description="Repo change-impact analysis",
     )

@@ -1,1 +1,27 @@
-lint-configs/.editorconfig
+root = true
+
+[*]
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+charset = utf-8
+
+[{Dockerfile*,*.yml,*.yaml,*.json,*.toml,*.tf}]
+indent_style = space
+indent_size = 2
+
+[*.{sh,bash}]
+indent_style = space
+indent_size = 4
+
+# Extensionless scripts in hooks directories (detected by shebang, not extension)
+[scripts/hooks/*]
+indent_style = space
+indent_size = 4
+
+[*.py]
+indent_style = space
+indent_size = 4
+
+[*.md]
+trim_trailing_whitespace = false

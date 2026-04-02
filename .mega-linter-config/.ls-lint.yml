@@ -1,0 +1,55 @@
+# coding-standards baseline filename conventions.
+# Consumer repos override by placing their own .ls-lint.yml at root.
+#
+# Rules: snake_case for importable code, kebab-case for configs/docs.
+# Pipe (|) means "any of these is acceptable".
+
+ls:
+  # Python: must be snake_case (hyphens prevent import)
+  .py: snake_case
+
+  # Shell: either convention (not imported)
+  .sh: snake_case | kebab-case
+
+  # JavaScript/TypeScript
+  .js: camelCase | kebab-case
+  .ts: camelCase | kebab-case | PascalCase
+  .jsx: camelCase | PascalCase
+  .tsx: PascalCase | camelCase
+  .mjs: camelCase | kebab-case
+  .cjs: camelCase | kebab-case
+
+  # Config files: kebab-case or snake_case
+  .yml: kebab-case | snake_case
+  .yaml: kebab-case | snake_case
+  .toml: kebab-case | snake_case
+  .json: kebab-case | snake_case
+
+  # Terraform
+  .tf: snake_case
+
+  # Rego policies
+  .rego: snake_case
+
+  # Directory names
+  .dir: kebab-case | snake_case
+
+ignore:
+  - node_modules
+  - .git
+  - __pycache__
+  - .terraform
+  - .venv
+  - venv
+  - dist
+  - build
+  - megalinter-reports
+  - .ruff_cache
+  - .mypy_cache
+  - .claude
+  - .github
+  - .gitea
+  - .mega-linter-config
+  - .import_linter_cache
+  - .pytest_cache
+  - .rumdl_cache

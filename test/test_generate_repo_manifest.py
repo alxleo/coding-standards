@@ -107,7 +107,7 @@ def test_large_shell_scripts_counted(tmp_path: Path) -> None:
     (tmp_path / "big.sh").write_text("#!/bin/bash\n" + "echo hi\n" * 60)
     (tmp_path / "small.sh").write_text("#!/bin/bash\necho hi\n")
     manifest = generate(tmp_path)
-    assert manifest["content"]["shell_scripts_over_50_lines"] == 1
+    assert manifest["content"]["shell_scripts_over_30_lines"] == 1
 
 
 def test_large_shell_per_file_acknowledged(tmp_path: Path) -> None:
@@ -116,7 +116,7 @@ def test_large_shell_per_file_acknowledged(tmp_path: Path) -> None:
         "acknowledged:\n  large_shell_scripts:\n    - path: big.sh\n      reason: intentional\n"
     )
     manifest = generate(tmp_path)
-    assert manifest["content"]["shell_scripts_over_50_lines"] == 0
+    assert manifest["content"]["shell_scripts_over_30_lines"] == 0
 
 
 def test_suppressions_counted(tmp_path: Path) -> None:
