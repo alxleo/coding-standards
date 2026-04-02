@@ -1,10 +1,15 @@
-"""Tests for scripts/extract_linter_timings.py."""
+"""Tests for scripts/extract_linter_timings.py.
+
+Uses pythonpath=["."] from pyproject.toml so `from scripts.x import y` works
+in CI, locally, and in pre-commit without spec_from_file_location hacks.
+"""
 
 from pathlib import Path
 from textwrap import dedent
 
 from scripts.extract_linter_timings import parse_report_markdown
 
+# ruff: noqa: E501 — fixture data mirrors real MegaLinter report tables
 SAMPLE_REPORT = dedent("""\
 ## ✅⚠️[MegaLinter](https://megalinter.io/9.4.0) analysis: Success with warnings
 
