@@ -203,6 +203,17 @@ RUN set -eux && \
     -o /usr/local/bin/shfmt && \
   echo "${SHFMT_SHA256}  /usr/local/bin/shfmt" | sha256sum -c - && \
   chmod +x /usr/local/bin/shfmt && \
+  # ── dotenv-linter (Alpine/musl build) ──
+  DOTENV_VERSION="4.0.0" && \
+  DOTENV_SHA256_amd64="88a9f2ccfbfea621e5b4691246c419de71d79c7596def888849496695cd8a082" && \
+  DOTENV_SHA256_arm64="819153e4f43ce016ebd076653e611431d5207e4fa5623a83028dfca92b1c3201" && \
+  DOTENV_SHA256=$([ "$TARGETARCH" = "arm64" ] && echo "$DOTENV_SHA256_arm64" || echo "$DOTENV_SHA256_amd64") && \
+  DOTENV_ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "aarch64" || echo "x86_64") && \
+  curl -fsSL "https://github.com/dotenv-linter/dotenv-linter/releases/download/v${DOTENV_VERSION}/dotenv-linter-alpine-${DOTENV_ARCH}.tar.gz" \
+    -o /tmp/dotenv-linter.tar.gz && \
+  echo "${DOTENV_SHA256}  /tmp/dotenv-linter.tar.gz" | sha256sum -c - && \
+  tar -xzf /tmp/dotenv-linter.tar.gz -C /usr/local/bin dotenv-linter && \
+  rm /tmp/dotenv-linter.tar.gz && \
   # ── checkmake (Makefile linter, glibc — needs gcompat) ──
   CHECKMAKE_VERSION="0.3.2" && \
   CHECKMAKE_SHA256_amd64="e2effb876913f3ee2caef0ba35f6202c5e8a3cd55a077d8d2b9ce2034257b6af" && \

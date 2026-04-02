@@ -55,6 +55,7 @@ VERSION_TO_TOOL = {
     "LYCHEE": "lychee",
     "GOLANGCI": "golangci-lint",
     "SHFMT": "shfmt",
+    "DOTENV": "dotenv-linter",
     "CHECKMAKE": "checkmake",
     "PMD": "pmd",
     "CADDY": "caddy",

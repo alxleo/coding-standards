@@ -88,7 +88,8 @@ ENABLE_LINTERS:
   - REPOSITORY_JUST_FMT
   # Filename conventions (cross-language)
   - REPOSITORY_LS_LINT
-  # ENV_DOTENV_LINTER: removed — glibc-only binary, no Alpine/musl build.
+  # Environment files
+  - ENV_DOTENV_LINTER
   # Makefile
   - MAKEFILE_CHECKMAKE
   # Go
@@ -127,6 +128,7 @@ DISABLE_ERRORS_LINTERS:
   - REPOSITORY_IMPORT_LINTER
   - REPOSITORY_PUBLINT
   - REPOSITORY_ATTW
+  - ENV_DOTENV_LINTER
   - API_SPECTRAL
   - SQL_SQLFLUFF
   - ANSIBLE_ANSIBLE_LINT
