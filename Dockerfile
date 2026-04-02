@@ -17,7 +17,7 @@ SHELL ["/bin/sh", "-o", "pipefail", "-c"]
 # ── System dependencies ──────────────────────────────────────
 # hadolint ignore=DL3018
 RUN apk add --no-cache \
-  bash git curl unzip tar gzip xz ca-certificates gnupg \
+  bash git curl unzip tar gzip xz ca-certificates gnupg gcompat \
   nodejs npm \
   openjdk21-jre-headless \
   build-base musl-dev libffi-dev
@@ -202,9 +202,15 @@ RUN set -eux && \
     -o /usr/local/bin/shfmt && \
   echo "${SHFMT_SHA256}  /usr/local/bin/shfmt" | sha256sum -c - && \
   chmod +x /usr/local/bin/shfmt && \
-  # checkmake: removed — glibc-only binary, no musl/static build available.
-  # Warn-tier Makefile linter. Re-add if upstream publishes musl builds.
-  #
+  # ── checkmake (Makefile linter, glibc — needs gcompat) ──
+  CHECKMAKE_VERSION="0.3.2" && \
+  CHECKMAKE_SHA256_amd64="e2effb876913f3ee2caef0ba35f6202c5e8a3cd55a077d8d2b9ce2034257b6af" && \
+  CHECKMAKE_SHA256_arm64="409167c4abb99407bd232c3bbd351b8a39df57997feafde5a08bddffb0f2dcb4" && \
+  CHECKMAKE_SHA256=$([ "$TARGETARCH" = "arm64" ] && echo "$CHECKMAKE_SHA256_arm64" || echo "$CHECKMAKE_SHA256_amd64") && \
+  curl -fsSL "https://github.com/mrtazz/checkmake/releases/download/v${CHECKMAKE_VERSION}/checkmake-v${CHECKMAKE_VERSION}.linux.${TARGETARCH}" \
+    -o /usr/local/bin/checkmake && \
+  echo "${CHECKMAKE_SHA256}  /usr/local/bin/checkmake" | sha256sum -c - && \
+  chmod +x /usr/local/bin/checkmake && \
   # ── PMD-CPD (Java, arch-agnostic) ──
   PMD_VERSION="7.12.0" && \
   PMD_SHA256="418dd819d38a16a49d7f345ef9a0a51e9f53e99f022d8b0722de77b7049bb8b8" && \

@@ -89,7 +89,8 @@ ENABLE_LINTERS:
   # Filename conventions (cross-language)
   - REPOSITORY_LS_LINT
   # ENV_DOTENV_LINTER: removed — glibc-only binary, no Alpine/musl build.
-  # MAKEFILE_CHECKMAKE: removed — glibc-only binary, no Alpine/musl build.
+  # Makefile
+  - MAKEFILE_CHECKMAKE
   # Go
   - GO_GOLANGCI_LINT
   # Git
@@ -121,6 +122,7 @@ DISABLE_ERRORS_LINTERS:
   - REPOSITORY_TYPE_COVERAGE
 
   - GO_GOLANGCI_LINT
+  - MAKEFILE_CHECKMAKE
   - PYTHON_VULTURE
   - REPOSITORY_IMPORT_LINTER
   - REPOSITORY_PUBLINT
