@@ -150,6 +150,7 @@ BASH_SHELLCHECK_ARGUMENTS:
 MARKDOWN_RUMDL_CONFIG_FILE: .markdownlint-cli2.yaml
 REPOSITORY_COMMITLINT_CONFIG_FILE: commitlint.config.mjs
 REPOSITORY_ZIZMOR_CONFIG_FILE: .zizmor.yml
+REPOSITORY_ZIZMOR_UNSECURED_ENV_VARIABLES: GITHUB_TOKEN
 PYTHON_PYRIGHT_CONFIG_FILE: pyrightconfig.json
 # Pyright exits non-zero on errors only (not warnings) by default, but --level
 # error suppresses warning output entirely. This prevents missing-import warnings
@@ -172,6 +173,7 @@ TYPESCRIPT_ES_CONFIG_FILE: eslint.config.mjs
 JSX_ESLINT_CONFIG_FILE: eslint.config.mjs
 TSX_ESLINT_CONFIG_FILE: eslint.config.mjs
 TERRAFORM_TFLINT_CONFIG_FILE: .tflint.hcl
+TERRAFORM_TFLINT_UNSECURED_ENV_VARIABLES: GITHUB_TOKEN
 YAML_YAMLLINT_CONFIG_FILE: .yamllint
 DOCKERFILE_HADOLINT_CONFIG_FILE: .hadolint.yaml
 JSON_PRETTIER_CONFIG_FILE: .prettierrc
