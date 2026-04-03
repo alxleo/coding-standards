@@ -14,8 +14,9 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import urllib.error
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TypedDict
 
@@ -41,7 +42,7 @@ class ToolCatalog(TypedDict, total=False):
 # ── Severity normalization ──────────────────────────────────────
 
 
-def _normalize_severity(severity: str, tool: str) -> str:
+def _normalize_severity(severity: str) -> str:
     """Normalize severity to: error, warning, info, ignore."""
     s = severity.lower().strip()
     mapping = {
@@ -87,11 +88,14 @@ def extract_ruff() -> ToolCatalog:
 
     version = "unknown"
     try:
-        v = subprocess.run(
-            ["ruff", "--version"], capture_output=True, text=True, timeout=10
-        )
+        v = subprocess.run(["ruff", "--version"], capture_output=True, text=True, timeout=10)
         version = v.stdout.strip().split()[-1] if v.returncode == 0 else "unknown"
-    except Exception:
+    except (
+        FileNotFoundError,
+        subprocess.CalledProcessError,
+        subprocess.TimeoutExpired,
+        OSError,
+    ):
         pass
 
     raw = json.loads(result.stdout)
@@ -133,9 +137,7 @@ def extract_semgrep(root: Path) -> ToolCatalog:
                     "id": r["id"],
                     "summary": msg,
                     "category": f.stem,
-                    "severity": _normalize_severity(
-                        r.get("severity", "WARNING"), "semgrep"
-                    ),
+                    "severity": _normalize_severity(r.get("severity", "WARNING"), "semgrep"),
                 }
             )
     return {"version": "custom", "rule_count": len(rules), "rules": rules}
@@ -233,7 +235,7 @@ def extract_shellcheck() -> ToolCatalog:
                     "severity": "warning",
                 }
             )
-    except Exception as e:
+    except (OSError, urllib.error.URLError) as e:
         return {"version": version, "rule_count": 0, "rules": [], "error": str(e)}
 
     return {"version": version, "rule_count": len(rules), "rules": rules}
@@ -280,7 +282,7 @@ def extract_dockle() -> ToolCatalog:
             "id": cid,
             "summary": desc,
             "category": "cis-docker" if cid.startswith("CIS") else "dockle",
-            "severity": _normalize_severity(sev, "dockle"),
+            "severity": _normalize_severity(sev),
         }
         for cid, desc, sev in _DOCKLE_CHECKS
     ]
@@ -293,7 +295,7 @@ def extract_dockle() -> ToolCatalog:
 def generate(root: Path) -> dict[str, object]:
     """Generate the full rule catalog."""
     catalog = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "tools": {
             "ruff": extract_ruff(),
             "semgrep": extract_semgrep(root),
@@ -311,9 +313,7 @@ def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(description="Generate rule-catalog.json")
-    parser.add_argument(
-        "--output", default="rule-catalog.json", help="Output file path"
-    )
+    parser.add_argument("--output", default="rule-catalog.json", help="Output file path")
     parser.add_argument("--root", default=str(REPO_ROOT), help="Repo root path")
     args = parser.parse_args()
 
@@ -323,12 +323,8 @@ def main() -> None:
     output = Path(args.output)
     output.write_text(json.dumps(catalog, indent=2) + "\n")
 
-    tool_summary = ", ".join(
-        f"{name}: {data['rule_count']}" for name, data in catalog["tools"].items()
-    )
-    print(
-        f"rule-catalog.json generated ({catalog['total_rules']} rules: {tool_summary})"
-    )
+    tool_summary = ", ".join(f"{name}: {data['rule_count']}" for name, data in catalog["tools"].items())
+    print(f"rule-catalog.json generated ({catalog['total_rules']} rules: {tool_summary})")
 
 
 if __name__ == "__main__":
