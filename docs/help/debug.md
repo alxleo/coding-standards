@@ -54,7 +54,7 @@ docker run --rm -v .:/tmp/lint -e GITHUB_TOKEN=$GITHUB_TOKEN \
   ghcr.io/alxleo/coding-standards:latest \
   bash -c 'case "$GITHUB_TOKEN" in HIDDEN_BY*) echo "HIDDEN";; "") echo "EMPTY";; *) echo "PRESENT";; esac'
 ```
-If it prints `HIDDEN` — MegaLinter is stripping the value.
+If it prints `HIDDEN` — MegaLinter replaced the value with `HIDDEN_BY_MEGALINTER`.
 
 **Fix**: add to your `.mega-linter.yml`:
 ```yaml

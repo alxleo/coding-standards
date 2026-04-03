@@ -187,6 +187,9 @@ def _load_rule_catalog(root: Path) -> dict[str, Any] | None:
 
                 print(f"Error reading {candidate}: {e}", file=sys.stderr)
                 return None
+    import sys
+
+    print("rule-catalog.json not found. Run generate_rule_catalog.py first.", file=sys.stderr)
     return None
 
 
@@ -245,10 +248,7 @@ def main() -> None:
     if args.rules:
         catalog = _load_rule_catalog(root)
         if not catalog:
-            print(
-                "Failed to load rule-catalog.json. Run generate_rule_catalog.py first.",
-                file=__import__("sys").stderr,
-            )
+            # _load_rule_catalog prints specific error for corrupt files
             raise SystemExit(1)
         print(render_rules(catalog, tool_filter=args.tool, fmt=args.format))
     else:
