@@ -3,11 +3,13 @@
 # Works on both GitHub Actions and Gitea Actions.
 # Uses composite action with docker run (more portable than using: docker).
 #
+# Env var passthrough: write a .megalinter.env file in the workspace
+# before calling this action. It's auto-discovered and forwarded.
+#
 # Usage:
 #   - uses: alxleo/coding-standards/docker-action@main
 #     with:
 #       apply-fixes: 'all'
-#       env-file: .megalinter.env
 name: coding-standards-lint
 description: Run centralized MegaLinter linting via Docker container
 
@@ -20,10 +22,6 @@ inputs:
     description: "Docker image to use"
     required: false
     default: "ghcr.io/alxleo/coding-standards:latest"
-  env-file:
-    description: "Path to env file to forward to the container (e.g. SOPS-decrypted secrets)"
-    required: false
-    default: ""
 
 runs:
   using: composite
@@ -32,14 +30,20 @@ runs:
       env:
         CS_IMAGE: ${{ inputs.image }}
         CS_APPLY_FIXES: ${{ inputs.apply-fixes }}
-        CS_ENV_FILE: ${{ inputs.env-file }}
       run: |
         # Use GITHUB_WORKSPACE env var (set by runner) instead of
         # ${{ github.workspace }} (expression context). On Gitea Actions,
         # composite action expressions resolve differently for sibling
-        # Docker container volume mounts. The env var is always the
-        # actual host path that Docker can mount.
+        # Docker container volume mounts.
         ws="${GITHUB_WORKSPACE:-$(pwd)}"
+
+        # Auto-discover env file from workspace (avoids broken
+        # composite action input resolution on Gitea).
+        env_file="${ws}/.megalinter.env"
+        env_flag=""
+        if [ -f "$env_file" ]; then
+          env_flag="--env-file ${env_file}"
+        fi
 
         docker run --rm \
           -v "${ws}:/tmp/lint" \
@@ -47,5 +51,5 @@ runs:
           -e APPLY_FIXES="${CS_APPLY_FIXES}" \
           -e WORKSPACE_UID="$(id -u)" \
           -e WORKSPACE_GID="$(id -g)" \
-          ${CS_ENV_FILE:+--env-file "${CS_ENV_FILE}"} \
+          ${env_flag} \
           "${CS_IMAGE}"

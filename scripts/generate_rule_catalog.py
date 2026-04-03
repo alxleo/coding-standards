@@ -88,7 +88,13 @@ def extract_ruff() -> ToolCatalog:
 
     version = "unknown"
     try:
-        v = subprocess.run(["ruff", "--version"], capture_output=True, text=True, timeout=10)
+        v = subprocess.run(
+            ["ruff", "--version"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
         version = v.stdout.strip().split()[-1] if v.returncode == 0 else "unknown"
     except (
         FileNotFoundError,
@@ -223,14 +229,14 @@ def extract_shellcheck() -> ToolCatalog:
             r"<li><a href='SC(\d+)'>SC\d+</a>\s*&ndash;\s*(.+?)</li>",
             html,
         )
-        for code, desc in matches:
+        for code, raw_desc in matches:
             # Strip HTML entities and tags
-            desc = desc.replace("&ndash;", "–").replace("&amp;", "&")
-            desc = re.sub(r"<[^>]+>", "", desc).replace("`", "").strip()
+            clean = raw_desc.replace("&ndash;", "-").replace("&amp;", "&")
+            clean = re.sub(r"<[^>]+>", "", clean).replace("`", "").strip()
             rules.append(
                 {
                     "id": f"SC{code}",
-                    "summary": desc,
+                    "summary": clean,
                     "category": "shell",
                     "severity": "warning",
                 }
