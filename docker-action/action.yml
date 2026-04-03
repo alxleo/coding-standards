@@ -32,11 +32,17 @@ runs:
       env:
         CS_IMAGE: ${{ inputs.image }}
         CS_APPLY_FIXES: ${{ inputs.apply-fixes }}
-        CS_WORKSPACE: ${{ github.workspace }}
         CS_ENV_FILE: ${{ inputs.env-file }}
       run: |
+        # Use GITHUB_WORKSPACE env var (set by runner) instead of
+        # ${{ github.workspace }} (expression context). On Gitea Actions,
+        # composite action expressions resolve differently for sibling
+        # Docker container volume mounts. The env var is always the
+        # actual host path that Docker can mount.
+        ws="${GITHUB_WORKSPACE:-.}"
+
         docker run --rm \
-          -v "${CS_WORKSPACE}:/tmp/lint" \
+          -v "${ws}:/tmp/lint" \
           -e DEFAULT_WORKSPACE=/tmp/lint \
           -e APPLY_FIXES="${CS_APPLY_FIXES}" \
           -e WORKSPACE_UID="$(id -u)" \
