@@ -165,4 +165,4 @@ rules:
       category: security
       technology: [pip, python]
       references:
-        - "https://medium.com/@alex.birsan/dependency-confusion-4a5d60fec610"
+        - "https://en.wikipedia.org/wiki/Dependency_confusion"
