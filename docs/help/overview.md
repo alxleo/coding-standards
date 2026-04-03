@@ -19,6 +19,7 @@ just cs-standards         Repo setup checks
 just cs-show-config       Which config each linter uses
 just cs-warnings          Warnings from last run
 just cs-catalog           Full check inventory
+just cs-catalog-rules     Per-tool rule details (--tool, --format json)
 just cs-blast-radius      Change impact analysis
 just cs-recommend         What checks to enable for this repo (JSON)
 just cs-update            Pull latest image
@@ -39,4 +40,5 @@ suppress    Suppress specific findings
 debug       Troubleshoot a failing linter
 local       Running on Mac (native arm64)
 gitignore   What to add to .gitignore
+rules       Per-tool rule catalog (query any rule by tool/ID)
 ```

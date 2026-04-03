@@ -150,6 +150,11 @@ BASH_SHELLCHECK_ARGUMENTS:
 MARKDOWN_RUMDL_CONFIG_FILE: .markdownlint-cli2.yaml
 REPOSITORY_COMMITLINT_CONFIG_FILE: commitlint.config.mjs
 REPOSITORY_ZIZMOR_CONFIG_FILE: .zizmor.yml
+# Offline mode: no network calls at lint time. Pin verification runs in
+# scheduled workflows (with token). Static checks (injection, permissions,
+# dangerous triggers) work offline and are the high-value findings.
+REPOSITORY_ZIZMOR_ARGUMENTS:
+  - "--offline"
 PYTHON_PYRIGHT_CONFIG_FILE: pyrightconfig.json
 # Pyright exits non-zero on errors only (not warnings) by default, but --level
 # error suppresses warning output entirely. This prevents missing-import warnings

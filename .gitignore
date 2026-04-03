@@ -7,6 +7,7 @@ megalinter-reports/
 
 # Generated at runtime
 repo-manifest.json
+rule-catalog.json
 uv.lock
 .venv/
 

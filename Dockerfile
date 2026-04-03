@@ -274,6 +274,15 @@ COPY build-assets.yml scripts/download_build_assets.py /tmp/
 RUN python3 /tmp/download_build_assets.py --config /tmp/build-assets.yml && \
     rm /tmp/build-assets.yml /tmp/download_build_assets.py
 
+# ── Rule catalog (structured rule data for all tools) ────────
+COPY semgrep-rules/ /tmp/catalog-build/semgrep-rules/
+COPY Dockerfile /tmp/catalog-build/Dockerfile
+COPY scripts/generate_rule_catalog.py /tmp/
+# hadolint ignore=DL3059
+RUN python3 /tmp/generate_rule_catalog.py \
+      --root /tmp/catalog-build --output /opt/coding-standards/rule-catalog.json && \
+    rm /tmp/generate_rule_catalog.py && rm -rf /tmp/catalog-build /tmp/hadolint-wiki
+
 # ── Plugin descriptors ────────────────────────────────────────
 COPY plugins/ /mega-linter-plugin-custom/
 

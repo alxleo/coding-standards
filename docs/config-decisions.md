@@ -4,6 +4,7 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 
 ## Architecture
 
+- **No runtime network calls** — the CI image is offline-first. All schemas, semgrep rules, trivy DB, and linter configs are baked at build time. Network-dependent checks (zizmor pin verification, trivy CVE scanning) run in scheduled workflows, not CI. This gives deterministic results, eliminates latency from external services, and works in air-gapped environments. Token passthrough (env-file, git credential store) exists for consumers who opt into online checks, but the default path needs no token.
 - **MegaLinter cupcake base** — covers 18/34 tools. No larger flavor fills gaps.
 - **Custom Docker image** — FROM cupcake + 16 custom tools as plugins/installs.
 - **Multi-arch** via Custom Flavor Builder — amd64 (Gitea/GHA) + arm64 (Mac). All our tools are arm64-compatible.
