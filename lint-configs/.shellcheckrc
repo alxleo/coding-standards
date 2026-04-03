@@ -18,5 +18,11 @@ enable=add-default-case
 # Only fires on #!/bin/bash scripts — #!/bin/sh scripts are unaffected.
 enable=require-double-brackets
 
+# Require [ -n "$var" ] over [ "$var" ] — empty strings behave unexpectedly.
+enable=avoid-nullary-conditions
+
+# Catch typos in env var names (e.g., $HOEM instead of $HOME).
+enable=check-unassigned-uppercase
+
 # Follow source directives so sourced files get checked too.
 external-sources=true
