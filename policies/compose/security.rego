@@ -52,3 +52,22 @@ _is_sensitive_path(vol) if startswith(vol, "/etc:")
 _is_sensitive_path(vol) if startswith(vol, "/proc:")
 _is_sensitive_path(vol) if startswith(vol, "/sys:")
 _is_sensitive_path(vol) if startswith(vol, "/dev:")
+
+# Services should drop all capabilities and add back only what's needed
+warn contains msg if {
+	some svc_name, svc in input.services
+	not _has_cap_drop_all(svc)
+	msg := sprintf("service '%s' missing cap_drop: [ALL] — drop all capabilities and use cap_add for only what's needed", [svc_name])
+}
+
+_has_cap_drop_all(svc) if {
+	some cap in svc.cap_drop
+	cap == "ALL"
+}
+
+# Read-only root filesystem catches write-to-container bugs
+warn contains msg if {
+	some svc_name, svc in input.services
+	not svc.read_only
+	msg := sprintf("service '%s' missing read_only: true — read-only root filesystem prevents writes to container layer", [svc_name])
+}
