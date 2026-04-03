@@ -41,6 +41,17 @@ runs:
         # actual host path that Docker can mount.
         ws="${GITHUB_WORKSPACE:-$(pwd)}"
 
+        echo "::debug::ws=${ws}"
+        echo "::debug::image=${CS_IMAGE}"
+        echo "::debug::DEFAULT_WORKSPACE check inside container:"
+        docker run --rm \
+          -v "${ws}:/tmp/lint" \
+          -e DEFAULT_WORKSPACE=/tmp/lint \
+          --entrypoint sh \
+          "${CS_IMAGE}" \
+          -c 'echo "DEFAULT_WORKSPACE=$DEFAULT_WORKSPACE"; ls /tmp/lint/.mega-linter.yml 2>&1 || echo "NO CONFIG"; echo "---"; env | grep -i workspace || true'
+
+        echo "::debug::Running MegaLinter..."
         docker run --rm \
           -v "${ws}:/tmp/lint" \
           -e DEFAULT_WORKSPACE=/tmp/lint \
