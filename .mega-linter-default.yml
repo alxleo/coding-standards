@@ -210,6 +210,7 @@ REPOSITORY_SEMGREP_RULESETS:
 # Exclude upstream rules replaced by network-aware versions in
 # semgrep-rules/network-security.yml (see #82)
 REPOSITORY_SEMGREP_ARGUMENTS:
+  - "--exclude=semgrep-rules" # don't scan rule definitions (patterns contain http://, curl, etc.)
   - "--exclude-rule=trailofbits.yaml.docker-compose.port-all-interfaces.port-all-interfaces"
   - "--exclude-rule=trailofbits.generic.curl-unencrypted-url.curl-unencrypted-url"
   - "--exclude-rule=trailofbits.generic.wget-unencrypted-url.wget-unencrypted-url"
