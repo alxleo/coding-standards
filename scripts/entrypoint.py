@@ -70,14 +70,19 @@ def _setup() -> None:
             # MegaLinter resolves relative config paths against the baked
             # configs dir, not the workspace. Consumer overrides need to
             # point to the workspace copy so MegaLinter finds them.
+            workspace_resolved = workspace.resolve()
             for key, value in overrides.items():
                 if (
                     key.endswith("_CONFIG_FILE")
                     and isinstance(value, str)
                     and not Path(value).is_absolute()
-                    and (workspace / value).exists()
                 ):
-                    overrides[key] = str(workspace / value)
+                    candidate = (workspace / value).resolve()
+                    if candidate.is_relative_to(workspace_resolved):
+                        if candidate.is_file():
+                            overrides[key] = str(candidate)
+                        else:
+                            typer.echo(f"Warning: {key} override points to missing file: {candidate}", err=True)
             baked.update(overrides)
         with tempfile.NamedTemporaryFile(suffix=".yml", prefix="mega-linter-merged-", delete=False, mode="w") as f:
             yaml.dump(baked, f, default_flow_style=False)
