@@ -68,14 +68,12 @@ def _setup() -> None:
     # the token for all github.com HTTPS operations.
     gh_token = os.environ.get("GITHUB_TOKEN", "")
     if gh_token:
+        # Store credentials via git credential store so git-upload-pack
+        # (used by zizmor for action pin verification) authenticates.
+        cred_path = Path("/tmp/.git-credentials")
+        cred_path.write_text(f"https://x-access-token:{gh_token}@github.com\n")
         subprocess.run(
-            [
-                "git",
-                "config",
-                "--global",
-                f"url.https://x-access-token:{gh_token}@github.com/.insteadOf",
-                "https://github.com/",
-            ],
+            ["git", "config", "--global", "credential.helper", f"store --file={cred_path}"],
             check=False,
             capture_output=True,
         )
@@ -176,10 +174,15 @@ def recommend() -> None:
     )
 
 
-@app.command()
-def catalog() -> None:
-    """Show full catalog of checks."""
-    subprocess.run(["python3", str(SCRIPTS / "show_catalog.py")], check=True)
+@app.command(
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
+)
+def catalog(ctx: typer.Context) -> None:
+    """Show full catalog of checks. Use --rules for per-tool rule details."""
+    subprocess.run(
+        ["python3", str(SCRIPTS / "show_catalog.py"), *ctx.args],
+        check=True,
+    )
 
 
 @app.command()

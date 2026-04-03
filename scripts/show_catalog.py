@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
-"""Generate docs/catalog.md — authoritative inventory of all checks.
+"""Authoritative inventory of all checks.
 
-Parses linter config, semgrep rules, conftest policies, and ruff config
-to produce a single generated file. Run as drift check in CI:
-
-    python3 scripts/show_catalog.py --check
+Parses linter config, semgrep rules, conftest policies, and ruff config.
+Use --rules for per-tool rule details from rule-catalog.json.
 
 Sources:
   .mega-linter-default.yml  → linters + tiers
@@ -182,7 +180,13 @@ def _load_rule_catalog(root: Path) -> dict[str, Any] | None:
         if candidate.exists():
             import json
 
-            return json.loads(candidate.read_text())
+            try:
+                return json.loads(candidate.read_text())
+            except (json.JSONDecodeError, OSError) as e:
+                import sys
+
+                print(f"Error reading {candidate}: {e}", file=sys.stderr)
+                return None
     return None
 
 
@@ -205,14 +209,15 @@ def render_rules(catalog: dict[str, Any], tool_filter: str | None = None, fmt: s
     ]
     for name, data in tools.items():
         err = data.get("error")
-        lines.append(f"## {name} — {data['rule_count']} rules (v{data['version']})")
+        lines.append(f"## {name} — {data.get('rule_count', '?')} rules (v{data.get('version', '?')})")
         if err:
             lines.append(f"  *Error: {err}*")
         lines.append("")
         lines.append("| ID | Severity | Category | Description |")
         lines.append("|----|----------|----------|-------------|")
         lines.extend(
-            f"| {r['id']} | {r['severity']} | {r.get('category', '')} | {r['summary'][:80]} |" for r in data["rules"]
+            f"| {r.get('id', '?')} | {r.get('severity', '?')} | {r.get('category', '')} | {r.get('summary', '')[:80]} |"
+            for r in data.get("rules", [])
         )
         lines.append("")
     return "\n".join(lines) + "\n"

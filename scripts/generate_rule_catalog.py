@@ -2,8 +2,8 @@
 """Generate rule-catalog.json — structured rule data for all configurable tools.
 
 Extracts rule catalogs from five tools via CLI introspection, YAML parsing,
-wiki scraping, or hardcoded data. Runs at build time in the Docker image
-and locally for repo-committed artifact.
+wiki scraping, or hardcoded data. Generated at build time into the Docker
+image. Local generation is optional for inspection or debugging.
 
 Usage:
     python3 scripts/generate_rule_catalog.py [--output rule-catalog.json]
@@ -230,6 +230,14 @@ def extract_shellcheck() -> dict[str, Any]:
             )
     except (OSError, urllib.error.URLError) as e:
         return {"version": version, "rule_count": 0, "rules": [], "error": str(e)}
+
+    if not rules:
+        return {
+            "version": version,
+            "rule_count": 0,
+            "rules": [],
+            "error": "wiki parse returned 0 rules — format may have changed",
+        }
 
     return {"version": version, "rule_count": len(rules), "rules": rules}
 
