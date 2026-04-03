@@ -76,6 +76,13 @@ jobs:
           scanners: vuln
           trivyignores: .trivyignore
 
+      - name: Dockle CIS benchmark
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            goodwithtech/dockle@sha256:eade932f793742de0aa8755406c7677cd7696f8675b6180926f7eeffa7abe6b9 \
+            --exit-code 1 \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ci-test
+
       - name: Build + push multi-arch
         uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
         with:
