@@ -10,7 +10,7 @@ test_warn_unnamed_volume if {
 }
 
 test_no_warn_named_volume if {
-	result := runtime.warn with input as {"services": {"app": {"volumes": ["mydata:/data"], "restart": "unless-stopped"}}}
+	result := runtime.warn with input as {"services": {"app": {"volumes": ["mydata:/data"], "restart": "unless-stopped", "logging": {"driver": "json-file", "options": {"max-size": "10m"}}}}}
 	count(result) == 0
 }
 
@@ -42,6 +42,21 @@ test_warn_bind_mount if {
 test_no_warn_docker_socket if {
 	result := runtime.warn with input as {"services": {"app": {"volumes": ["/var/run/docker.sock:/var/run/docker.sock"], "restart": "always"}}}
 	not any_contains(result, "bind mount")
+}
+
+test_warn_missing_logging if {
+	result := runtime.warn with input as {"services": {"app": {"restart": "always"}}}
+	any_contains(result, "logging")
+}
+
+test_warn_logging_no_max_size if {
+	result := runtime.warn with input as {"services": {"app": {"restart": "always", "logging": {"driver": "json-file"}}}}
+	any_contains(result, "max-size")
+}
+
+test_no_warn_logging_with_max_size if {
+	result := runtime.warn with input as {"services": {"app": {"restart": "always", "logging": {"driver": "json-file", "options": {"max-size": "10m"}}}}}
+	not any_contains(result, "logging")
 }
 
 any_contains(set, substring) if {

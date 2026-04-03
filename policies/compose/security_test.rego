@@ -34,6 +34,26 @@ test_deny_sensitive_path if {
 	any_contains(result, "sensitive")
 }
 
+test_warn_missing_cap_drop if {
+	result := security.warn with input as {"services": {"app": {"security_opt": ["no-new-privileges:true"], "ports": []}}}
+	any_contains(result, "cap_drop")
+}
+
+test_no_warn_cap_drop_all if {
+	result := security.warn with input as {"services": {"app": {"cap_drop": ["ALL"], "security_opt": ["no-new-privileges:true"], "ports": []}}}
+	not any_contains(result, "cap_drop")
+}
+
+test_warn_missing_read_only if {
+	result := security.warn with input as {"services": {"app": {"security_opt": ["no-new-privileges:true"], "ports": []}}}
+	any_contains(result, "read_only")
+}
+
+test_no_warn_read_only_set if {
+	result := security.warn with input as {"services": {"app": {"read_only": true, "security_opt": ["no-new-privileges:true"], "ports": []}}}
+	not any_contains(result, "read_only")
+}
+
 any_contains(set, substring) if {
 	some msg in set
 	contains(msg, substring)

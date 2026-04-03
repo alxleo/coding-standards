@@ -42,3 +42,18 @@ warn contains msg if {
 	not contains(vol, "/var/run/docker.sock")
 	msg := sprintf("service '%s' uses host bind mount '%s' — consider named volumes for portability", [svc_name, vol])
 }
+
+# Missing logging config risks disk exhaustion from unrotated logs
+warn contains msg if {
+	some svc_name, svc in input.services
+	not svc.logging
+	msg := sprintf("service '%s' has no logging config — unrotated logs can exhaust disk", [svc_name])
+}
+
+# Logging present but no rotation — json-file default is unlimited
+warn contains msg if {
+	some svc_name, svc in input.services
+	svc.logging
+	not svc.logging.options["max-size"]
+	msg := sprintf("service '%s' has logging config but no max-size — logs grow unbounded. Set logging.options.max-size", [svc_name])
+}

@@ -137,3 +137,32 @@ rules:
     metadata:
       category: security
       technology: [postgres]
+
+  # ── Dependency confusion ───────────────────────────────────────
+  # --extra-index-url adds an additional package index alongside the
+  # primary index, and mixing private and public indexes can enable
+  # dependency confusion attacks.
+  - id: coding-standards.pip-extra-index-url
+    message: >
+      pip --extra-index-url enables dependency confusion attacks.
+      An attacker can register a higher-version package on PyPI that
+      shadows the private package. Use --index-url (replaces PyPI
+      entirely) or an internal proxy/mirror that fronts both PyPI
+      and private packages.
+    languages: [generic]
+    severity: ERROR
+    pattern-regex: |
+      (?x)
+      pip\s+install\b[\s\S]*?
+      --extra-index-url
+    paths:
+      include:
+        - Dockerfile
+        - "*.sh"
+        - "*.bash"
+        - "requirements*.txt"
+    metadata:
+      category: security
+      technology: [pip, python]
+      references:
+        - "https://medium.com/@alex.birsan/dependency-confusion-4a5d60fec610"
