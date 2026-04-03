@@ -19,6 +19,10 @@ inputs:
     description: "Docker image to use"
     required: false
     default: "ghcr.io/alxleo/coding-standards:latest"
+  github-token:
+    description: "GitHub token for tools needing GitHub API access (e.g. zizmor action pin verification)"
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -28,6 +32,7 @@ runs:
         CS_IMAGE: ${{ inputs.image }}
         CS_APPLY_FIXES: ${{ inputs.apply-fixes }}
         CS_WORKSPACE: ${{ github.workspace }}
+        CS_GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
         docker run --rm \
           -v "${CS_WORKSPACE}:/tmp/lint" \
@@ -35,4 +40,5 @@ runs:
           -e APPLY_FIXES="${CS_APPLY_FIXES}" \
           -e WORKSPACE_UID="$(id -u)" \
           -e WORKSPACE_GID="$(id -g)" \
+          ${CS_GITHUB_TOKEN:+-e GITHUB_TOKEN="${CS_GITHUB_TOKEN}"} \
           "${CS_IMAGE}"
