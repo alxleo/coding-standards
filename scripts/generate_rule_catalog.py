@@ -209,7 +209,7 @@ def extract_shellcheck() -> dict[str, Any]:
             "https://www.shellcheck.net/wiki/",
             headers={"User-Agent": "coding-standards-catalog/1.0"},
         )
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=30) as resp:  # nosemgrep: dynamic-urllib-use-detected
             html = resp.read().decode("utf-8", errors="replace")
 
         matches = re.findall(

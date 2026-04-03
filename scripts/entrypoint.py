@@ -62,6 +62,24 @@ def _setup() -> None:
             capture_output=True,
         )
 
+    # Git credential helper for GitHub API + git protocol.
+    # Tools like zizmor use git-upload-pack (git protocol) to verify action
+    # pins, which doesn't use GITHUB_TOKEN env var. Configure git to use
+    # the token for all github.com HTTPS operations.
+    gh_token = os.environ.get("GITHUB_TOKEN", "")
+    if gh_token:
+        subprocess.run(
+            [
+                "git",
+                "config",
+                "--global",
+                f"url.https://x-access-token:{gh_token}@github.com/.insteadOf",
+                "https://github.com/",
+            ],
+            check=False,
+            capture_output=True,
+        )
+
     # Config resolution (zero-config by default).
     # MegaLinter resolves EXTENDS relative to workspace — absolute paths break.
     # Strip EXTENDS, use baked config as MEGALINTER_CONFIG, inject consumer
