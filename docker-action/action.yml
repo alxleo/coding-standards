@@ -39,7 +39,7 @@ runs:
         # composite action expressions resolve differently for sibling
         # Docker container volume mounts. The env var is always the
         # actual host path that Docker can mount.
-        ws="${GITHUB_WORKSPACE:-.}"
+        ws="${GITHUB_WORKSPACE:-$(pwd)}"
 
         docker run --rm \
           -v "${ws}:/tmp/lint" \
