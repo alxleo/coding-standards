@@ -453,6 +453,8 @@ def compute_criticality(root: Path, max_changeset: int = 50) -> list[dict[str, A
         scores = nx.pagerank(g, weight="weight", alpha=0.85, max_iter=100)
     except nx.PowerIterationFailedConvergence:
         scores = nx.pagerank(g, weight="weight", alpha=0.85, max_iter=500, tol=1e-4)
+    except (ImportError, ModuleNotFoundError):
+        scores = {node: g.degree(node) / max(len(g), 1) for node in g}
 
     return [
         {
@@ -505,6 +507,9 @@ def _personalized_pagerank(
             tol=1e-4,
             personalization=personalization,
         )
+    except (ImportError, ModuleNotFoundError):
+        # numpy/scipy not available — fall back to unweighted degree centrality
+        scores = {node: g.degree(node) / max(len(g), 1) for node in g}
 
     return scores
 
