@@ -146,16 +146,21 @@ def fix() -> None:
 def standards() -> None:
     """Run repo-standards checks only."""
     workspace = _workspace()
-    os.chdir(workspace)
+    manifest = Path("/tmp/repo-manifest.json")
     subprocess.run(
-        ["python3", str(SCRIPTS / "generate_repo_manifest.py")],
+        ["python3", str(SCRIPTS / "generate_repo_manifest.py"), str(workspace)],
         check=True,
+        cwd=workspace,
     )
+    # Move manifest out of workspace before conftest reads it
+    ws_manifest = workspace / "repo-manifest.json"
+    if ws_manifest.exists():
+        ws_manifest.rename(manifest)
     subprocess.run(
         [
             "conftest",
             "test",
-            "repo-manifest.json",
+            str(manifest),
             "--all-namespaces",
             "--no-color",
             "-p",
@@ -163,7 +168,7 @@ def standards() -> None:
         ],
         check=True,
     )
-    Path("repo-manifest.json").unlink(missing_ok=True)
+    manifest.unlink(missing_ok=True)
 
 
 @app.command()

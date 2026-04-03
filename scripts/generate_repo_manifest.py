@@ -16,6 +16,8 @@ from __future__ import annotations
 import json
 import re
 import sys
+import tomllib
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -64,8 +66,6 @@ def count_files(root: Path, suffix: str) -> int:
 
 def _load_toml(path: Path) -> dict[str, Any]:
     """Load a TOML file using stdlib tomllib (requires Python 3.11+)."""
-    import tomllib
-
     with Path.open(path, "rb") as f:
         return tomllib.load(f)
 
@@ -223,7 +223,7 @@ def _has_any_dep(root: Path, pyproject: tuple[str, ...] = (), pkg: tuple[str, ..
 def _max_blast_radius(root: Path) -> int:
     """Highest blast radius (filename reference count) in the repo."""
     try:
-        from blast_radius import compute_blast_radius
+        from blast_radius import compute_blast_radius  # noqa: PLC0415
 
         data = compute_blast_radius(root)
         return max((r["blast_radius"] for r in data), default=0)
@@ -234,7 +234,7 @@ def _max_blast_radius(root: Path) -> int:
 def _max_naming_entropy(root: Path) -> float:
     """Highest naming convention entropy across directories."""
     try:
-        from blast_radius import compute_naming_entropy
+        from blast_radius import compute_naming_entropy  # noqa: PLC0415
 
         data = compute_naming_entropy(root)
         return max((r["entropy"] for r in data), default=0.0)
@@ -491,10 +491,6 @@ def load_acknowledged(root: Path) -> dict[str, Any]:
       - {reason, expires, tracking}: temporary — stripped when expired
       - list of {path, reason}: per-file exceptions
     """
-    from datetime import UTC, date, datetime
-
-    import yaml
-
     rs = root / ".repo-standards.yml"
     if not rs.exists():
         return {}
@@ -562,7 +558,7 @@ def _count_suppressions(root: Path) -> dict[str, int]:
 
 
 def generate(root: Path) -> dict[str, Any]:
-    from manifest_schema import Manifest
+    from manifest_schema import Manifest  # noqa: PLC0415
 
     ack = load_acknowledged(root)
     data = {

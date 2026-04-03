@@ -62,13 +62,12 @@ select = [
 extend-per-file-ignores = { "**" = ["ISC001", "FURB110", "TRY300"] }
 
 [lint.per-file-ignores]
-# Test files: allow assert, /tmp, subprocess, magic values, unused args, inline imports, private access
-"test/**" = ["S101", "S108", "S603", "S607", "PLR2004", "ARG", "PLC0415", "T20", "SLF001", "INP001"]
-"test_*" = ["S101", "S108", "S603", "S607", "PLR2004", "ARG", "PLC0415", "T20", "SLF001", "INP001"]
+# Test files: allow assert, /tmp, subprocess, magic values, unused args, private access
+"test/**" = ["S101", "S108", "S603", "S607", "PLR2004", "ARG", "T20", "SLF001", "INP001"]
+"test_*" = ["S101", "S108", "S603", "S607", "PLR2004", "ARG", "T20", "SLF001", "INP001"]
 # Scripts: standalone files (not packages), allow /tmp, urllib, subprocess, print
-# PLC0415: some scripts use deferred imports for optional deps (blast_radius, manifest_schema).
 # ERA001: false-positives on nosemgrep comments. INP001: scripts/ is not a package.
-"scripts/**" = ["S108", "S310", "S603", "S607", "T20", "PLC0415", "ERA001", "INP001"]
+"scripts/**" = ["S108", "S310", "S603", "S607", "T20", "ERA001", "INP001"]
 
 [lint.mccabe]
 max-complexity = 12
