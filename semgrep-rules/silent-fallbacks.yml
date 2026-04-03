@@ -1,22 +1,17 @@
 rules:
   - id: coding-standards.python-silent-fallback-or
     patterns:
-      - pattern: $X or $DEFAULT
-      # Exclude boolean logic — two comparisons joined by or
-      - pattern-not: $A == $B or $C == $D
-      - pattern-not: $A != $B or $C != $D
-      - pattern-not: $A < $B or $C < $D
-      - pattern-not: $A > $B or $C > $D
-      - pattern-not: $A in $B or $C in $D
-      - pattern-not: $A is $B or $C is $D
-      # Exclude any() which is the idiomatic replacement
+      - pattern-either:
+          - pattern: $OBJ.get(...) or $DEFAULT
+          - pattern: os.environ.get(...) or $DEFAULT
+          - pattern: os.getenv(...) or $DEFAULT
       - pattern-not: any(...)
     message: >
-      Silent fallback: `or $DEFAULT` may hide a bug.
-      Idiomatic fixes (don't suppress — refactor instead):
+      Silent fallback: `.get() or $DEFAULT` treats falsy values (0, "", [])
+      the same as missing keys. Use the default parameter instead:
         - dict.get(key) or [] → dict.get(key, [])
-        - x or default_value → if/else or any()
-        - check_a() or check_b() → any((check_a(), check_b()))
+        - os.environ.get("K") or "v" → os.environ.get("K", "v")
+        - os.getenv("K") or "v" → os.getenv("K", "v")
       Last resort: `# nosemgrep: python-silent-fallback-or`
     languages: [python]
     severity: INFO
