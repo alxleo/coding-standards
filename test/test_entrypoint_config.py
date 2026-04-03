@@ -18,9 +18,7 @@ def workspace(tmp_path):
     baked.write_text(yaml.dump({"ENABLE_LINTERS": "PYTHON_RUFF"}))
 
     # Patch constants
-    with patch("scripts.entrypoint.BAKED_CONFIG", baked), patch(
-        "scripts.entrypoint._workspace", return_value=tmp_path
-    ):
+    with patch("scripts.entrypoint.BAKED_CONFIG", baked), patch("scripts.entrypoint._workspace", return_value=tmp_path):
         yield tmp_path
 
 
@@ -59,9 +57,7 @@ class TestConfigFileResolution:
 
     def test_path_traversal_rejected(self, workspace):
         """../../etc/passwd traversal is blocked by is_relative_to check."""
-        _write_consumer_config(
-            workspace, {"PYTHON_RUFF_CONFIG_FILE": "../../etc/passwd"}
-        )
+        _write_consumer_config(workspace, {"PYTHON_RUFF_CONFIG_FILE": "../../etc/passwd"})
 
         _run_setup()
 
@@ -71,26 +67,20 @@ class TestConfigFileResolution:
 
     def test_missing_file_produces_warning(self, workspace, capsys):
         """Missing file within workspace produces a stderr warning."""
-        _write_consumer_config(
-            workspace, {"PYTHON_RUFF_CONFIG_FILE": "nonexistent.toml"}
-        )
+        _write_consumer_config(workspace, {"PYTHON_RUFF_CONFIG_FILE": "nonexistent.toml"})
 
         _run_setup()
 
         merged = _read_merged_config()
         # Not rewritten since file doesn't exist
-        assert merged.get("PYTHON_RUFF_CONFIG_FILE") != str(
-            workspace / "nonexistent.toml"
-        )
+        assert merged.get("PYTHON_RUFF_CONFIG_FILE") != str(workspace / "nonexistent.toml")
 
         captured = capsys.readouterr()
         assert "Warning: PYTHON_RUFF_CONFIG_FILE override points to missing file" in captured.err
 
     def test_absolute_path_not_modified(self, workspace):
         """Absolute paths are left as-is (consumer knows what they're doing)."""
-        _write_consumer_config(
-            workspace, {"PYTHON_RUFF_CONFIG_FILE": "/opt/custom/ruff.toml"}
-        )
+        _write_consumer_config(workspace, {"PYTHON_RUFF_CONFIG_FILE": "/opt/custom/ruff.toml"})
 
         _run_setup()
 
@@ -99,9 +89,7 @@ class TestConfigFileResolution:
 
     def test_non_config_file_keys_not_modified(self, workspace):
         """Keys that don't end in _CONFIG_FILE are left alone."""
-        _write_consumer_config(
-            workspace, {"PYTHON_RUFF_ARGUMENTS": ["--fix"]}
-        )
+        _write_consumer_config(workspace, {"PYTHON_RUFF_ARGUMENTS": ["--fix"]})
 
         _run_setup()
 

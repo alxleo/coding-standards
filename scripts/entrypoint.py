@@ -35,7 +35,7 @@ def _workspace() -> Path:
     return Path(os.environ.get("DEFAULT_WORKSPACE", "/tmp/lint"))
 
 
-def _resolve_config_overrides(overrides: dict, workspace: Path) -> None:
+def _resolve_config_overrides(overrides: dict[str, object], workspace: Path) -> None:
     """Rewrite _CONFIG_FILE overrides to workspace-absolute paths."""
     workspace_resolved = workspace.resolve()
     for key, value in overrides.items():
