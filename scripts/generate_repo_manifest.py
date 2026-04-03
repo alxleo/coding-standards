@@ -672,6 +672,7 @@ def generate(root: Path) -> dict[str, Any]:
             "run_blocks_have_groups": check_run_blocks_have_groups(root),
             "push_trigger_all_branches": check_push_trigger_all_branches(root),
             "github_token_workaround": check_github_token_workaround(root),
+            "has_scheduled_dockle": check_workflow_field(root, "dockle"),
         },
         "observability": {
             "is_service": any(

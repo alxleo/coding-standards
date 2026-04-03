@@ -343,3 +343,42 @@ jobs:
     )
     manifest = generate(tmp_path)
     assert manifest["ci"]["github_token_workaround"] is True
+
+
+# ── Dockle detection ──────────────────────────────────────────
+
+
+def test_has_scheduled_dockle_detected(tmp_path: Path) -> None:
+    _write_workflow(
+        tmp_path,
+        "scheduled.yml",
+        """
+on:
+  schedule:
+    - cron: '0 3 * * 1'
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - run: docker run goodwithtech/dockle --exit-code 1 myimage
+""",
+    )
+    manifest = generate(tmp_path)
+    assert manifest["ci"]["has_scheduled_dockle"] is True
+
+
+def test_has_scheduled_dockle_absent(tmp_path: Path) -> None:
+    _write_workflow(
+        tmp_path,
+        "ci.yml",
+        """
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: just check
+""",
+    )
+    manifest = generate(tmp_path)
+    assert manifest["ci"]["has_scheduled_dockle"] is False

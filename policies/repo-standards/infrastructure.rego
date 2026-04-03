@@ -35,6 +35,18 @@ warn contains msg if {
 }
 
 warn contains msg if {
+	input.content.dockerfile_files > 0
+	not input.ci.has_scheduled_dockle
+	not helpers.acknowledged("dockle")
+	msg := concat("\n", [
+		"No dockle image scan in CI workflows",
+		"  Dockerfile present but no CIS Docker benchmark scanning.",
+		"  Dockle catches: setuid binaries, empty passwords, duplicate UIDs.",
+		"  Fix: add dockle to a scheduled workflow (scans built images, not Dockerfiles).",
+	])
+}
+
+warn contains msg if {
 	input.ci.has_sha_pins
 	not input.files.renovate
 	not helpers.acknowledged("renovate")
