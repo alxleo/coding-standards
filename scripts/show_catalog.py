@@ -12,15 +12,18 @@ Sources:
   lint-configs/ruff.toml  → ruff rule categories
 """
 
+import argparse
+import json
 import re
+import sys
 from pathlib import Path
 from typing import Any
+
+import yaml
 
 
 def extract_linters(root: Path) -> tuple[list[str], list[str]]:
     """Return (error_tier, warn_tier) linter lists."""
-    import yaml
-
     ml = root / ".mega-linter-default.yml"
     data = yaml.safe_load(ml.read_text())
     enable = data.get("ENABLE_LINTERS", [])
@@ -35,8 +38,6 @@ def extract_linters(root: Path) -> tuple[list[str], list[str]]:
 
 def extract_semgrep_rules(root: Path) -> list[dict]:
     """Extract rule ID, severity, and first line of message from semgrep YAML."""
-    import yaml
-
     rules = []
     for f in sorted((root / "semgrep-rules").glob("*.yml")):
         data = yaml.safe_load(f.read_text())
@@ -178,22 +179,17 @@ def _load_rule_catalog(root: Path) -> dict[str, Any] | None:
         Path("/opt/coding-standards/rule-catalog.json"),
     ]:
         if candidate.exists():
-            import json
-
             try:
                 return json.loads(candidate.read_text())
             except (json.JSONDecodeError, OSError) as e:
-                import sys
-
                 print(f"Error reading {candidate}: {e}", file=sys.stderr)
                 return None
+    print("rule-catalog.json not found. Run generate_rule_catalog.py first.", file=sys.stderr)
     return None
 
 
 def render_rules(catalog: dict[str, Any], tool_filter: str | None = None, fmt: str = "md") -> str:
     """Render per-tool rule data from rule-catalog.json."""
-    import json
-
     tools = catalog.get("tools", {})
     if tool_filter:
         tools = {k: v for k, v in tools.items() if k == tool_filter}
@@ -224,8 +220,6 @@ def render_rules(catalog: dict[str, Any], tool_filter: str | None = None, fmt: s
 
 
 def main() -> None:
-    import argparse
-
     parser = argparse.ArgumentParser(description="Show coding-standards catalog")
     parser.add_argument(
         "--rules",
@@ -245,10 +239,7 @@ def main() -> None:
     if args.rules:
         catalog = _load_rule_catalog(root)
         if not catalog:
-            print(
-                "rule-catalog.json not found. Run generate_rule_catalog.py first.",
-                file=__import__("sys").stderr,
-            )
+            # _load_rule_catalog prints specific error for corrupt files
             raise SystemExit(1)
         print(render_rules(catalog, tool_filter=args.tool, fmt=args.format))
     else:

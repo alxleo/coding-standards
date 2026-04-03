@@ -40,9 +40,9 @@ runs:
         # Auto-discover env file from workspace (avoids broken
         # composite action input resolution on Gitea).
         env_file="${ws}/.megalinter.env"
-        env_flag=""
+        env_args=()
         if [ -f "$env_file" ]; then
-          env_flag="--env-file ${env_file}"
+          env_args=(--env-file "$env_file")
         fi
 
         docker run --rm \
@@ -51,5 +51,5 @@ runs:
           -e APPLY_FIXES="${CS_APPLY_FIXES}" \
           -e WORKSPACE_UID="$(id -u)" \
           -e WORKSPACE_GID="$(id -g)" \
-          ${env_flag} \
+          "${env_args[@]}" \
           "${CS_IMAGE}"

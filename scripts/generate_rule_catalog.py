@@ -11,6 +11,7 @@ Usage:
 
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import subprocess
@@ -19,6 +20,8 @@ import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+import yaml
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = _SCRIPT_DIR.parent
@@ -114,7 +117,6 @@ def extract_ruff() -> dict[str, Any]:
 
 def extract_semgrep(root: Path) -> dict[str, Any]:
     """Parse custom semgrep rules from semgrep-rules/*.yml."""
-    import yaml
 
     rules_dir = root / "semgrep-rules"
     if not rules_dir.is_dir():
@@ -123,6 +125,8 @@ def extract_semgrep(root: Path) -> dict[str, Any]:
     rules = []
     for f in sorted(rules_dir.glob("*.yml")):
         data = yaml.safe_load(f.read_text())
+        if not isinstance(data, dict):
+            continue
         for r in data.get("rules", []):
             msg = r.get("message", "").strip().split("\n")[0].strip()
             rules.append(
@@ -139,15 +143,18 @@ def extract_semgrep(root: Path) -> dict[str, Any]:
 # ── Hadolint ────────────────────────────────────────────────────
 
 
-def extract_hadolint() -> dict[str, Any]:
+def extract_hadolint(root: Path | None = None) -> dict[str, Any]:
     """Extract rules from hadolint wiki via shallow git clone."""
     version = "unknown"
-    # Try to get version from Dockerfile
-    dockerfile = REPO_ROOT / "Dockerfile"
-    if dockerfile.exists():
-        m = re.search(r'HADOLINT_VERSION="([^"]+)"', dockerfile.read_text())
-        if m:
-            version = m.group(1)
+    for candidate in [root, REPO_ROOT]:
+        if candidate is None:
+            continue
+        dockerfile = candidate / "Dockerfile"
+        if dockerfile.exists():
+            m = re.search(r'HADOLINT_VERSION="([^"]+)"', dockerfile.read_text())
+            if m:
+                version = m.group(1)
+                break
 
     rules = []
     wiki_dir = Path("/tmp/hadolint-wiki")
@@ -194,14 +201,18 @@ def extract_hadolint() -> dict[str, Any]:
 # ── ShellCheck ──────────────────────────────────────────────────
 
 
-def extract_shellcheck() -> dict[str, Any]:
+def extract_shellcheck(root: Path | None = None) -> dict[str, Any]:
     """Extract rules from shellcheck.net wiki sitemap."""
     version = "unknown"
-    dockerfile = REPO_ROOT / "Dockerfile"
-    if dockerfile.exists():
-        m = re.search(r'SHELLCHECK_VERSION="([^"]+)"', dockerfile.read_text())
-        if m:
-            version = m.group(1)
+    for candidate in [root, REPO_ROOT]:
+        if candidate is None:
+            continue
+        dockerfile = candidate / "Dockerfile"
+        if dockerfile.exists():
+            m = re.search(r'SHELLCHECK_VERSION="([^"]+)"', dockerfile.read_text())
+            if m:
+                version = m.group(1)
+                break
 
     rules = []
     try:
@@ -300,8 +311,8 @@ def generate(root: Path) -> dict[str, Any]:
         "tools": {
             "ruff": extract_ruff(),
             "semgrep": extract_semgrep(root),
-            "hadolint": extract_hadolint(),
-            "shellcheck": extract_shellcheck(),
+            "hadolint": extract_hadolint(root),
+            "shellcheck": extract_shellcheck(root),
             "dockle": extract_dockle(),
         },
     }
@@ -311,8 +322,6 @@ def generate(root: Path) -> dict[str, Any]:
 
 
 def main() -> None:
-    import argparse
-
     parser = argparse.ArgumentParser(description="Generate rule-catalog.json")
     parser.add_argument("--output", default="rule-catalog.json", help="Output file path")
     parser.add_argument("--root", default=str(REPO_ROOT), help="Repo root path")
