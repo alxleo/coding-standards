@@ -7,7 +7,6 @@
 # combined binary layer, node_modules pruning, semgrep rules cached as JSON.
 
 # renovate: datasource=docker depName=python
-# hadolint ignore=DL3057
 FROM python:3.13-alpine3.23@sha256:bb1f2fdb1065c85468775c9d680dcd344f6442a2d1181ef7916b60a623f11d40
 
 LABEL org.opencontainers.image.source="https://github.com/alxleo/coding-standards"
