@@ -145,7 +145,7 @@ def extract_semgrep(root: Path) -> ToolCatalog:
                     "id": r["id"],
                     "summary": msg,
                     "category": f.stem,
-                    "severity": _normalize_severity(r.get("severity", "WARNING"), "semgrep"),
+                    "severity": _normalize_severity(r.get("severity", "WARNING")),
                 }
             )
     return {"version": "custom", "rule_count": len(rules), "rules": rules}
