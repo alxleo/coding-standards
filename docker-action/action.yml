@@ -7,7 +7,7 @@
 #   - uses: alxleo/coding-standards/docker-action@main
 #     with:
 #       apply-fixes: 'all'
-#       env-file: .secrets.env
+#       env-file: .megalinter.env
 name: coding-standards-lint
 description: Run centralized MegaLinter linting via Docker container
 
