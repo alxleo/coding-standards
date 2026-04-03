@@ -40,17 +40,17 @@ test_no_warn_renovate_without_pins if {
 }
 
 test_warn_missing_dockle_with_dockerfile if {
-	result := infrastructure.warn with input as {"content": {"compose_files": 0, "dockerfile_files": 1}, "files": {"conftest_toml": true, "editorconfig": true, "ci_json": true, "renovate": true}, "ci": {"has_sha_pins": false, "has_scheduled_dockle": false}, "acknowledged": {}}
+	result := infrastructure.warn with input as {"content": {"compose_files": 0, "dockerfile_files": 1}, "files": {"conftest_toml": true, "editorconfig": true, "ci_json": true, "renovate": true}, "ci": {"has_sha_pins": false, "has_dockle": false}, "acknowledged": {}}
 	any_contains(result, "dockle")
 }
 
 test_no_warn_dockle_without_dockerfile if {
-	result := infrastructure.warn with input as {"content": {"compose_files": 0, "dockerfile_files": 0}, "files": {"conftest_toml": true, "editorconfig": true, "ci_json": true, "renovate": true}, "ci": {"has_sha_pins": false, "has_scheduled_dockle": false}, "acknowledged": {}}
+	result := infrastructure.warn with input as {"content": {"compose_files": 0, "dockerfile_files": 0}, "files": {"conftest_toml": true, "editorconfig": true, "ci_json": true, "renovate": true}, "ci": {"has_sha_pins": false, "has_dockle": false}, "acknowledged": {}}
 	not any_contains(result, "dockle")
 }
 
 test_no_warn_dockle_when_present if {
-	result := infrastructure.warn with input as {"content": {"compose_files": 0, "dockerfile_files": 1}, "files": {"conftest_toml": true, "editorconfig": true, "ci_json": true, "renovate": true}, "ci": {"has_sha_pins": false, "has_scheduled_dockle": true}, "acknowledged": {}}
+	result := infrastructure.warn with input as {"content": {"compose_files": 0, "dockerfile_files": 1}, "files": {"conftest_toml": true, "editorconfig": true, "ci_json": true, "renovate": true}, "ci": {"has_sha_pins": false, "has_dockle": true}, "acknowledged": {}}
 	not any_contains(result, "dockle")
 }
 

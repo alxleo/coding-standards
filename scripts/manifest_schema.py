@@ -86,7 +86,7 @@ class ManifestCI(BaseModel):
     run_blocks_have_groups: bool = True
     push_trigger_all_branches: bool = True
     github_token_workaround: bool = True
-    has_scheduled_dockle: bool = False
+    has_dockle: bool = False
 
 
 class ManifestSuppressions(BaseModel):

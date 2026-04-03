@@ -348,7 +348,7 @@ jobs:
 # ── Dockle detection ──────────────────────────────────────────
 
 
-def test_has_scheduled_dockle_detected(tmp_path: Path) -> None:
+def test_has_dockle_detected(tmp_path: Path) -> None:
     _write_workflow(
         tmp_path,
         "scheduled.yml",
@@ -364,10 +364,27 @@ jobs:
 """,
     )
     manifest = generate(tmp_path)
-    assert manifest["ci"]["has_scheduled_dockle"] is True
+    assert manifest["ci"]["has_dockle"] is True
 
 
-def test_has_scheduled_dockle_absent(tmp_path: Path) -> None:
+def test_has_dockle_in_push_workflow(tmp_path: Path) -> None:
+    _write_workflow(
+        tmp_path,
+        "ci.yml",
+        """
+on: push
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - run: docker run goodwithtech/dockle --exit-code 1 myimage
+""",
+    )
+    manifest = generate(tmp_path)
+    assert manifest["ci"]["has_dockle"] is True
+
+
+def test_has_dockle_absent(tmp_path: Path) -> None:
     _write_workflow(
         tmp_path,
         "ci.yml",
@@ -381,4 +398,4 @@ jobs:
 """,
     )
     manifest = generate(tmp_path)
-    assert manifest["ci"]["has_scheduled_dockle"] is False
+    assert manifest["ci"]["has_dockle"] is False
