@@ -11,6 +11,7 @@ Usage:
 
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import subprocess
@@ -19,6 +20,8 @@ import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+import yaml
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = _SCRIPT_DIR.parent
@@ -114,7 +117,6 @@ def extract_ruff() -> dict[str, Any]:
 
 def extract_semgrep(root: Path) -> dict[str, Any]:
     """Parse custom semgrep rules from semgrep-rules/*.yml."""
-    import yaml
 
     rules_dir = root / "semgrep-rules"
     if not rules_dir.is_dir():
@@ -320,8 +322,6 @@ def generate(root: Path) -> dict[str, Any]:
 
 
 def main() -> None:
-    import argparse
-
     parser = argparse.ArgumentParser(description="Generate rule-catalog.json")
     parser.add_argument("--output", default="rule-catalog.json", help="Output file path")
     parser.add_argument("--root", default=str(REPO_ROOT), help="Repo root path")
