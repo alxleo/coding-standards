@@ -18,25 +18,10 @@ import urllib.error
 import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TypedDict
+from typing import Any
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = _SCRIPT_DIR.parent
-
-
-class Rule(TypedDict, total=False):
-    id: str
-    summary: str
-    category: str
-    severity: str
-    fixable: bool
-
-
-class ToolCatalog(TypedDict, total=False):
-    version: str
-    rule_count: int
-    rules: list[Rule]
-    error: str
 
 
 # ── Severity normalization ──────────────────────────────────────
@@ -64,7 +49,7 @@ def _normalize_severity(severity: str) -> str:
 # ── Ruff ────────────────────────────────────────────────────────
 
 
-def extract_ruff() -> ToolCatalog:
+def extract_ruff() -> dict[str, Any]:
     """Extract rules via `ruff rule --all --output-format json`."""
     try:
         result = subprocess.run(
@@ -127,7 +112,7 @@ def extract_ruff() -> ToolCatalog:
 # ── Semgrep (custom rules) ─────────────────────────────────────
 
 
-def extract_semgrep(root: Path) -> ToolCatalog:
+def extract_semgrep(root: Path) -> dict[str, Any]:
     """Parse custom semgrep rules from semgrep-rules/*.yml."""
     import yaml
 
@@ -154,7 +139,7 @@ def extract_semgrep(root: Path) -> ToolCatalog:
 # ── Hadolint ────────────────────────────────────────────────────
 
 
-def extract_hadolint() -> ToolCatalog:
+def extract_hadolint() -> dict[str, Any]:
     """Extract rules from hadolint wiki via shallow git clone."""
     version = "unknown"
     # Try to get version from Dockerfile
@@ -209,7 +194,7 @@ def extract_hadolint() -> ToolCatalog:
 # ── ShellCheck ──────────────────────────────────────────────────
 
 
-def extract_shellcheck() -> ToolCatalog:
+def extract_shellcheck() -> dict[str, Any]:
     """Extract rules from shellcheck.net wiki sitemap."""
     version = "unknown"
     dockerfile = REPO_ROOT / "Dockerfile"
@@ -283,7 +268,7 @@ _DOCKLE_CHECKS = [
 ]
 
 
-def extract_dockle() -> ToolCatalog:
+def extract_dockle() -> dict[str, Any]:
     """Return hardcoded dockle checkpoints (stable, ~20 checks)."""
     rules = [
         {
@@ -300,7 +285,7 @@ def extract_dockle() -> ToolCatalog:
 # ── Main ────────────────────────────────────────────────────────
 
 
-def generate(root: Path) -> dict[str, object]:
+def generate(root: Path) -> dict[str, Any]:
     """Generate the full rule catalog."""
     catalog = {
         "generated_at": datetime.now(UTC).isoformat(),

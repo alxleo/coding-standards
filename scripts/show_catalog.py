@@ -16,6 +16,7 @@ Sources:
 
 import re
 from pathlib import Path
+from typing import Any
 
 
 def extract_linters(root: Path) -> tuple[list[str], list[str]]:
@@ -172,7 +173,7 @@ def generate(root: Path) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _load_rule_catalog(root: Path) -> dict[str, object] | None:
+def _load_rule_catalog(root: Path) -> dict[str, Any] | None:
     """Load rule-catalog.json if it exists."""
     for candidate in [
         root / "rule-catalog.json",
@@ -185,7 +186,7 @@ def _load_rule_catalog(root: Path) -> dict[str, object] | None:
     return None
 
 
-def render_rules(catalog: dict[str, object], tool_filter: str | None = None, fmt: str = "md") -> str:
+def render_rules(catalog: dict[str, Any], tool_filter: str | None = None, fmt: str = "md") -> str:
     """Render per-tool rule data from rule-catalog.json."""
     import json
 
