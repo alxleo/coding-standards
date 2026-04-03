@@ -694,9 +694,10 @@ def generate(root: Path) -> dict[str, Any]:
 
 
 if __name__ == "__main__":
-    root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path.cwd()
+    args = sys.argv[1:]
+    root = Path(args[0]) if args else Path.cwd()
     manifest = generate(root)
-    output = root / "repo-manifest.json"
+    output = Path(args[1]) if len(args) > 1 else root / "repo-manifest.json"
     output.write_text(json.dumps(manifest, indent=2) + "\n")
     lang_keys = ("python_files", "typescript_files", "javascript_files", "shell_files")
     source_count = sum(manifest["content"].get(k, 0) for k in lang_keys)
