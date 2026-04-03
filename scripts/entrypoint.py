@@ -35,6 +35,21 @@ def _workspace() -> Path:
     return Path(os.environ.get("DEFAULT_WORKSPACE", "/tmp/lint"))
 
 
+def _resolve_config_overrides(overrides: dict[str, object], workspace: Path) -> None:
+    """Rewrite _CONFIG_FILE overrides to workspace-absolute paths."""
+    workspace_resolved = workspace.resolve()
+    for key, value in overrides.items():
+        if not (key.endswith("_CONFIG_FILE") and isinstance(value, str) and not Path(value).is_absolute()):
+            continue
+        candidate = (workspace / value).resolve()
+        if not candidate.is_relative_to(workspace_resolved):
+            continue
+        if candidate.is_file():
+            overrides[key] = str(candidate)
+        else:
+            typer.echo(f"Warning: {key} override points to missing file: {candidate}", err=True)
+
+
 def _setup() -> None:
     """Pre-flight: git safe.directory, config resolution, semgrep discovery."""
     workspace = _workspace()
@@ -66,6 +81,7 @@ def _setup() -> None:
         baked = yaml.safe_load(BAKED_CONFIG.read_text())
         overrides = yaml.safe_load(content) if content.strip() else {}
         if overrides:
+            _resolve_config_overrides(overrides, workspace)
             baked.update(overrides)
         with tempfile.NamedTemporaryFile(suffix=".yml", prefix="mega-linter-merged-", delete=False, mode="w") as f:
             yaml.dump(baked, f, default_flow_style=False)
