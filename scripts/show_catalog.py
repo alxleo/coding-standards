@@ -172,14 +172,81 @@ def generate(root: Path) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _load_rule_catalog(root: Path) -> dict[str, object] | None:
+    """Load rule-catalog.json if it exists."""
+    for candidate in [
+        root / "rule-catalog.json",
+        Path("/opt/coding-standards/rule-catalog.json"),
+    ]:
+        if candidate.exists():
+            import json
+
+            return json.loads(candidate.read_text())
+    return None
+
+
+def render_rules(catalog: dict[str, object], tool_filter: str | None = None, fmt: str = "md") -> str:
+    """Render per-tool rule data from rule-catalog.json."""
+    import json
+
+    tools = catalog.get("tools", {})
+    if tool_filter:
+        tools = {k: v for k, v in tools.items() if k == tool_filter}
+        if not tools:
+            return f"Unknown tool: {tool_filter}\n"
+
+    if fmt == "json":
+        return json.dumps(tools, indent=2) + "\n"
+
+    lines = [
+        f"# Rule Catalog ({catalog.get('total_rules', '?')} rules)",
+        "",
+    ]
+    for name, data in tools.items():
+        err = data.get("error")
+        lines.append(f"## {name} — {data['rule_count']} rules (v{data['version']})")
+        if err:
+            lines.append(f"  *Error: {err}*")
+        lines.append("")
+        lines.append("| ID | Severity | Category | Description |")
+        lines.append("|----|----------|----------|-------------|")
+        lines.extend(
+            f"| {r['id']} | {r['severity']} | {r.get('category', '')} | {r['summary'][:80]} |" for r in data["rules"]
+        )
+        lines.append("")
+    return "\n".join(lines) + "\n"
+
+
 def main() -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Show coding-standards catalog")
+    parser.add_argument(
+        "--rules",
+        action="store_true",
+        help="Show per-tool rule details from rule-catalog.json",
+    )
+    parser.add_argument("--tool", help="Filter rules to a specific tool (e.g. hadolint, ruff)")
+    parser.add_argument("--format", choices=["md", "json"], default="md", help="Output format")
+    args = parser.parse_args()
+
     # Inside Docker: configs at /opt/coding-standards/
     # Local: repo root
     root = Path("/opt/coding-standards")
     if not (root / "configs").exists():
         root = Path(__file__).resolve().parent.parent
 
-    print(generate(root))
+    if args.rules:
+        catalog = _load_rule_catalog(root)
+        if not catalog:
+            print(
+                "rule-catalog.json not found. Run generate_rule_catalog.py first.",
+                file=__import__("sys").stderr,
+            )
+            raise SystemExit(1)
+        print(render_rules(catalog, tool_filter=args.tool, fmt=args.format))
+    else:
+        print(generate(root))
 
 
 if __name__ == "__main__":

@@ -13,6 +13,7 @@ cs-fix:                     {{ cs-run }} {{ cs-image }} fix
 cs-standards:               {{ cs-run }} {{ cs-image }} standards
 cs-show-config:             {{ cs-run }} {{ cs-image }} show-config
 cs-catalog:                 @docker run --rm {{ cs-image }} catalog
+cs-catalog-rules *ARGS:     @docker run --rm {{ cs-image }} catalog --rules {{ ARGS }}
 cs-warnings:                {{ cs-run }} {{ cs-image }} warnings
 cs-blast-radius *ARGS:      {{ cs-run }} {{ cs-image }} blast-radius {{ ARGS }}
 cs-recommend:               {{ cs-run }} {{ cs-image }} recommend
