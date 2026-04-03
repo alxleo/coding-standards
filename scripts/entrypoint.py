@@ -66,6 +66,18 @@ def _setup() -> None:
         baked = yaml.safe_load(BAKED_CONFIG.read_text())
         overrides = yaml.safe_load(content) if content.strip() else {}
         if overrides:
+            # Resolve _CONFIG_FILE overrides to workspace-absolute paths.
+            # MegaLinter resolves relative config paths against the baked
+            # configs dir, not the workspace. Consumer overrides need to
+            # point to the workspace copy so MegaLinter finds them.
+            for key, value in overrides.items():
+                if (
+                    key.endswith("_CONFIG_FILE")
+                    and isinstance(value, str)
+                    and not Path(value).is_absolute()
+                    and (workspace / value).exists()
+                ):
+                    overrides[key] = str(workspace / value)
             baked.update(overrides)
         with tempfile.NamedTemporaryFile(suffix=".yml", prefix="mega-linter-merged-", delete=False, mode="w") as f:
             yaml.dump(baked, f, default_flow_style=False)
