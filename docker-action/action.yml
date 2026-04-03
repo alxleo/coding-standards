@@ -7,7 +7,7 @@
 #   - uses: alxleo/coding-standards/docker-action@main
 #     with:
 #       apply-fixes: 'all'
-#       pass-env: 'GITHUB_TOKEN'
+#       env-file: .secrets.env
 name: coding-standards-lint
 description: Run centralized MegaLinter linting via Docker container
 
@@ -20,8 +20,8 @@ inputs:
     description: "Docker image to use"
     required: false
     default: "ghcr.io/alxleo/coding-standards:latest"
-  pass-env:
-    description: "Space-separated env var names to forward to the container (e.g. GITHUB_TOKEN for zizmor)"
+  env-file:
+    description: "Path to env file to forward to the container (e.g. SOPS-decrypted secrets)"
     required: false
     default: ""
 
@@ -33,17 +33,13 @@ runs:
         CS_IMAGE: ${{ inputs.image }}
         CS_APPLY_FIXES: ${{ inputs.apply-fixes }}
         CS_WORKSPACE: ${{ github.workspace }}
-        CS_PASS_ENV: ${{ inputs.pass-env }}
+        CS_ENV_FILE: ${{ inputs.env-file }}
       run: |
-        env_flags=""
-        for var in ${CS_PASS_ENV}; do
-          [ -n "${!var}" ] && env_flags="$env_flags --env $var"
-        done
         docker run --rm \
           -v "${CS_WORKSPACE}:/tmp/lint" \
           -e DEFAULT_WORKSPACE=/tmp/lint \
           -e APPLY_FIXES="${CS_APPLY_FIXES}" \
           -e WORKSPACE_UID="$(id -u)" \
           -e WORKSPACE_GID="$(id -g)" \
-          $env_flags \
+          ${CS_ENV_FILE:+--env-file "${CS_ENV_FILE}"} \
           "${CS_IMAGE}"
