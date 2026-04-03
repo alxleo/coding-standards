@@ -11,5 +11,12 @@ failure-threshold: warning
 
 strict-labels: true
 
+# Promote useful rules that default below warning threshold.
+override:
+  warning:
+    - DL3057 # HEALTHCHECK missing — complements compose policies for standalone Dockerfiles
+    - DL3047 # wget without --progress — bloats build logs
+    - DL3045 # COPY to relative path without WORKDIR — common LLM mistake
+
 ignored:
   - DL3059 # Multiple consecutive RUN — intentional for layer caching
