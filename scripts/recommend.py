@@ -12,10 +12,79 @@ Usage:
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
+import yaml
+
 WORKSPACE = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("/tmp/lint")
+
+# Resolve the coding-standards repo root for reading baked source files.
+# In Docker: /opt/coding-standards. In dev: the repo root (parent of scripts/).
+_SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = _SCRIPT_DIR.parent
+
+
+def _discover_semgrep_rules() -> list[dict[str, str]]:
+    """Extract rule IDs and messages from semgrep-rules/*.yml."""
+    rules_dir = REPO_ROOT / "semgrep-rules"
+    if not rules_dir.is_dir():
+        return []
+
+    results: list[dict[str, str]] = []
+    for yml_path in sorted(rules_dir.glob("*.yml")):
+        try:
+            data = yaml.safe_load(yml_path.read_text())
+        except (yaml.YAMLError, OSError):
+            continue
+        if not isinstance(data, dict):
+            continue
+        for rule in data.get("rules", []):
+            rule_id = rule.get("id", "")
+            message = rule.get("message", "").strip()
+            # Collapse multiline YAML messages into a single line
+            message = re.sub(r"\s+", " ", message)
+            if rule_id:
+                results.append({"id": rule_id, "message": message, "file": yml_path.name})
+    return results
+
+
+def _discover_conftest_policies() -> list[dict[str, str | list[str]]]:
+    """Extract package names and rule types from policies/{compose,repo-standards}/*.rego."""
+    results: list[dict[str, str | list[str]]] = []
+    for policy_subdir in ("compose", "repo-standards", "image-integrity"):
+        policy_dir = REPO_ROOT / "policies" / policy_subdir
+        if not policy_dir.is_dir():
+            continue
+        for rego_path in sorted(policy_dir.glob("*.rego")):
+            # Skip test files and helper-only files
+            if rego_path.name.endswith("_test.rego"):
+                continue
+
+            try:
+                content = rego_path.read_text()
+            except OSError:
+                continue
+
+            # Extract package name
+            pkg_match = re.search(r"^package\s+(\S+)", content, re.MULTILINE)
+            if not pkg_match:
+                continue
+            package = pkg_match.group(1)
+
+            # Detect rule types present in the file
+            rule_types = [t for t in ("deny", "warn") if re.search(rf"^{t}\s+contains", content, re.MULTILINE)]
+
+            if rule_types:
+                results.append(
+                    {
+                        "package": package,
+                        "types": rule_types,
+                        "file": rego_path.name,
+                    }
+                )
+    return results
 
 
 def has_files(patterns: list[str]) -> list[str]:
@@ -226,11 +295,19 @@ if file_exists("repo-manifest.json") and not file_exists(".repo-standards.yml"):
     )
 
 
+# ── Baked checks discovery ───────────────────────────────────
+
+baked_checks = {
+    "semgrep_rules": _discover_semgrep_rules(),
+    "conftest_policies": _discover_conftest_policies(),
+}
+
 # ── Output ────────────────────────────────────────────────────
 
 output = {
     "status": "recommendations_available" if recommendations else "fully_configured",
     "count": len(recommendations),
     "recommendations": recommendations,
+    "baked_checks": baked_checks,
 }
 print(json.dumps(output, indent=2))

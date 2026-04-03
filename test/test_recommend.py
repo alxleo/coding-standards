@@ -78,3 +78,72 @@ class TestRecommendDetection:
             assert "reason" in rec
             assert "value" in rec
             assert "setup" in rec
+
+
+class TestBakedChecks:
+    """Tests for the baked_checks section derived from source files."""
+
+    def test_baked_checks_present_in_output(self, tmp_path: Path) -> None:
+        output = _run_recommend(tmp_path)
+        assert "baked_checks" in output
+        assert "semgrep_rules" in output["baked_checks"]
+        assert "conftest_policies" in output["baked_checks"]
+
+    def test_semgrep_rules_not_empty(self, tmp_path: Path) -> None:
+        output = _run_recommend(tmp_path)
+        rules = output["baked_checks"]["semgrep_rules"]
+        assert len(rules) > 0, "Should discover semgrep rules from source files"
+
+    def test_semgrep_rule_has_required_fields(self, tmp_path: Path) -> None:
+        output = _run_recommend(tmp_path)
+        for rule in output["baked_checks"]["semgrep_rules"]:
+            assert "id" in rule
+            assert "message" in rule
+            assert "file" in rule
+            assert rule["id"].startswith("coding-standards.")
+
+    def test_semgrep_rules_from_known_file(self, tmp_path: Path) -> None:
+        """The complexity.yml file should produce at least one rule."""
+        output = _run_recommend(tmp_path)
+        files = {r["file"] for r in output["baked_checks"]["semgrep_rules"]}
+        assert "complexity.yml" in files
+
+    def test_conftest_policies_not_empty(self, tmp_path: Path) -> None:
+        output = _run_recommend(tmp_path)
+        policies = output["baked_checks"]["conftest_policies"]
+        assert len(policies) > 0, "Should discover conftest policies from source files"
+
+    def test_conftest_policy_has_required_fields(self, tmp_path: Path) -> None:
+        output = _run_recommend(tmp_path)
+        for policy in output["baked_checks"]["conftest_policies"]:
+            assert "package" in policy
+            assert "types" in policy
+            assert "file" in policy
+            assert isinstance(policy["types"], list)
+            assert all(t in ("deny", "warn") for t in policy["types"])
+
+    def test_conftest_excludes_test_files(self, tmp_path: Path) -> None:
+        output = _run_recommend(tmp_path)
+        files = {p["file"] for p in output["baked_checks"]["conftest_policies"]}
+        test_files = {f for f in files if f.endswith("_test.rego")}
+        assert not test_files, f"Test files should be excluded: {test_files}"
+
+    def test_conftest_excludes_helper_only_files(self, tmp_path: Path) -> None:
+        """helpers.rego has no deny/warn rules, should not appear."""
+        output = _run_recommend(tmp_path)
+        files = {p["file"] for p in output["baked_checks"]["conftest_policies"]}
+        assert "helpers.rego" not in files
+
+    def test_conftest_includes_compose_and_repo_standards(self, tmp_path: Path) -> None:
+        output = _run_recommend(tmp_path)
+        packages = {p["package"] for p in output["baked_checks"]["conftest_policies"]}
+        assert any(p.startswith("compose.") for p in packages)
+        assert any(p.startswith("repo_standards.") for p in packages)
+
+    def test_healthcheck_policy_has_deny_and_warn(self, tmp_path: Path) -> None:
+        """healthcheck.rego has both deny and warn rules."""
+        output = _run_recommend(tmp_path)
+        healthcheck = [p for p in output["baked_checks"]["conftest_policies"] if p["package"] == "compose.healthcheck"]
+        assert len(healthcheck) == 1
+        assert "deny" in healthcheck[0]["types"]
+        assert "warn" in healthcheck[0]["types"]

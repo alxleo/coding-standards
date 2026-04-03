@@ -137,7 +137,7 @@ repos:
         name: Run tests
         entry: python -m pytest test/ -q --tb=short
         language: python
-        additional_dependencies: [pytest, pydantic, pyyaml, pytest-randomly, networkx, scipy]
+        additional_dependencies: [pytest, pydantic, pyyaml, pytest-randomly, networkx, scipy, typer]
         pass_filenames: false
         always_run: true
 

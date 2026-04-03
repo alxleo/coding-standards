@@ -6,6 +6,7 @@ dependencies = [
     "networkx>=3.0",
     "pydantic>=2.0",
     "pyyaml>=6.0",
+    "typer>=0.12",
 ]
 
 [project.optional-dependencies]
@@ -22,8 +23,7 @@ pythonpath = ["."]
 known_first_party = ["manifest_schema", "blast_radius"]
 # pyyaml installs as 'yaml', pytest-randomly activates via entry point
 package_module_name_map = {pyyaml = "yaml"}
-# typer: only used inside Docker (entrypoint.py), not a local dev dependency
-per_rule_ignores = {DEP002 = ["pytest-randomly"], DEP003 = ["typer"]}
+per_rule_ignores = {DEP002 = ["pytest-randomly"]}
 
 [tool.importlinter]
 root_packages = ["scripts"]
