@@ -164,5 +164,3 @@ rules:
     metadata:
       category: security
       technology: [pip, python]
-      references:
-        - "https://en.wikipedia.org/wiki/Dependency_confusion"

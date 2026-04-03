@@ -10,12 +10,8 @@ Covers the extractors that caused build failures:
 from __future__ import annotations
 
 import importlib.util
-import json
 import sys
 from pathlib import Path
-from unittest.mock import patch
-
-import pytest
 
 # Import via spec loader (script lives in scripts/, not a package)
 _script = Path(__file__).resolve().parent.parent / "scripts" / "generate_rule_catalog.py"
