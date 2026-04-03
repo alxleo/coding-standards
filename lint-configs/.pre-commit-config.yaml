@@ -63,14 +63,16 @@ repos:
         stages: [commit-msg]
         args: [--config, lint-configs/commitlint.config.mjs]
 
-  # ── Python linting + formatting ────────────────────────────
+  # ── Python formatting + linting ────────────────────────────
+  # Format BEFORE lint: format auto-fixes, then lint runs on clean code.
+  # Wrong order (lint → format) causes double-run cycles in pre-commit.
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.8
     hooks:
-      - id: ruff
-        args: [--fix, --config, lint-configs/ruff.toml]
       - id: ruff-format
         args: [--config, lint-configs/ruff.toml]
+      - id: ruff
+        args: [--fix, --config, lint-configs/ruff.toml]
 
   # ── Cruft & secrets blocking ─────────────────────────────────
   - repo: local
