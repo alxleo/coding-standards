@@ -35,6 +35,28 @@ just cs-lint
 
 See `just cs-help migrate` for the fast path to green CI.
 
+## 5. Optional: scheduled checks
+
+CI runs fully offline for speed. Network-dependent checks (zizmor pin verification, trivy CVE scanning) belong in a weekly scheduled workflow:
+
+```yaml
+# .github/workflows/scheduled.yml
+name: Scheduled
+on:
+  schedule:
+    - cron: "3 3 * * 1"  # Monday 03:03 UTC
+  workflow_dispatch:
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Zizmor pin verification
+        run: pipx run zizmor .
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
 ## No .mega-linter.yml needed
 
 The image works zero-config. Only create `.mega-linter.yml` if you need to customize (disable linters, override configs). See `just cs-help override`.
