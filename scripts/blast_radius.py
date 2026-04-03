@@ -9,10 +9,14 @@ Answers "how hard is it to make a correct change?" with four signals:
 4. Criticality: CIRank (PageRank weighted by co-change frequency)
 
 Usage:
-  python3 scripts/blast_radius.py                        # full report
-  python3 scripts/blast_radius.py --pr FILE [FILE ...]   # PR review mode
-  python3 scripts/blast_radius.py --top 10               # top 10 blast radius
-  python3 scripts/blast_radius.py --coupling             # temporal coupling
+  python3 scripts/blast_radius.py                      # full report (all signals)
+  python3 scripts/blast_radius.py pr FILE [FILE ...]   # PR review mode
+  python3 scripts/blast_radius.py megalinter           # MegaLinter plugin (git diff)
+  python3 scripts/blast_radius.py coupling             # temporal coupling only
+  python3 scripts/blast_radius.py entropy              # naming entropy only
+  python3 scripts/blast_radius.py rank                 # CIRank criticality only
+  python3 scripts/blast_radius.py file ruff.toml       # deep dive on one file
+  python3 scripts/blast_radius.py json                 # all signals as JSON
   python3 scripts/blast_radius.py --entropy              # naming entropy
   python3 scripts/blast_radius.py --rank                 # criticality ranking
   python3 scripts/blast_radius.py --file ruff.toml       # single file deep dive

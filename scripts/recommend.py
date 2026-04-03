@@ -53,7 +53,7 @@ def _discover_semgrep_rules() -> list[dict[str, str]]:
 def _discover_conftest_policies() -> list[dict[str, str | list[str]]]:
     """Extract package names and rule types from policies/{compose,repo-standards}/*.rego."""
     results: list[dict[str, str | list[str]]] = []
-    for policy_subdir in ("compose", "repo-standards"):
+    for policy_subdir in ("compose", "repo-standards", "image-integrity"):
         policy_dir = REPO_ROOT / "policies" / policy_subdir
         if not policy_dir.is_dir():
             continue
