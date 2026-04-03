@@ -48,13 +48,13 @@ CI runs offline by default — no token needed. This section is for consumers wh
 
 **Cause**: MegaLinter silently replaces env var values with `HIDDEN_BY_MEGALINTER` before passing to linters. Your token exists in the container but zizmor never sees it.
 
-**Diagnose**: run zizmor directly to confirm:
+**Diagnose**: check if MegaLinter replaced the token:
 ```bash
 docker run --rm -v .:/tmp/lint -e GITHUB_TOKEN=$GITHUB_TOKEN \
   ghcr.io/alxleo/coding-standards:latest \
-  bash -c 'echo "Token: ${GITHUB_TOKEN:0:10}..."'
+  bash -c 'case "$GITHUB_TOKEN" in HIDDEN_BY*) echo "HIDDEN";; "") echo "EMPTY";; *) echo "PRESENT";; esac'
 ```
-If it prints `Token: HIDDEN_BY_...` — MegaLinter is hiding it.
+If it prints `HIDDEN` — MegaLinter is stripping the value.
 
 **Fix**: add to your `.mega-linter.yml`:
 ```yaml

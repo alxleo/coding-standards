@@ -246,7 +246,7 @@ def main() -> None:
         catalog = _load_rule_catalog(root)
         if not catalog:
             print(
-                "rule-catalog.json not found. Run generate_rule_catalog.py first.",
+                "Failed to load rule-catalog.json. Run generate_rule_catalog.py first.",
                 file=__import__("sys").stderr,
             )
             raise SystemExit(1)

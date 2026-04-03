@@ -66,12 +66,14 @@ def _setup() -> None:
     # Tools like zizmor use git-upload-pack (git protocol) to verify action
     # pins, which doesn't use GITHUB_TOKEN env var. Configure git to use
     # the token for all github.com HTTPS operations.
-    gh_token = os.environ.get("GITHUB_TOKEN", "")
+    gh_token = os.environ.get("GITHUB_TOKEN", "").strip()
     if gh_token:
         # Store credentials via git credential store so git-upload-pack
         # (used by zizmor for action pin verification) authenticates.
         cred_path = Path("/tmp/.git-credentials")
-        cred_path.write_text(f"https://x-access-token:{gh_token}@github.com\n")
+        fd = os.open(cred_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
+            f.write(f"https://x-access-token:{gh_token}@github.com\n")
         subprocess.run(
             ["git", "config", "--global", "credential.helper", f"store --file={cred_path}"],
             check=False,
