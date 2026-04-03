@@ -9,6 +9,7 @@ Usage:
     python3 scripts/extract_linter_timings.py [--report-dir DIR] [--format json|table]
 """
 
+import argparse
 import json
 import re
 import sys
@@ -91,8 +92,6 @@ def format_table(timings: list[dict]) -> str:
 
 
 def main() -> None:
-    import argparse
-
     parser = argparse.ArgumentParser(description="Extract MegaLinter timing data")
     parser.add_argument(
         "--report-dir",

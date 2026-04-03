@@ -10,6 +10,7 @@ Red-team tests targeting algorithmic flaws in:
 from __future__ import annotations
 
 import subprocess
+import tempfile
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
@@ -116,8 +117,6 @@ class TestJaccardZeroDivision:
         # We can't easily make git produce 0-change files in co_changes,
         # but we can verify the guard by calling _parse_git_commits on an
         # empty repo and ensuring no division error.
-        import tempfile
-
         with tempfile.TemporaryDirectory() as td:
             path = Path(td)
             _git_init(path)
@@ -136,8 +135,6 @@ class TestJaccardZeroDivision:
 
     def test_single_file_no_coupling(self) -> None:
         """A repo with only one file can never produce coupling pairs."""
-        import tempfile
-
         with tempfile.TemporaryDirectory() as td:
             path = Path(td)
             _git_init(path)
@@ -408,7 +405,7 @@ class TestPersonalizedPageRank:
 
     def test_personalized_differs_from_static(self, graph_repo: Path) -> None:
         """Personalized PageRank should produce different rankings than static."""
-        import networkx as nx
+        import networkx as nx  # noqa: PLC0415
 
         g, all_rel = br._build_dependency_graph(graph_repo, max_changeset=50)
 

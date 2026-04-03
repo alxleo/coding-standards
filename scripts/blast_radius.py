@@ -309,7 +309,7 @@ def _extract_python_imports(root: Path) -> list[tuple[str, str]]:  # noqa: C901,
     More precise than grep for .py files — resolves import statements
     to actual file paths.
     """
-    import ast as ast_mod
+    import ast as ast_mod  # noqa: PLC0415
 
     py_files = [f for f in _collect_files(root) if f.suffix == ".py" and not _is_excluded(f.relative_to(root))]
 

@@ -146,24 +146,27 @@ def fix() -> None:
 def standards() -> None:
     """Run repo-standards checks only."""
     workspace = _workspace()
-    os.chdir(workspace)
-    subprocess.run(
-        ["python3", str(SCRIPTS / "generate_repo_manifest.py")],
-        check=True,
-    )
-    subprocess.run(
-        [
-            "conftest",
-            "test",
-            "repo-manifest.json",
-            "--all-namespaces",
-            "--no-color",
-            "-p",
-            "/opt/coding-standards/policies/repo-standards/",
-        ],
-        check=True,
-    )
-    Path("repo-manifest.json").unlink(missing_ok=True)
+    with tempfile.NamedTemporaryFile(suffix=".json", prefix="repo-manifest-", delete=False) as f:
+        manifest = Path(f.name)
+    try:
+        subprocess.run(
+            ["python3", str(SCRIPTS / "generate_repo_manifest.py"), str(workspace), str(manifest)],
+            check=True,
+        )
+        subprocess.run(
+            [
+                "conftest",
+                "test",
+                str(manifest),
+                "--all-namespaces",
+                "--no-color",
+                "-p",
+                "/opt/coding-standards/policies/repo-standards/",
+            ],
+            check=True,
+        )
+    finally:
+        manifest.unlink(missing_ok=True)
 
 
 @app.command()

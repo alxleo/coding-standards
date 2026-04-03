@@ -24,7 +24,7 @@ def workspace(tmp_path):
 
 def _write_consumer_config(workspace: Path, overrides: dict) -> None:
     """Write a consumer .mega-linter.yml with EXTENDS + overrides."""
-    from scripts.entrypoint import EXTENDS_URL
+    from scripts.entrypoint import EXTENDS_URL  # noqa: PLC0415
 
     content = {"EXTENDS": [EXTENDS_URL]}
     content.update(overrides)
@@ -32,7 +32,7 @@ def _write_consumer_config(workspace: Path, overrides: dict) -> None:
 
 
 def _run_setup():
-    from scripts.entrypoint import _setup
+    from scripts.entrypoint import _setup  # noqa: PLC0415
 
     _setup()
 

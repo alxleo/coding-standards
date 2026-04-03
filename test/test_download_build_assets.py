@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -41,7 +42,5 @@ class TestDownload:
             result = download("test", "https://example.com/rules", dest, normalize="json")
             assert "rules" in result
             # Verify the output is valid JSON
-            import json
-
             data = json.loads(dest.read_text())
             assert "rules" in data

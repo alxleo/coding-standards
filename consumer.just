@@ -10,6 +10,7 @@ cs-run := "docker run --rm -v " + justfile_directory() + ":/tmp/lint -e DEFAULT_
 cs-lint *ARGS:              {{ cs-run }} {{ cs-image }} {{ ARGS }}
 cs-lint-one LINTER:         {{ cs-run }} {{ cs-image }} lint {{ LINTER }}
 cs-fix:                     {{ cs-run }} {{ cs-image }} fix
+cs-fix-and-stage:           {{ cs-run }} {{ cs-image }} fix && git add -u
 cs-standards:               {{ cs-run }} {{ cs-image }} standards
 cs-show-config:             {{ cs-run }} {{ cs-image }} show-config
 cs-catalog:                 @docker run --rm {{ cs-image }} catalog

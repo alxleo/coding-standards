@@ -8,6 +8,7 @@ output on controlled input — no dependency on the hypothesis.
 from __future__ import annotations
 
 import subprocess
+from collections import Counter
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
@@ -229,15 +230,11 @@ class TestNamingEntropy:
 
     def test_entropy_zero_for_uniform(self) -> None:
         """All same convention → entropy 0."""
-        from collections import Counter
-
         counts = Counter({"snake_case": 10})
         assert br._shannon_entropy(counts) == 0.0
 
     def test_entropy_one_for_two_equal(self) -> None:
         """Two conventions 50/50 → entropy 1.0."""
-        from collections import Counter
-
         counts = Counter({"snake_case": 5, "kebab-case": 5})
         assert br._shannon_entropy(counts) == pytest.approx(1.0)
 
