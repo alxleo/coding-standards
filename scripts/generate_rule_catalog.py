@@ -107,7 +107,9 @@ def extract_ruff() -> ToolCatalog:
     raw = json.loads(result.stdout)
     rules = []
     for r in raw:
-        status = r.get("status", "stable").lower()
+        raw_status = r.get("status", "stable")
+        # ruff versions differ: string ("stable") or dict ({"Stable": {}})
+        status = (raw_status if isinstance(raw_status, str) else next(iter(raw_status), "stable")).lower()
         if status in ("removed", "deprecated"):
             continue
         rules.append(
