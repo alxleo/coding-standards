@@ -1,11 +1,15 @@
 rules:
   - id: coding-standards.no-bare-python
     message: >
-      Use 'uv run python3' instead of bare 'python3' to ensure
-      consistent virtual environment and dependency management.
+      Use 'uv run python3' (or 'uv run script.py') instead of bare 'python3'
+      to ensure consistent virtual environment and dependency management.
     languages: [generic]
     severity: WARNING
-    pattern-regex: '(?:^|[\s;|&])(?:python3?)\s+[^-]'
+    # Line-anchored: skip whole-line comments (prose like "the user python"
+    # used to fire), and allow the sanctioned 'uv run python3' prefix — the
+    # rule previously flagged the exact form its own message recommends
+    # (alxleo/homelab#440 CI, 2026-07-02).
+    pattern-regex: '(?m)^(?!\s*#).*?(?:^|[\s;|&(`])(?<!uv run )python3?\s+[^-\s]'
     paths:
       include:
         - "*.sh"
@@ -19,7 +23,10 @@ rules:
       Unpinned npx pulls latest, which breaks reproducibility.
     languages: [generic]
     severity: WARNING
-    pattern-regex: '^\s*npx\s+(?:--yes\s+)?[a-z][a-z0-9-]+(?!\s*@|\s+--)'
+    # Token-end anchor (?![a-z0-9-]) prevents backtracking from shrinking the
+    # package name until the @-lookahead passes — the rule used to flag the
+    # PINNED form 'npx jscpd@4.0.8' it recommends.
+    pattern-regex: '^\s*npx\s+(?:--yes\s+)?[a-z][a-z0-9-]+(?![a-z0-9-])(?!\s*@|\s+--)'
     paths:
       include:
         - "*.sh"
