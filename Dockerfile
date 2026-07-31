@@ -48,7 +48,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 # ── npm tools (single layer, cache mount) ────────────────────
 # Independently pinned JavaScript linters and config plugins.
-# TypeScript stays on 6.0.2 until typescript-eslint supports TypeScript 7.
+# TypeScript 7 supplies the native tsc; TypeScript 6 supplies the API consumed
+# by typescript-eslint until TypeScript 7.1 publishes its replacement API.
 # hadolint ignore=DL3059
 RUN --mount=type=cache,target=/root/.npm \
   npm install -g \
@@ -63,7 +64,8 @@ RUN --mount=type=cache,target=/root/.npm \
   @commitlint/config-conventional@21.2.0 \
   dclint@3.1.0 \
   pyright@1.1.411 \
-  typescript@6.0.2 \
+  @typescript/native@npm:typescript@7.0.2 \
+  typescript@npm:@typescript/typescript6@6.0.2 \
   typescript-eslint@8.65.0 \
   knip@6.31.0 \
   dependency-cruiser@18.1.0 \

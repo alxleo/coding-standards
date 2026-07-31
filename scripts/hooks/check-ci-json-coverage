@@ -16,10 +16,12 @@ SKIP = re.compile(r"eslint-plugin-|@commitlint/config-|typescript$|networkx|pyda
 
 # Package name → CLI binary name (when they differ)
 ALIASES = {
+    "@typescript/native@npm:typescript": "tsc",
     "dependency-cruiser": "depcruise",
     "import-linter": "lint-imports",
     "@commitlint/cli": "commitlint",
     "@stoplight/spectral-cli": "spectral",
+    "typescript@npm:@typescript/typescript6": "tsc6",
 }
 
 root = Path(__file__).resolve().parent.parent.parent

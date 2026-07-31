@@ -6,6 +6,7 @@ This refresh moves the image from MegaLinter v9.4 to v9.6 and updates the bundle
 
 - MegaLinter v9.6.0 on Python 3.14 and Alpine 3.24.
 - ESLint v10 with flat configuration, `@eslint/js`, `typescript-eslint`, `@eslint-react/eslint-plugin`, and `eslint-plugin-import-x`. The baked configuration now resolves its globally installed plugins from its own directory.
+- TypeScript 7.0.2 supplies the production `tsc` CLI, while the official `@typescript/typescript6` compatibility package supplies `tsc6` and the programmatic API still required by typescript-eslint. This follows the TypeScript team's documented 7.0 side-by-side migration path.
 - Betterleaks v1.7.3 as the default secrets scanner. It preserves `.gitleaks.toml` and `.gitleaksignore` compatibility; the Gitleaks binary remains installed for consumers that invoke it directly.
 - Trivy v0.72.0 with checksum verification. The previous Renovate ceiling for the compromised v0.69.4-v0.69.6 releases is no longer needed now that upstream has shipped post-incident releases and MegaLinter has re-enabled the scanner.
 - Current stable compatible releases of Ruff, Semgrep, ansible-lint, sqlfluff, zizmor, Hadolint, tflint, kubeconform, lychee, golangci-lint, shfmt, PMD, Caddy, conftest, Prettier, stylelint, and the other explicitly pinned packages in the Dockerfile.
@@ -21,7 +22,6 @@ This refresh moves the image from MegaLinter v9.4 to v9.6 and updates the bundle
 
 ## Deliberate holds
 
-- TypeScript stays at 6.0.2. TypeScript 7.0.2 is current, but `typescript-eslint` 8.65.0 declares support below TypeScript 6.1; crossing that peer boundary would make the lint image internally unsupported.
 - Semgrep stays at 1.170.0. Semgrep 1.171 and newer require Click 8.4, while current SQLFluff 4.2 requires Click below 8.4; 1.170.0 is the newest Semgrep release that resolves with the current SQLFluff release.
 - Ruff preview remains disabled. Enabling a changing preview rule set is a policy decision and should be introduced with repository-specific finding counts and suppression guidance.
 - MegaLinter's optional non-root execution is not enabled in this slice. Changing the container user affects bind-mount ownership and needs a dedicated consumer compatibility test.
@@ -29,11 +29,10 @@ This refresh moves the image from MegaLinter v9.4 to v9.6 and updates the bundle
 
 ## Acceptance and follow-ups
 
-The acceptance oracle is the repository's GitHub image workflow: build the exact branch image for amd64 and arm64, run every `.ci.json` command inside it, and run the image against this repository. Local Docker cannot currently provide that oracle because its snapshot store is corrupt.
+The acceptance oracle is the repository's GitHub image workflow: build the exact branch image for amd64, run every `.ci.json` command inside it, and run the image against this repository. The main-branch publish subsequently builds amd64 and arm64. Local Docker cannot currently provide the branch oracle because its snapshot store is corrupt.
 
 Executable follow-ups, intentionally outside this bounded update:
 
 1. Sample the new Ruff preview rules against the main homelab consumers, record finding counts, and enable only rules with actionable signal.
 2. Run the image as MegaLinter's non-root user against bind mounts created by Linux and macOS Docker, then document or reject the ownership change.
 3. Compare OSV-Scanner and Trivy on the same locked dependency fixtures before deciding whether OSV adds useful coverage.
-4. Upgrade TypeScript only when the selected `typescript-eslint` release declares support for TypeScript 7 and the representative TS/TSX fixture passes.
