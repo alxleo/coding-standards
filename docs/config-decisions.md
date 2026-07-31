@@ -186,8 +186,8 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 
 - Repo manifest: change-impact metrics moved to the explicit `measure` / `blast-radius`
   path. They are advisory and their filename-by-source scan dominated homelab's
-  blocking lint time before any linter started. Transitional manifest keys remain
-  `null` for schema compatibility. Manifest checks share one Git-aware workspace
+  blocking lint time before any linter started. Deprecated manifest keys remain
+  numeric zero sentinels for schema compatibility. Manifest checks share one Git-aware workspace
   inventory instead of repeatedly walking excluded and generated directories.
 - Semgrep: cached rulesets as JSON at build time (23.5s → 18.5s). Eliminates network fetch + YAML parsing (json.loads is 381x faster than ruamel.yaml). Rules refresh on image rebuild.
 - v8r ignore patterns: 28.5s → 5.7s (was validating files in node_modules/megalinter-reports)

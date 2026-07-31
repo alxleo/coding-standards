@@ -56,8 +56,8 @@ class ManifestContent(BaseModel):
     pre_commit_hooks: list[str]
     # Deprecated compatibility fields. Change-impact analysis moved out of
     # blocking manifest generation; explicit measurement commands own it.
-    max_blast_radius: int | None = None
-    max_naming_entropy: float | None = None
+    max_blast_radius: int = 0
+    max_naming_entropy: float = 0.0
 
 
 class ManifestDependencies(BaseModel):

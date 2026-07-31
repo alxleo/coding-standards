@@ -650,8 +650,8 @@ def generate(root: Path) -> dict[str, Any]:
             # Change-impact analysis is intentionally not part of manifest
             # generation: it is advisory, expensive, and available through the
             # explicit `blast-radius` / `measure` commands.
-            "max_blast_radius": None,
-            "max_naming_entropy": None,
+            "max_blast_radius": 0,
+            "max_naming_entropy": 0.0,
         },
         "dependencies": {
             "pytest_randomly": check_pyproject_dep(root, "pytest-randomly"),

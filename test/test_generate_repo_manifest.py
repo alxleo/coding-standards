@@ -84,8 +84,8 @@ def test_js_repo_detects_files(js_repo: Path) -> None:
 
 def test_change_impact_is_not_computed_during_manifest_generation(python_repo: Path) -> None:
     manifest = generate(python_repo)
-    assert manifest["content"]["max_blast_radius"] is None
-    assert manifest["content"]["max_naming_entropy"] is None
+    assert manifest["content"]["max_blast_radius"] == 0
+    assert manifest["content"]["max_naming_entropy"] == 0.0
 
 
 def test_inventory_prunes_excluded_directories(tmp_path: Path) -> None:
