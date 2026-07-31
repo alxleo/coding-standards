@@ -149,8 +149,10 @@ repos:
   - repo: local
     hooks:
       - id: semgrep-validate
-        name: Validate semgrep rules
-        entry: uvx semgrep scan --config semgrep-rules/ --validate
+        name: Validate and test semgrep rules
+        entry: >-
+          bash -c 'uvx semgrep scan --config semgrep-rules/ --validate &&
+          uvx semgrep --test --config semgrep-rules/ semgrep-rules/'
         language: system
         pass_filenames: false
         files: "semgrep-rules/"
