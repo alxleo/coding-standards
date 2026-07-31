@@ -67,7 +67,7 @@ DISABLE_LINTERS:
 # MegaLinter passes it via the appropriate mechanism (CLI flag or native discovery).
 ANSIBLE_ANSIBLE_LINT_CONFIG_FILE: .ansible-lint
 PYTHON_RUFF_CONFIG_FILE: ruff.toml
-REPOSITORY_GITLEAKS_CONFIG_FILE: .gitleaks.toml
+REPOSITORY_BETTERLEAKS_CONFIG_FILE: .gitleaks.toml
 ```
 
 ### Suppress specific semgrep rules

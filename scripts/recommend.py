@@ -145,11 +145,11 @@ if has_files(["*.py"]) and not file_exists("pyrightconfig.json"):
         }
     )
 
-# Gitleaks config
+# Betterleaks accepts existing Gitleaks configuration and ignore files.
 if not file_exists(".gitleaks.toml") and not file_exists(".gitleaksignore"):
     recommendations.append(
         {
-            "tool": "gitleaks",
+            "tool": "betterleaks",
             "reason": "No .gitleaks.toml or .gitleaksignore — using defaults",
             "value": "Custom allowlists prevent false positives on test fixtures and known-safe patterns",
             "setup": [

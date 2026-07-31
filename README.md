@@ -44,7 +44,7 @@ No `.mega-linter.yml` needed — the image auto-detects your stack.
 | `package.json` | npm-audit, license-checker, knip, publint |
 | `pyproject.toml` | deptry, import-linter |
 | `.github/workflows/` | actionlint, zizmor |
-| Any code | semgrep (security), gitleaks (secrets), trivy (vulnerabilities) |
+| Any code | semgrep (security), Betterleaks (Gitleaks-compatible secrets), trivy (vulnerabilities) |
 | Any repo | repo-standards (tells you what's missing) |
 
 ## Add your own rules

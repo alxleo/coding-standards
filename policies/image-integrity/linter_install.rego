@@ -35,6 +35,7 @@ builtin_linter_executables := {
 	"SPELL_CODESPELL": "codespell",
 	"SPELL_LYCHEE": "lychee",
 	"REPOSITORY_GITLEAKS": "gitleaks",
+	"REPOSITORY_BETTERLEAKS": "betterleaks",
 	"REPOSITORY_SEMGREP": "semgrep",
 	"REPOSITORY_GIT_DIFF": "git",
 	"JAVASCRIPT_ES": "eslint",
@@ -52,6 +53,7 @@ builtin_linter_executables := {
 	"GO_GOLANGCI_LINT": "golangci-lint",
 	"HTML_HTMLHINT": "htmlhint",
 	"REPOSITORY_LS_LINT": "ls-lint",
+	"ENV_DOTENV_LINTER": "dotenv-linter",
 }
 
 # Resolve a linter ID to the binary it needs
@@ -96,6 +98,7 @@ binary_is_installed(exe) if {
 # System packages (apk-installed, not in pip/npm/binary lists)
 binary_is_installed("git")
 binary_is_installed("npm")
+binary_is_installed("python3")
 
 # Invariant 1: every ENABLE_LINTERS entry has an executable
 warn contains msg if {
