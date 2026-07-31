@@ -147,15 +147,17 @@ repos:
   - repo: local
     hooks:
       - id: semgrep-validate
-        name: Validate semgrep rules
-        entry: uvx semgrep scan --config semgrep-rules/ --validate
+        name: Validate and test semgrep rules
+        entry: >-
+          bash -c 'uvx semgrep scan --config semgrep-rules/ --validate &&
+          uvx semgrep --test --config semgrep-rules/ semgrep-rules/'
         language: system
         pass_filenames: false
         files: "semgrep-rules/"
 
       - id: semgrep-scan
         name: Semgrep scan (custom rules)
-        entry: uvx semgrep scan --config semgrep-rules/ --error --quiet
+        entry: uvx semgrep scan --config semgrep-rules/ --exclude=semgrep-rules/*.sh --error --quiet
         language: system
         pass_filenames: false
         types_or: [python, javascript, ts, yaml, bash]

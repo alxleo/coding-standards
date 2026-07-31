@@ -5,7 +5,7 @@
 #   just lint     — full MegaLinter suite via Docker image
 #   just verify   — both: check + lint + rego tests
 
-set unstable := true
+set unstable
 
 image := "coding-standards:test"
 docker_args := '-v "$PWD:/tmp/lint" -e DEFAULT_WORKSPACE=/tmp/lint'

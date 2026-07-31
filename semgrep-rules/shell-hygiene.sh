@@ -1,4 +1,3 @@
-#!/bin/bash
 # Semgrep test fixture for shell-hygiene.yml (semgrep --test convention:
 # same basename as the rule file; annotated lines assert must-fire vs must-not).
 

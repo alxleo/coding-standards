@@ -144,6 +144,8 @@ DISABLE_ERRORS_LINTERS:
 # shellcheck: --rcfile points at .mega-linter-config/.shellcheckrc (no root pollution).
 BASH_SHELLCHECK_ARGUMENTS:
   - "--rcfile=.mega-linter-config/.shellcheckrc"
+# Semgrep rule fixtures intentionally contain invalid shell snippets.
+BASH_SHELLCHECK_FILTER_REGEX_EXCLUDE: "semgrep-rules/.*\\.sh"
 # editorconfig-checker: .editorconfig MUST be at project root per EditorConfig spec.
 # The -config flag is for .ecrc (tool config), not .editorconfig. Stays in PRE_COMMANDS root copy.
 # rumdl: custom plugin with cli_config_arg_name: --config. Clean _CONFIG_FILE.

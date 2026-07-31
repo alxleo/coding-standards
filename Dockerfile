@@ -244,9 +244,9 @@ RUN set -eux && \
   chmod +x /usr/local/bin/caddy && \
   rm /tmp/caddy.tar.gz && \
   # ── just (task runner) ──
-  JUST_VERSION="1.48.1" && \
-  JUST_SHA256_amd64="9293e553ce401d1b524bf4e104918f72f268e3f9c6827e0055fe98d84a1b2522" && \
-  JUST_SHA256_arm64="3308721b991cf88cf2b9bbb3b31ac40550ec61a0c9b6fc011564e25e87964030" && \
+  JUST_VERSION="1.57.0" && \
+  JUST_SHA256_amd64="45b548094283cb9739af8f13273b8cddeee869f5b4ef2bb631b1f311cb566155" && \
+  JUST_SHA256_arm64="f225044a81adea6e0b3a8b9370aaf374e6af76c8735ae263ac993df55fd137ec" && \
   JUST_SHA256=$([ "$TARGETARCH" = "arm64" ] && echo "$JUST_SHA256_arm64" || echo "$JUST_SHA256_amd64") && \
   JUST_ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "aarch64" || echo "x86_64") && \
   curl -fsSL "https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-${JUST_ARCH}-unknown-linux-musl.tar.gz" \
