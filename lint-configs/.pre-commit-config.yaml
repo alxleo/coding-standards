@@ -155,7 +155,7 @@ repos:
 
       - id: semgrep-scan
         name: Semgrep scan (custom rules)
-        entry: uvx semgrep scan --config semgrep-rules/ --error --quiet
+        entry: uvx semgrep scan --config semgrep-rules/ --exclude=semgrep-rules/*.sh --error --quiet
         language: system
         pass_filenames: false
         types_or: [python, javascript, ts, yaml, bash]
