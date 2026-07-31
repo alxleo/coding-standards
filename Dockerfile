@@ -204,7 +204,7 @@ RUN set -eux && \
   curl -fsSL "https://github.com/lycheeverse/lychee/releases/download/lychee-v${LYCHEE_VERSION}/lychee-${LYCHEE_ARCH}-unknown-linux-musl.tar.gz" \
     -o /tmp/lychee.tar.gz && \
   echo "${LYCHEE_SHA256}  /tmp/lychee.tar.gz" | sha256sum -c - && \
-  tar -xzf /tmp/lychee.tar.gz -C /usr/local/bin lychee && \
+  tar -xzf /tmp/lychee.tar.gz -C /usr/local/bin --strip-components=1 "lychee-${LYCHEE_ARCH}-unknown-linux-musl/lychee" && \
   rm /tmp/lychee.tar.gz && \
   # ── golangci-lint (new addition) ──
   # renovate: datasource=github-releases depName=golangci/golangci-lint
@@ -295,9 +295,10 @@ RUN set -eux && \
     -o /tmp/conftest.tar.gz && \
   echo "${CONFTEST_SHA256}  /tmp/conftest.tar.gz" | sha256sum -c - && \
   tar -xzf /tmp/conftest.tar.gz -C /usr/local/bin conftest && \
-  rm /tmp/conftest.tar.gz && \
-  # ── Trivy DB pre-cache ──
-  trivy --cache-dir /root/.cache/trivy fs --download-db-only --db-repository ghcr.io/aquasecurity/trivy-db:2 --no-progress 2>/dev/null || true
+  rm /tmp/conftest.tar.gz
+
+# ── Trivy DB pre-cache (best effort; never masks binary install failures) ──
+RUN trivy --cache-dir /root/.cache/trivy fs --download-db-only --db-repository ghcr.io/aquasecurity/trivy-db:2 --no-progress 2>/dev/null || true
 
 # ── Build asset downloads (schemas + semgrep rules) ──────────
 COPY build-assets.yml scripts/download_build_assets.py /tmp/
