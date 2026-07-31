@@ -10,6 +10,7 @@ This refresh moves the image from MegaLinter v9.4 to v9.6 and updates the bundle
 - Trivy v0.72.0 with checksum verification. The previous Renovate ceiling for the compromised v0.69.4-v0.69.6 releases is no longer needed now that upstream has shipped post-incident releases and MegaLinter has re-enabled the scanner.
 - Current stable compatible releases of Ruff, Semgrep, ansible-lint, sqlfluff, zizmor, Hadolint, tflint, kubeconform, lychee, golangci-lint, shfmt, PMD, Caddy, conftest, Prettier, stylelint, and the other explicitly pinned packages in the Dockerfile.
 - Renovate managers for the Dockerfile's PyPI, npm, MegaLinter, and annotated GitHub-release pins, so future drift is proposed automatically rather than rediscovered by hand.
+- Removal of an empty Dockerfile continuation that silently ended the binary-install layer after Lychee. A cached image had masked that golangci-lint, shfmt, dotenv-linter, checkmake, PMD, Caddy, Just, and Conftest were absent from a clean rebuild.
 
 ## New rule surfaces reviewed
 

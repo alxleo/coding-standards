@@ -206,9 +206,6 @@ RUN set -eux && \
   echo "${LYCHEE_SHA256}  /tmp/lychee.tar.gz" | sha256sum -c - && \
   tar -xzf /tmp/lychee.tar.gz -C /usr/local/bin lychee && \
   rm /tmp/lychee.tar.gz && \
-  # dotenv-linter: skipped — glibc-only binary, no musl build available.
-  # Warn-tier .env linter. Re-add if upstream publishes musl builds.
-  #
   # ── golangci-lint (new addition) ──
   # renovate: datasource=github-releases depName=golangci/golangci-lint
   GOLANGCI_VERSION="2.12.2" && \
