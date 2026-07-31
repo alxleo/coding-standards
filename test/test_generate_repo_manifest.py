@@ -110,14 +110,25 @@ def test_git_inventory_includes_untracked_and_respects_ignores(tmp_path: Path) -
     deleted.write_text("x = 1\n")
     (tmp_path / "untracked.py").write_text("x = 1\n")
     (tmp_path / "ignored.py").write_text("x = 1\n")
-    subprocess.run(
-        ["git", "add", ".gitignore", "tracked.py", ".codex/skills/plugin.py", "deleted.py"], cwd=tmp_path, check=True
-    )
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
     deleted.unlink()
 
     manifest = generate(tmp_path)
 
     assert manifest["content"]["python_files"] == 3
+
+
+def test_git_inventory_tolerates_non_utf8_index_path(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
+    blob = subprocess.run(
+        ["git", "hash-object", "-w", "--stdin"], cwd=tmp_path, input=b"x = 1\n", capture_output=True, check=True
+    ).stdout.strip()
+    entry = b"100644 " + blob + b"\tnon-utf8-\xff.py\0"
+    subprocess.run(["git", "update-index", "-z", "--index-info"], cwd=tmp_path, input=entry, check=True)
+
+    manifest = generate(tmp_path)
+
+    assert manifest["content"]["python_files"] == 0
 
 
 def test_acknowledged_string_passes_through(tmp_path: Path) -> None:

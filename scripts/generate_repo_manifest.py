@@ -80,6 +80,7 @@ class WorkspaceInventory:
                 cwd=root,
                 capture_output=True,
                 text=True,
+                errors="surrogateescape",
                 timeout=10,
                 check=False,
             )
