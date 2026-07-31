@@ -76,7 +76,7 @@ class WorkspaceInventory:
         """Prefer Git's tracked/untracked view, with a pruned filesystem fallback."""
         try:
             result = subprocess.run(
-                ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+                ["git", "ls-files", "--cached", "--others", "--exclude-standard", "--deduplicate", "-z"],
                 cwd=root,
                 capture_output=True,
                 text=True,

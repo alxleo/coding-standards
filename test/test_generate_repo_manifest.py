@@ -131,6 +131,21 @@ def test_git_inventory_tolerates_non_utf8_index_path(tmp_path: Path) -> None:
     assert manifest["content"]["python_files"] == 0
 
 
+def test_git_inventory_deduplicates_unmerged_index_entries(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
+    conflicted = tmp_path / "conflicted.py"
+    conflicted.write_text("x = 1\n")
+    blob = subprocess.run(
+        ["git", "hash-object", "-w", "--stdin"], cwd=tmp_path, input=b"x = 1\n", capture_output=True, check=True
+    ).stdout.strip()
+    entries = b"".join(b"100644 " + blob + f" {stage}\tconflicted.py\0".encode() for stage in (1, 2, 3))
+    subprocess.run(["git", "update-index", "-z", "--index-info"], cwd=tmp_path, input=entries, check=True)
+
+    manifest = generate(tmp_path)
+
+    assert manifest["content"]["python_files"] == 1
+
+
 def test_acknowledged_string_passes_through(tmp_path: Path) -> None:
     (tmp_path / ".repo-standards.yml").write_text("acknowledged:\n  pydantic: 'not needed'\n")
     manifest = generate(tmp_path)
