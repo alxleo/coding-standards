@@ -8,7 +8,7 @@ This refresh moves the image from MegaLinter v9.4 to v9.6 and updates the bundle
 - ESLint v10 with flat configuration, `@eslint/js`, `typescript-eslint`, `@eslint-react/eslint-plugin`, and `eslint-plugin-import-x`. The baked configuration now resolves its globally installed plugins from its own directory.
 - Betterleaks v1.7.3 as the default secrets scanner. It preserves `.gitleaks.toml` and `.gitleaksignore` compatibility; the Gitleaks binary remains installed for consumers that invoke it directly.
 - Trivy v0.72.0 with checksum verification. The previous Renovate ceiling for the compromised v0.69.4-v0.69.6 releases is no longer needed now that upstream has shipped post-incident releases and MegaLinter has re-enabled the scanner.
-- Current stable releases of Ruff, Semgrep, ansible-lint, sqlfluff, zizmor, Hadolint, tflint, kubeconform, lychee, golangci-lint, shfmt, PMD, Caddy, conftest, Prettier, stylelint, and the other explicitly pinned packages in the Dockerfile.
+- Current stable compatible releases of Ruff, Semgrep, ansible-lint, sqlfluff, zizmor, Hadolint, tflint, kubeconform, lychee, golangci-lint, shfmt, PMD, Caddy, conftest, Prettier, stylelint, and the other explicitly pinned packages in the Dockerfile.
 - Renovate managers for the Dockerfile's PyPI, npm, MegaLinter, and annotated GitHub-release pins, so future drift is proposed automatically rather than rediscovered by hand.
 
 ## New rule surfaces reviewed
@@ -21,6 +21,7 @@ This refresh moves the image from MegaLinter v9.4 to v9.6 and updates the bundle
 ## Deliberate holds
 
 - TypeScript stays at 6.0.2. TypeScript 7.0.2 is current, but `typescript-eslint` 8.65.0 declares support below TypeScript 6.1; crossing that peer boundary would make the lint image internally unsupported.
+- Semgrep stays at 1.170.0. Semgrep 1.171 and newer require Click 8.4, while current SQLFluff 4.2 requires Click below 8.4; 1.170.0 is the newest Semgrep release that resolves with the current SQLFluff release.
 - Ruff preview remains disabled. Enabling a changing preview rule set is a policy decision and should be introduced with repository-specific finding counts and suppression guidance.
 - MegaLinter's optional non-root execution is not enabled in this slice. Changing the container user affects bind-mount ownership and needs a dedicated consumer compatibility test.
 - OSV-Scanner is not added merely because MegaLinter now exposes it. Trivy remains the vulnerability authority; adding a second scanner needs evidence that it catches a material gap without duplicating noise and database cost.

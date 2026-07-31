@@ -26,12 +26,13 @@ RUN apk add --no-cache \
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # ── MegaLinter engine + Python linters (single layer) ────────
+# Semgrep 1.171+ requires Click 8.4; SQLFluff 4.2 requires Click <8.4.
 # hadolint ignore=DL3013,DL3059
 RUN --mount=type=cache,target=/root/.cache/pip \
   pip install --no-cache-dir --no-compile \
   "megalinter @ git+https://github.com/oxsecurity/megalinter.git@v9.6.0" \
   typer==0.27.0 \
-  semgrep==1.172.0 \
+  semgrep==1.170.0 \
   ruff==0.16.1 \
   codespell==2.4.3 \
   ansible-lint==26.6.0 \
@@ -208,7 +209,6 @@ RUN set -eux && \
   # dotenv-linter: skipped — glibc-only binary, no musl build available.
   # Warn-tier .env linter. Re-add if upstream publishes musl builds.
   #
-
   # ── golangci-lint (new addition) ──
   # renovate: datasource=github-releases depName=golangci/golangci-lint
   GOLANGCI_VERSION="2.12.2" && \

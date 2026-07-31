@@ -53,6 +53,16 @@
       "description": "Group all pre-commit hook updates",
       "matchManagers": ["pre-commit"],
       "groupName": "pre-commit hooks"
+    },
+    {
+      "description": "typescript-eslint 8.65 supports TypeScript below 6.1",
+      "matchPackageNames": ["typescript"],
+      "allowedVersions": "<6.1.0"
+    },
+    {
+      "description": "Semgrep 1.171+ conflicts with SQLFluff 4.2 over Click",
+      "matchPackageNames": ["semgrep"],
+      "allowedVersions": "<=1.170.0"
     }
   ]
 }
