@@ -118,21 +118,19 @@ def compute_blast_radius(root: Path) -> list[dict[str, Any]]:
         rel = str(target.relative_to(root))
 
         # Search for both the full relative path and the basename with word boundaries.
-        # Word boundary prevents "test.py" matching inside "pytest.py".
-        # Full path search distinguishes "scripts/config.toml" from "lib/config.toml".
-        patterns = [re.escape(rel)]
-        if "/" in rel:
-            # Also match bare filename with word boundary (catches loose references)
-            patterns.append(r"(?<![a-zA-Z0-9_/\-])" + re.escape(name) + r"(?![a-zA-Z0-9_\-])")
-        else:
-            patterns.append(r"(?<![a-zA-Z0-9_/\-])" + re.escape(name) + r"(?![a-zA-Z0-9_\-])")
-        combined = "|".join(patterns)
-
-        referencing = [
-            str(s.relative_to(root))
-            for s, content in file_contents.items()
-            if s != target and re.search(combined, content)
-        ]
+        # Literal containment rejects almost every file-target pair in C before the
+        # more expensive boundary regex runs. The full-path check intentionally has
+        # no boundaries, matching the previous combined-regex behavior exactly.
+        name_pattern = re.compile(r"(?<![a-zA-Z0-9_/\-])" + re.escape(name) + r"(?![a-zA-Z0-9_\-])")
+        referencing = []
+        for source, content in file_contents.items():
+            if source == target:
+                continue
+            if rel in content:
+                referencing.append(str(source.relative_to(root)))
+                continue
+            if rel != name and name in content and name_pattern.search(content):
+                referencing.append(str(source.relative_to(root)))
 
         results.append(
             {
