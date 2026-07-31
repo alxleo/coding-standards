@@ -90,6 +90,7 @@ def _parse_dockerfile(root: Path) -> dict[str, Any]:
         "HADOLINT": "hadolint",
         "ACTIONLINT": "actionlint",
         "GITLEAKS": "gitleaks",
+        "BETTERLEAKS": "betterleaks",
         "TRIVY": "trivy",
         "TFLINT": "tflint",
         "EC": "editorconfig-checker",

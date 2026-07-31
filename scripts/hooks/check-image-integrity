@@ -48,6 +48,7 @@ VERSION_TO_TOOL = {
     "HADOLINT": "hadolint",
     "ACTIONLINT": "actionlint",
     "GITLEAKS": "gitleaks",
+    "BETTERLEAKS": "betterleaks",
     "TRIVY": "trivy",
     "TFLINT": "tflint",
     "EC": "editorconfig-checker",
@@ -140,6 +141,7 @@ BUILTIN_EXES = {
     "SPELL_CODESPELL": "codespell",
     "SPELL_LYCHEE": "lychee",
     "REPOSITORY_GITLEAKS": "gitleaks",
+    "REPOSITORY_BETTERLEAKS": "betterleaks",
     "REPOSITORY_SEMGREP": "semgrep",
     "REPOSITORY_GIT_DIFF": "git",
     "JAVASCRIPT_ES": "eslint",
@@ -158,6 +160,7 @@ BUILTIN_EXES = {
     "HTML_HTMLHINT": "htmlhint",
     "REPOSITORY_LS_LINT": "ls-lint",
     "REPOSITORY_BLAST_RADIUS": "python3",
+    "ENV_DOTENV_LINTER": "dotenv-linter",
 }
 
 # Package name → binary name aliases
@@ -171,7 +174,7 @@ INSTALL_ALIASES = {
     "yamllint": "megalinter",
 }
 
-SYSTEM_TOOLS = {"git", "npm"}
+SYSTEM_TOOLS = {"git", "npm", "python3"}
 
 
 def exe_is_installed(exe: str) -> bool:
@@ -302,7 +305,7 @@ CONSUMER_CONFIGURABLE_TOOLS = {
     "conftest",
     "semgrep",
     "pyright",
-    "gitleaks",
+    "betterleaks",
     "trivy",
     "dependency-cruiser",
     "ansible-lint",
