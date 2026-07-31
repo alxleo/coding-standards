@@ -28,14 +28,6 @@
       "matchStrings": ["megalinter\\.git@v(?<currentValue>[0-9.]+)"],
       "depNameTemplate": "oxsecurity/megalinter",
       "datasourceTemplate": "github-releases"
-    },
-    {
-      "customType": "regex",
-      "description": "Update checksum-pinned GitHub release binaries",
-      "managerFilePatterns": ["/^Dockerfile$/"],
-      "matchStrings": [
-        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+[A-Z_]+_VERSION=\\\"(?<currentValue>[0-9.]+)\\\""
-      ]
     }
   ],
   "packageRules": [

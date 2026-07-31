@@ -28,10 +28,11 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 - syft: no SBOM consumer.
 - Trivy is checksum-pinned to a post-incident release. MegaLinter re-enabled Trivy after the upstream incident was resolved.
 
-### Secrets: Betterleaks in CI, Gitleaks-compatible configuration
+### Secrets: Gitleaks in CI; Betterleaks available for opt-in trials
 
-- Betterleaks is the default scanner because MegaLinter deprecated Gitleaks in v9.6. Existing `.gitleaks.toml` and `.gitleaksignore` files remain valid.
-- secretlint: strict subset of Betterleaks/Gitleaks coverage.
+- Gitleaks remains the default because it scans repository history. MegaLinter v9.6 invokes Betterleaks in filesystem mode by default, which would miss secrets removed from the final working tree but retained in earlier commits.
+- Betterleaks remains installed for explicit consumer trials; it accepts existing `.gitleaks.toml` and `.gitleaksignore` files.
+- secretlint: strict subset of Gitleaks coverage.
 - trufflehog: valuable for `--only-verified` audits. Use as periodic cron, not CI.
 
 ### Config files: keep existing stack
@@ -188,7 +189,7 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 - Semgrep: cached rulesets as JSON at build time (23.5s → 18.5s). Eliminates network fetch + YAML parsing (json.loads is 381x faster than ruamel.yaml). Rules refresh on image rebuild.
 - v8r ignore patterns: 28.5s → 5.7s (was validating files in node_modules/megalinter-reports)
 - Lychee cache + timeout: 19s → 1.8s (network timeout storms on transient 502s)
-- Trivy scanner trim: 9.5s → 5.3s (dropped secret/license, covered by Betterleaks/license-checker)
+- Trivy scanner trim: 9.5s → 5.3s (dropped secret/license, covered by gitleaks/license-checker)
 - Trivy DB pre-cached at build time: 12.6s → 3s (--skip-db-update at runtime)
 - jscpd → PMD-CPD: 177s → 5s (Java vs Node.js, Karp-Rabin matching)
 - Docker buildkit cache: `type=gha` → `type=registry` (moves off 10GB Actions quota, works on Gitea)
@@ -197,7 +198,7 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 ### Monorepo scoping
 
 FILTER_REGEX_INCLUDE/EXCLUDE only works for file-mode linters (shellcheck, ruff, yamllint).
-Project-mode linters (trivy, semgrep, Betterleaks, conftest, knip, etc.) ignore it entirely.
+Project-mode linters (trivy, semgrep, gitleaks, conftest, knip, etc.) ignore it entirely.
 For monorepos like home-network: single MegaLinter run + tool-native scoping:
 
 - ruff: per-file-ignores in ruff.toml

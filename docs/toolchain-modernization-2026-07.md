@@ -5,12 +5,12 @@ This refresh moves the image from MegaLinter v9.4 to v9.6 and updates the bundle
 ## Changes adopted
 
 - MegaLinter v9.6.0 on Python 3.14 and Alpine 3.24.
-- ESLint v10 with flat configuration, `@eslint/js`, `typescript-eslint`, `@eslint-react/eslint-plugin`, and `eslint-plugin-import-x`. The baked configuration now resolves its globally installed plugins from its own directory.
+- ESLint v10 with flat configuration, explicit Node/browser globals, `@eslint/js`, `typescript-eslint`, `@eslint-react/eslint-plugin`, `eslint-plugin-jsx-a11y-x`, and `eslint-plugin-import-x`. The baked configuration now resolves its globally installed plugins from its own directory while retaining the existing accessibility checks.
 - TypeScript 7.0.2 supplies the production `tsc` CLI, while the official `@typescript/typescript6` compatibility package supplies `tsc6` and the programmatic API still required by typescript-eslint. This follows the TypeScript team's documented 7.0 side-by-side migration path.
-- Betterleaks v1.7.3 as the default secrets scanner. It preserves `.gitleaks.toml` and `.gitleaksignore` compatibility; the Gitleaks binary remains installed for consumers that invoke it directly.
+- Betterleaks v1.7.3 is installed for opt-in evaluation, but Gitleaks remains the default: MegaLinter's Betterleaks descriptor uses filesystem mode unless PR-commit scanning is enabled, which would regress the baseline's full-history secret coverage.
 - Trivy v0.72.0 with checksum verification. The previous Renovate ceiling for the compromised v0.69.4-v0.69.6 releases is no longer needed now that upstream has shipped post-incident releases and MegaLinter has re-enabled the scanner.
 - Current stable compatible releases of Ruff, Semgrep, ansible-lint, sqlfluff, zizmor, Hadolint, tflint, kubeconform, lychee, golangci-lint, shfmt, PMD, Caddy, conftest, Prettier, stylelint, and the other explicitly pinned packages in the Dockerfile.
-- Renovate managers for the Dockerfile's PyPI, npm, MegaLinter, and annotated GitHub-release pins, so future drift is proposed automatically rather than rediscovered by hand.
+- Renovate managers for the Dockerfile's PyPI, npm, and MegaLinter pins. Checksum-pinned release binaries remain manual because a safe update must change both architecture-specific digests with the version.
 - Repair of the binary-install layer: Lychee 0.24's archive layout is handled explicitly, and the best-effort Trivy database download is isolated so its `|| true` cannot mask an earlier checksum or extraction failure. The previous clean build stopped at Lychee and silently omitted golangci-lint, shfmt, dotenv-linter, checkmake, PMD, Caddy, Just, and Conftest.
 
 ## New rule surfaces reviewed

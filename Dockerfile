@@ -67,10 +67,12 @@ RUN --mount=type=cache,target=/root/.npm \
   @typescript/native@npm:typescript@7.0.2 \
   typescript@npm:@typescript/typescript6@6.0.2 \
   typescript-eslint@8.65.0 \
+  globals@17.8.0 \
   knip@6.31.0 \
   dependency-cruiser@18.1.0 \
   license-checker@25.0.1 \
   @eslint-react/eslint-plugin@5.18.1 \
+  eslint-plugin-jsx-a11y-x@0.2.0 \
   eslint-plugin-import-x@4.17.1 \
   eslint-plugin-unicorn@72.0.0 \
   eslint-plugin-security@4.0.1 \

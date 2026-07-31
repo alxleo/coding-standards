@@ -12,16 +12,23 @@
 
 import js from "@eslint/js";
 import eslintReact from "@eslint-react/eslint-plugin";
+import globals from "globals";
 import unicorn from "eslint-plugin-unicorn";
 import security from "eslint-plugin-security";
 import sonarjs from "eslint-plugin-sonarjs";
 import importX from "eslint-plugin-import-x";
+import jsxA11y from "eslint-plugin-jsx-a11y-x";
 import testingLibrary from "eslint-plugin-testing-library";
 import i18next from "eslint-plugin-i18next";
 import tseslint from "typescript-eslint";
 
 export default [
   js.configs.recommended,
+  {
+    languageOptions: {
+      globals: { ...globals.browser, ...globals.node },
+    },
+  },
   ...tseslint.configs.recommended.map((config) => ({
     ...config,
     files: ["**/*.ts", "**/*.tsx"],
@@ -75,6 +82,7 @@ export default [
     },
     plugins: {
       ...eslintReact.configs.recommended.plugins,
+      "jsx-a11y": jsxA11y,
       i18next,
     },
     settings: eslintReact.configs.recommended.settings,
@@ -84,6 +92,13 @@ export default [
       // React DOM safety
       "@eslint-react/dom-no-unsafe-target-blank": "error",
       "@eslint-react/dom-no-dangerously-set-innerhtml": "warn",
+
+      // Accessibility
+      "jsx-a11y/alt-text": "warn",
+      "jsx-a11y/anchor-is-valid": "warn",
+      "jsx-a11y/click-events-have-key-events": "warn",
+      "jsx-a11y/no-autofocus": "warn",
+      "jsx-a11y/label-has-associated-control": "warn",
 
       // i18n — catch hardcoded strings early (painful to retrofit)
       "i18next/no-literal-string": "warn",

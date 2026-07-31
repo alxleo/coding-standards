@@ -5,7 +5,7 @@ Set `<LINTER>_CONFIG_FILE` in your `.mega-linter.yml`:
 ```yaml
 PYTHON_RUFF_CONFIG_FILE: ruff.toml
 YAML_YAMLLINT_CONFIG_FILE: .yamllint
-REPOSITORY_BETTERLEAKS_CONFIG_FILE: .gitleaks.toml
+REPOSITORY_GITLEAKS_CONFIG_FILE: .gitleaks.toml
 ANSIBLE_ANSIBLE_LINT_CONFIG_FILE: .ansible-lint
 PYTHON_PYRIGHT_CONFIG_FILE: pyrightconfig.json
 ```

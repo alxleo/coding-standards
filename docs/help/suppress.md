@@ -12,9 +12,9 @@ Type ignore:       # type: ignore[arg-type]
 ## File-level
 
 ```
-Trivy:       .trivyignore          (CVE IDs)
-Betterleaks: .gitleaksignore       (Gitleaks-compatible path patterns)
-Codespell:   .codespellrc          (word whitelist)
+Trivy:     .trivyignore          (CVE IDs)
+Gitleaks:  .gitleaksignore       (path patterns)
+Codespell: .codespellrc          (word whitelist)
 ```
 
 ## Disable a linter entirely

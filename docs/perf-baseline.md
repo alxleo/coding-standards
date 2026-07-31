@@ -53,7 +53,7 @@ Captured 2026-04-02. Basis for measuring optimization impact.
 | pmd-cpd | COPYPASTE | 5.62s | repo | |
 | publint | REPOSITORY | 5.13s | repo | |
 | knip | REPOSITORY | 3.55s | repo | |
-| gitleaks (historical; replaced by Betterleaks) | REPOSITORY | 2.81s | repo | |
+| gitleaks | REPOSITORY | 2.81s | repo | |
 | prettier (YAML) | YAML | 2.65s | 48 | |
 | npm-audit | REPOSITORY | 2.39s | repo | |
 | oxlint | REPOSITORY | 2.03s | repo | |
