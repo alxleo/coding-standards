@@ -698,7 +698,8 @@ app = typer.Typer(
 
 
 def _root() -> Path:
-    return Path(__file__).resolve().parent.parent
+    """Use the caller's workspace, not the installed script directory."""
+    return Path.cwd()
 
 
 def _git_changed_files(root: Path) -> list[str]:
