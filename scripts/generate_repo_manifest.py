@@ -45,7 +45,7 @@ EXCLUDES = {
     "build",
     "ansible/collections",
     ".claude",
-    ".codex",
+    ".codex/worktrees",
 }
 
 # Split excludes: simple names match path parts, slashed entries match prefixes

@@ -101,18 +101,23 @@ def test_inventory_prunes_excluded_directories(tmp_path: Path) -> None:
 
 def test_git_inventory_includes_untracked_and_respects_ignores(tmp_path: Path) -> None:
     subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
-    (tmp_path / ".gitignore").write_text("ignored.py\n.codex/\n")
+    (tmp_path / ".gitignore").write_text("ignored.py\n")
     (tmp_path / "tracked.py").write_text("x = 1\n")
+    skill = tmp_path / ".codex" / "skills" / "plugin.py"
+    skill.parent.mkdir(parents=True)
+    skill.write_text("x = 1\n")
     deleted = tmp_path / "deleted.py"
     deleted.write_text("x = 1\n")
     (tmp_path / "untracked.py").write_text("x = 1\n")
     (tmp_path / "ignored.py").write_text("x = 1\n")
-    subprocess.run(["git", "add", ".gitignore", "tracked.py", "deleted.py"], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "add", ".gitignore", "tracked.py", ".codex/skills/plugin.py", "deleted.py"], cwd=tmp_path, check=True
+    )
     deleted.unlink()
 
     manifest = generate(tmp_path)
 
-    assert manifest["content"]["python_files"] == 2
+    assert manifest["content"]["python_files"] == 3
 
 
 def test_acknowledged_string_passes_through(tmp_path: Path) -> None:
