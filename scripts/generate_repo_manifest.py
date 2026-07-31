@@ -14,9 +14,12 @@ The manifest is consumed by policies/repo-standards/*.rego via conftest.
 from __future__ import annotations
 
 import json
+import os
 import re
+import subprocess
 import sys
 import tomllib
+from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
@@ -42,6 +45,7 @@ EXCLUDES = {
     "build",
     "ansible/collections",
     ".claude",
+    ".codex",
 }
 
 # Split excludes: simple names match path parts, slashed entries match prefixes
@@ -60,8 +64,44 @@ def _is_excluded(rel: Path) -> bool:
     )
 
 
-def count_files(root: Path, suffix: str) -> int:
-    return sum(1 for f in root.rglob(f"*{suffix}") if not _is_excluded(f.relative_to(root)))
+@dataclass(frozen=True)
+class WorkspaceInventory:
+    """One reusable inventory of relevant workspace files."""
+
+    root: Path
+    files: tuple[Path, ...]
+
+    @classmethod
+    def build(cls, root: Path) -> WorkspaceInventory:
+        """Prefer Git's tracked/untracked view, with a pruned filesystem fallback."""
+        try:
+            result = subprocess.run(
+                ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            result = None
+
+        if result is not None and result.returncode == 0:
+            files = tuple(sorted(Path(raw) for raw in result.stdout.split("\0") if raw and not _is_excluded(Path(raw))))
+            return cls(root=root, files=files)
+
+        files: list[Path] = []
+        for current, dirs, names in os.walk(root, topdown=True):
+            current_path = Path(current)
+            dirs[:] = [name for name in dirs if not _is_excluded((current_path / name).relative_to(root))]
+            files.extend(rel for name in names if not _is_excluded(rel := (current_path / name).relative_to(root)))
+        return cls(root=root, files=tuple(sorted(files)))
+
+    def count_suffix(self, suffix: str) -> int:
+        return sum(1 for path in self.files if path.suffix == suffix)
+
+    def absolute(self, relative: Path) -> Path:
+        return self.root / relative
 
 
 def _load_toml(path: Path) -> dict[str, Any]:
@@ -104,17 +144,16 @@ def check_pyproject_dep(root: Path, dep_name: str) -> bool:
     return any(dep_re.match(dep) for deps in dep_lists for dep in deps)
 
 
-def _count_large_shell(root: Path, threshold: int, skip_paths: set[str] | None = None) -> int:
+def _count_large_shell(inventory: WorkspaceInventory, threshold: int, skip_paths: set[str] | None = None) -> int:
     """Count shell scripts exceeding threshold lines, skipping acknowledged paths."""
     count = 0
-    for f in root.rglob("*.sh"):
-        rel = f.relative_to(root)
-        if _is_excluded(rel):
+    for rel in inventory.files:
+        if rel.suffix != ".sh":
             continue
         if skip_paths and rel.as_posix() in skip_paths:
             continue
         try:
-            lines = len(f.read_text(errors="replace").splitlines())
+            lines = len(inventory.absolute(rel).read_text(errors="replace").splitlines())
             if lines > threshold:
                 count += 1
         except OSError:
@@ -218,28 +257,6 @@ def _has_any_dep(root: Path, pyproject: tuple[str, ...] = (), pkg: tuple[str, ..
     checks = [check_pyproject_dep(root, d) for d in pyproject]
     checks.extend(check_package_json_dep(root, d) for d in pkg)
     return any(checks)
-
-
-def _max_blast_radius(root: Path) -> int:
-    """Highest blast radius (filename reference count) in the repo."""
-    try:
-        from blast_radius import compute_blast_radius  # noqa: PLC0415
-
-        data = compute_blast_radius(root)
-        return max((r["blast_radius"] for r in data), default=0)
-    except (ImportError, OSError, ValueError):
-        return 0
-
-
-def _max_naming_entropy(root: Path) -> float:
-    """Highest naming convention entropy across directories."""
-    try:
-        from blast_radius import compute_naming_entropy  # noqa: PLC0415
-
-        data = compute_naming_entropy(root)
-        return max((r["entropy"] for r in data), default=0.0)
-    except (ImportError, OSError, ValueError):
-        return 0.0
 
 
 def _extract_pre_commit_hooks(root: Path) -> list[str]:
@@ -525,7 +542,7 @@ def _acknowledged_paths(acknowledged: dict[str, Any], check_id: str) -> set[str]
     return {entry["path"] for entry in value if isinstance(entry, dict) and "path" in entry}
 
 
-def _count_suppressions(root: Path) -> dict[str, int]:
+def _count_suppressions(root: Path, inventory: WorkspaceInventory) -> dict[str, int]:
     """Count inline suppression comments across the codebase."""
     patterns = {
         "noqa": r"#\s*noqa",
@@ -534,14 +551,11 @@ def _count_suppressions(root: Path) -> dict[str, int]:
         "shellcheck_disable": r"#\s*shellcheck\s+disable",
     }
     counts: dict[str, int] = dict.fromkeys(patterns, 0)
-    for f in root.rglob("*"):
-        # Skip directories and excluded paths (vendor, build, etc.)
-        if any((f.is_dir(), _is_excluded(f.relative_to(root)))):
-            continue
-        if f.suffix not in (".py", ".sh", ".bash", ".js", ".ts", ".tsx", ".jsx"):
+    for rel in inventory.files:
+        if rel.suffix not in (".py", ".sh", ".bash", ".js", ".ts", ".tsx", ".jsx"):
             continue
         try:
-            text = f.read_text(errors="replace")
+            text = inventory.absolute(rel).read_text(errors="replace")
         except OSError:
             continue
         for name, pattern in patterns.items():
@@ -560,6 +574,7 @@ def _count_suppressions(root: Path) -> dict[str, int]:
 def generate(root: Path) -> dict[str, Any]:
     from manifest_schema import Manifest  # noqa: PLC0415
 
+    inventory = WorkspaceInventory.build(root)
     ack = load_acknowledged(root)
     data = {
         "files": {
@@ -612,32 +627,30 @@ def generate(root: Path) -> dict[str, Any]:
             "gitea_workflows": (root / ".gitea/workflows").is_dir(),
         },
         "content": {
-            "python_files": count_files(root, ".py"),
-            "typescript_files": count_files(root, ".ts") + count_files(root, ".tsx"),
-            "javascript_files": count_files(root, ".js") + count_files(root, ".jsx"),
-            "shell_files": count_files(root, ".sh"),
+            "python_files": inventory.count_suffix(".py"),
+            "typescript_files": inventory.count_suffix(".ts") + inventory.count_suffix(".tsx"),
+            "javascript_files": inventory.count_suffix(".js") + inventory.count_suffix(".jsx"),
+            "shell_files": inventory.count_suffix(".sh"),
             "compose_files": sum(
                 1
-                for p in [
-                    "docker-compose*.yml",
-                    "docker-compose*.yaml",
-                    "compose*.yml",
-                    "compose*.yaml",
-                ]
-                for f in root.rglob(p)
-                if not _is_excluded(f.relative_to(root))
+                for path in inventory.files
+                if path.name.startswith(("docker-compose", "compose")) and path.suffix in (".yml", ".yaml")
             ),
             "shell_scripts_over_30_lines": _count_large_shell(
-                root, 30, _acknowledged_paths(ack, "large_shell_scripts")
+                inventory, 30, _acknowledged_paths(ack, "large_shell_scripts")
             ),
             "justfile_recipes_over_10_lines": _count_large_justfile_recipes(root, 10),
             "python_files_with_hyphens": sum(
-                1 for f in root.rglob("*.py") if not _is_excluded(f.relative_to(root)) and "-" in f.stem
+                1 for path in inventory.files if path.suffix == ".py" and "-" in path.stem
             ),
-            "dockerfile_files": sum(1 for _ in root.rglob("Dockerfile*") if not _is_excluded(_.relative_to(root))),
+            "dockerfile_files": sum(1 for path in inventory.files if path.name.startswith("Dockerfile")),
             "pre_commit_hooks": _extract_pre_commit_hooks(root),
-            "max_blast_radius": _max_blast_radius(root),
-            "max_naming_entropy": _max_naming_entropy(root),
+            # Transitional keys for consumers of the published manifest schema.
+            # Change-impact analysis is intentionally not part of manifest
+            # generation: it is advisory, expensive, and available through the
+            # explicit `blast-radius` / `measure` commands.
+            "max_blast_radius": None,
+            "max_naming_entropy": None,
         },
         "dependencies": {
             "pytest_randomly": check_pyproject_dep(root, "pytest-randomly"),
@@ -687,7 +700,7 @@ def generate(root: Path) -> dict[str, Any]:
             "has_tracing": _has_any_dep(root, pyproject=("opentelemetry-sdk",), pkg=("@opentelemetry/sdk-node",)),
         },
         "acknowledged": ack,
-        "suppressions": _count_suppressions(root),
+        "suppressions": _count_suppressions(root, inventory),
     }
     # Validate against typed schema — catches wrong field names/types at generation time
     return Manifest(**data).model_dump()

@@ -54,8 +54,10 @@ class ManifestContent(BaseModel):
     dockerfile_files: int
     python_files_with_hyphens: int
     pre_commit_hooks: list[str]
-    max_blast_radius: int
-    max_naming_entropy: float
+    # Deprecated compatibility fields. Change-impact analysis moved out of
+    # blocking manifest generation; explicit measurement commands own it.
+    max_blast_radius: int | None = None
+    max_naming_entropy: float | None = None
 
 
 class ManifestDependencies(BaseModel):

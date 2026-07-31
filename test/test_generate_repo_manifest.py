@@ -6,6 +6,7 @@ wrong, generate() itself raises ValidationError.
 """
 
 import importlib.util
+import subprocess
 import sys
 from pathlib import Path
 
@@ -79,6 +80,36 @@ def test_js_repo_detects_files(js_repo: Path) -> None:
     assert manifest["files"]["tsconfig"] is True
     assert manifest["files"]["nvmrc"] is True
     assert manifest["dependencies"]["zod"] is True
+
+
+def test_change_impact_is_not_computed_during_manifest_generation(python_repo: Path) -> None:
+    manifest = generate(python_repo)
+    assert manifest["content"]["max_blast_radius"] is None
+    assert manifest["content"]["max_naming_entropy"] is None
+
+
+def test_inventory_prunes_excluded_directories(tmp_path: Path) -> None:
+    (tmp_path / "app.py").write_text("x = 1\n")
+    excluded = tmp_path / ".codex" / "worktrees" / "stale"
+    excluded.mkdir(parents=True)
+    (excluded / "duplicate.py").write_text("x = 1\n")
+
+    manifest = generate(tmp_path)
+
+    assert manifest["content"]["python_files"] == 1
+
+
+def test_git_inventory_includes_untracked_and_respects_ignores(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
+    (tmp_path / ".gitignore").write_text("ignored.py\n.codex/\n")
+    (tmp_path / "tracked.py").write_text("x = 1\n")
+    (tmp_path / "untracked.py").write_text("x = 1\n")
+    (tmp_path / "ignored.py").write_text("x = 1\n")
+    subprocess.run(["git", "add", ".gitignore", "tracked.py"], cwd=tmp_path, check=True)
+
+    manifest = generate(tmp_path)
+
+    assert manifest["content"]["python_files"] == 2
 
 
 def test_acknowledged_string_passes_through(tmp_path: Path) -> None:
