@@ -22,6 +22,10 @@ inputs:
     description: "Docker image to use"
     required: false
     default: "ghcr.io/alxleo/coding-standards:latest"
+  pull-policy:
+    description: "Docker pull policy (always, missing, or never); defaults to always for the standard latest image"
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -30,6 +34,7 @@ runs:
       env:
         CS_IMAGE: ${{ inputs.image }}
         CS_APPLY_FIXES: ${{ inputs.apply-fixes }}
+        CS_PULL_POLICY: ${{ inputs.pull-policy }}
       run: |
         # Use GITHUB_WORKSPACE env var (set by runner) instead of
         # ${{ github.workspace }} (expression context). On Gitea Actions,
@@ -45,8 +50,13 @@ runs:
           env_args=(--env-file "$env_file")
         fi
 
-        # Resolve mutable tags on every invocation while reusing unchanged local layers.
-        docker run --pull=always --rm \
+        pull_policy="${CS_PULL_POLICY:-missing}"
+        if [ -z "${CS_PULL_POLICY}" ] && [ "${CS_IMAGE}" = "ghcr.io/alxleo/coding-standards:latest" ]; then
+          pull_policy=always
+        fi
+
+        # Resolve the standard mutable tag while preserving local-only image overrides.
+        docker run --pull="${pull_policy}" --rm \
           -v "${ws}:/tmp/lint" \
           -e DEFAULT_WORKSPACE=/tmp/lint \
           -e APPLY_FIXES="${CS_APPLY_FIXES}" \
