@@ -22,3 +22,7 @@ def test_betterleaks_scans_git_history_with_compatible_config() -> None:
     assert betterleaks["cli_lint_extra_args"][0] == "git"
     assert betterleaks["config_file_name"] == ".gitleaks.toml"
     assert betterleaks["cli_lint_extra_args_after"] == ["."]
+
+    wrapper = Path("scripts/betterleaks_git.sh").read_text()
+    assert "GIT_CONFIG_KEY_${git_config_index}=safe.directory" in wrapper
+    assert "GIT_CONFIG_VALUE_${git_config_index}=$(pwd -P)" in wrapper

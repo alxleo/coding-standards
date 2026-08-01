@@ -28,4 +28,12 @@ if [[ -n "$config_file" && "$has_ignore_path" == false ]]; then
   fi
 fi
 
+# Betterleaks shells out to Git but does not reliably consume MegaLinter's
+# global safe.directory setting on runner-owned bind mounts. Pass the workspace
+# as command-scope Git configuration inherited by the child process.
+git_config_index="${GIT_CONFIG_COUNT:-0}"
+export "GIT_CONFIG_KEY_${git_config_index}=safe.directory"
+export "GIT_CONFIG_VALUE_${git_config_index}=$(pwd -P)"
+export GIT_CONFIG_COUNT="$((git_config_index + 1))"
+
 exec betterleaks "${args[@]}"
