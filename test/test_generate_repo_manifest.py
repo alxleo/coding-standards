@@ -6,6 +6,7 @@ wrong, generate() itself raises ValidationError.
 """
 
 import importlib.util
+import subprocess
 import sys
 from pathlib import Path
 
@@ -79,6 +80,70 @@ def test_js_repo_detects_files(js_repo: Path) -> None:
     assert manifest["files"]["tsconfig"] is True
     assert manifest["files"]["nvmrc"] is True
     assert manifest["dependencies"]["zod"] is True
+
+
+def test_change_impact_is_not_computed_during_manifest_generation(python_repo: Path) -> None:
+    manifest = generate(python_repo)
+    assert manifest["content"]["max_blast_radius"] == 0
+    assert manifest["content"]["max_naming_entropy"] == 0.0
+
+
+def test_inventory_prunes_excluded_directories(tmp_path: Path) -> None:
+    (tmp_path / "app.py").write_text("x = 1\n")
+    excluded = tmp_path / ".codex" / "worktrees" / "stale"
+    excluded.mkdir(parents=True)
+    (excluded / "duplicate.py").write_text("x = 1\n")
+
+    manifest = generate(tmp_path)
+
+    assert manifest["content"]["python_files"] == 1
+
+
+def test_git_inventory_includes_untracked_and_respects_ignores(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
+    (tmp_path / ".gitignore").write_text("ignored.py\n")
+    (tmp_path / "tracked.py").write_text("x = 1\n")
+    skill = tmp_path / ".codex" / "skills" / "plugin.py"
+    skill.parent.mkdir(parents=True)
+    skill.write_text("x = 1\n")
+    deleted = tmp_path / "deleted.py"
+    deleted.write_text("x = 1\n")
+    (tmp_path / "untracked.py").write_text("x = 1\n")
+    (tmp_path / "ignored.py").write_text("x = 1\n")
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
+    deleted.unlink()
+
+    manifest = generate(tmp_path)
+
+    assert manifest["content"]["python_files"] == 3
+
+
+def test_git_inventory_tolerates_non_utf8_index_path(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
+    blob = subprocess.run(
+        ["git", "hash-object", "-w", "--stdin"], cwd=tmp_path, input=b"x = 1\n", capture_output=True, check=True
+    ).stdout.strip()
+    entry = b"100644 " + blob + b"\tnon-utf8-\xff.py\0"
+    subprocess.run(["git", "update-index", "-z", "--index-info"], cwd=tmp_path, input=entry, check=True)
+
+    manifest = generate(tmp_path)
+
+    assert manifest["content"]["python_files"] == 0
+
+
+def test_git_inventory_deduplicates_unmerged_index_entries(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
+    conflicted = tmp_path / "conflicted.py"
+    conflicted.write_text("x = 1\n")
+    blob = subprocess.run(
+        ["git", "hash-object", "-w", "--stdin"], cwd=tmp_path, input=b"x = 1\n", capture_output=True, check=True
+    ).stdout.strip()
+    entries = b"".join(b"100644 " + blob + f" {stage}\tconflicted.py\0".encode() for stage in (1, 2, 3))
+    subprocess.run(["git", "update-index", "-z", "--index-info"], cwd=tmp_path, input=entries, check=True)
+
+    manifest = generate(tmp_path)
+
+    assert manifest["content"]["python_files"] == 1
 
 
 def test_acknowledged_string_passes_through(tmp_path: Path) -> None:

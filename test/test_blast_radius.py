@@ -120,6 +120,12 @@ def git_repo(tmp_path: Path) -> Path:
     return tmp_path
 
 
+def test_cli_root_uses_current_workspace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    assert br._root() == tmp_path
+
+
 # ── Signal 1: Blast Radius ──────────────────────────────────────────
 
 
