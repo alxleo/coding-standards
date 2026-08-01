@@ -45,7 +45,8 @@ runs:
           env_args=(--env-file "$env_file")
         fi
 
-        docker run --rm \
+        # Resolve mutable tags on every invocation while reusing unchanged local layers.
+        docker run --pull=always --rm \
           -v "${ws}:/tmp/lint" \
           -e DEFAULT_WORKSPACE=/tmp/lint \
           -e APPLY_FIXES="${CS_APPLY_FIXES}" \
