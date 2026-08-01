@@ -166,6 +166,7 @@ BUILTIN_EXES = {
 # Package name → binary name aliases
 INSTALL_ALIASES = {
     "attw": "@arethetypeswrong/cli",
+    "betterleaks-git": "betterleaks",
     "depcruise": "dependency-cruiser",
     "lint-imports": "import-linter",
     "tsc": "typescript",

@@ -11,3 +11,14 @@ def test_dclint_receives_compose_files_without_removed_subcommand() -> None:
 
     assert dclint["cli_lint_mode"] == "list_of_files"
     assert dclint["cli_lint_extra_args"] == []
+
+
+def test_betterleaks_scans_git_history_with_compatible_config() -> None:
+    descriptor = yaml.safe_load(Path("plugins/betterleaks-git.megalinter-descriptor.yml").read_text())
+    betterleaks = descriptor["linters"][0]
+
+    assert betterleaks["name"] == "REPOSITORY_BETTERLEAKS_GIT"
+    assert betterleaks["cli_lint_mode"] == "project"
+    assert betterleaks["cli_lint_extra_args"][0] == "git"
+    assert betterleaks["config_file_name"] == ".gitleaks.toml"
+    assert betterleaks["cli_lint_extra_args_after"] == ["."]

@@ -1,0 +1,32 @@
+descriptor_id: REPOSITORY
+descriptor_type: other
+lint_all_files: true
+linters:
+  - linter_name: betterleaks-git
+    name: REPOSITORY_BETTERLEAKS_GIT
+    descriptor_flavors:
+      - cupcake
+    cli_lint_mode: project
+    linter_text: Scan full Git history for secrets with Betterleaks
+    linter_url: https://github.com/betterleaks/betterleaks
+    cli_executable: betterleaks-git
+    cli_lint_extra_args:
+      - git
+      - --redact
+      - --verbose
+    cli_lint_extra_args_after:
+      - .
+    cli_config_arg_name: "--config"
+    cli_help_arg_name: --help
+    cli_version_arg_name: version
+    config_file_name: .gitleaks.toml
+    can_output_sarif: true
+    cli_sarif_args:
+      - --report-format
+      - sarif
+      - --report-path
+      - "{{SARIF_OUTPUT_FILE}}"
+    cli_lint_errors_count: regex_sum
+    cli_lint_errors_regex: "leaks found: ([0-9]+)"
+    files_sub_directory: ""
+    file_extensions: []
