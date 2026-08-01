@@ -89,8 +89,8 @@ class WorkspaceInventory:
 
         if result is not None and result.returncode == 0:
             candidates = (Path(raw) for raw in result.stdout.split("\0") if raw)
-            files = tuple(sorted(rel for rel in candidates if not _is_excluded(rel) and (root / rel).is_file()))
-            return cls(root=root, files=files)
+            git_files = tuple(sorted(rel for rel in candidates if not _is_excluded(rel) and (root / rel).is_file()))
+            return cls(root=root, files=git_files)
 
         files: list[Path] = []
         for current, dirs, names in os.walk(root, topdown=True):
