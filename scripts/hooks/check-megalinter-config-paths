@@ -4,7 +4,8 @@
 MegaLinter resolves _CONFIG_FILE by concatenating workspace + "/" + value.
 Absolute paths like /opt/coding-standards/configs/ruff.toml produce
 /tmp/lint//opt/coding-standards/configs/ruff.toml — which doesn't exist.
-Every _CONFIG_FILE must be a bare filename (resolved via LINTER_RULES_PATH).
+Every baked _CONFIG_FILE must be a bare filename. The entrypoint qualifies
+matching consumer files from their workspace-relative LINTER_RULES_PATH.
 """
 
 import sys
