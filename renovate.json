@@ -4,6 +4,32 @@
   "pre-commit": {
     "enabled": true
   },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update Python packages installed in the image",
+      "managerFilePatterns": ["/^Dockerfile$/"],
+      "matchStrings": ["(?<depName>[a-zA-Z0-9_.-]+)==(?<currentValue>[0-9.]+)"],
+      "datasourceTemplate": "pypi"
+    },
+    {
+      "customType": "regex",
+      "description": "Update npm packages installed in the image",
+      "managerFilePatterns": ["/^Dockerfile$/"],
+      "matchStrings": [
+        "(?<depName>(?:@[a-zA-Z0-9_.-]+/)?[a-zA-Z0-9_.-]+)@(?<currentValue>[0-9.]+)"
+      ],
+      "datasourceTemplate": "npm"
+    },
+    {
+      "customType": "regex",
+      "description": "Update the MegaLinter engine",
+      "managerFilePatterns": ["/^Dockerfile$/"],
+      "matchStrings": ["megalinter\\.git@v(?<currentValue>[0-9.]+)"],
+      "depNameTemplate": "oxsecurity/megalinter",
+      "datasourceTemplate": "github-releases"
+    }
+  ],
   "packageRules": [
     {
       "description": "Pin Docker image digests and auto-update",
@@ -21,9 +47,9 @@
       "groupName": "pre-commit hooks"
     },
     {
-      "description": "Trivy: pin to pre-compromise versions only",
-      "matchPackageNames": ["ghcr.io/aquasecurity/trivy"],
-      "allowedVersions": "<=0.69.3"
+      "description": "Semgrep 1.171+ conflicts with SQLFluff 4.2 over Click",
+      "matchPackageNames": ["semgrep"],
+      "allowedVersions": "<=1.170.0"
     }
   ]
 }
