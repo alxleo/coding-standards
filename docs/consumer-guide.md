@@ -260,17 +260,15 @@ For shellcheck findings (e.g., `require-double-brackets`):
 
 ## Gitignore
 
-The image creates temporary config and cache files during lint runs. Add to `.gitignore`:
+The image creates reports and cache files during lint runs. Add to `.gitignore`:
 
 ```gitignore
 # coding-standards lint artifacts
-.mega-linter-config/    # baked linter configs (shellcheckrc, codespellrc, etc.)
 megalinter-reports/     # lint output
 repo-manifest.json      # generated for repo-standards checks
 .lycheecache            # lychee link checker cache
 .ruff_cache/            # ruff lint cache
 .editorconfig           # only if you don't have your own
-.v8rrc.yml              # symlink to .mega-linter-config/
 ```
 
 If your repo already has an `.editorconfig`, it won't be overwritten — the image only creates one if missing.

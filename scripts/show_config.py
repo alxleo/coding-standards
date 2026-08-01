@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Show which config file each linter uses and whether a workspace override shadows it.
+"""Show which config file each linter uses and whether the workspace overrides it.
 
-Reads .mega-linter-default.yml for _CONFIG_FILE entries, resolves the baked-in
-config path, and checks if the workspace root contains a local file that would
-shadow (override) the baked config.
+Reads the effective MegaLinter YAML for _CONFIG_FILE entries and identifies
+workspace-root or canonical rules-directory overrides.
 
 Usage:
     show_config.py [workspace] [--mega-linter-yml PATH]
@@ -105,7 +104,11 @@ def show_config(workspace: Path, yml_path: Path) -> list[dict[str, str]]:
     rows = []
     for entry in entries:
         linter = entry["linter"]
-        shadows = _find_shadows(workspace, entry["config_basename"])
+        selected_path = Path(entry["config_path"])
+        if len(selected_path.parts) > 1 and not selected_path.is_absolute() and (workspace / selected_path).is_file():
+            shadows = [entry["config_path"]]
+        else:
+            shadows = _find_shadows(workspace, entry["config_basename"])
         tier = "warn" if linter in warn_linters else "error"
         rows.append(
             {

@@ -130,9 +130,10 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 - Image ships .mega-linter.yml + linter configs. Works offline.
 - The baked `LINTER_RULES_PATH` points inside the image
   (`/opt/coding-standards/configs`).
-- A consumer sets `LINTER_RULES_PATH: quality/lint` once. The entrypoint expands
-  matching files to relative per-linter `_RULES_PATH` values, preserving baked
-  fallbacks and avoiding MegaLinter v9.6's absolute-path activation bug.
+- A consumer sets `LINTER_RULES_PATH: quality/lint` once. The entrypoint selects
+  matching files with explicit workspace-relative `_CONFIG_FILE` values,
+  preserving baked fallbacks while avoiding MegaLinter v9.6's root-first search
+  order and absolute-path activation bug.
 - No EXTENDS / CONFIG_PROPERTIES_TO_APPEND by default. Replace > merge (simpler).
 
 ### Reporters

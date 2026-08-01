@@ -69,10 +69,10 @@ class TestRulesDirectoryResolution:
         _run_setup()
 
         merged = _read_merged_config()
-        assert merged["PYTHON_RUFF_RULES_PATH"] == "quality/lint"
-        assert merged["PYTHON_RUFF_CONFIG_FILE"] == "ruff.toml"
-        assert merged["ACTION_ACTIONLINT_RULES_PATH"] == "quality/lint"
-        assert merged["ACTION_ACTIONLINT_CONFIG_FILE"] == "actionlint.yaml"
+        assert "PYTHON_RUFF_RULES_PATH" not in merged
+        assert merged["PYTHON_RUFF_CONFIG_FILE"] == "quality/lint/ruff.toml"
+        assert "ACTION_ACTIONLINT_RULES_PATH" not in merged
+        assert merged["ACTION_ACTIONLINT_CONFIG_FILE"] == "quality/lint/actionlint.yaml"
 
     def test_rules_directory_preserves_baked_fallback(self, workspace):
         """Linters without a consumer config retain the baked rules path."""
@@ -131,3 +131,4 @@ class TestRulesDirectoryResolution:
 
         merged = _read_merged_config()
         assert merged["PYTHON_RUFF_RULES_PATH"] == "custom/ruff"
+        assert merged["PYTHON_RUFF_CONFIG_FILE"] == "ruff.toml"

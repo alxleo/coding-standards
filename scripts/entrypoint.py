@@ -43,7 +43,9 @@ def _local_rules_directory(rules_path: str, workspace: Path) -> Path:
     raise ValueError(message)
 
 
-def _assign_matching_rules_paths(merged: dict[str, object], rules_path: str, rules_directory: Path) -> None:
+def _select_matching_consumer_configs(
+    merged: dict[str, object], overrides: dict[str, object], rules_path: str, rules_directory: Path
+) -> None:
     for key, value in tuple(merged.items()):
         if not (key.endswith("_CONFIG_FILE") and isinstance(value, str)):
             continue
@@ -52,7 +54,11 @@ def _assign_matching_rules_paths(merged: dict[str, object], rules_path: str, rul
             continue
         if (rules_directory / config_path).is_file():
             rules_key = f"{key.removesuffix('_CONFIG_FILE')}_RULES_PATH"
-            merged.setdefault(rules_key, rules_path)
+            if rules_key not in overrides:
+                # MegaLinter searches the workspace root before RULES_PATH. Use
+                # the explicit workspace-relative filename so the canonical
+                # directory wins even during a migration with stale root files.
+                merged[key] = str(Path(rules_path) / config_path)
 
 
 def _warn_for_missing_overrides(overrides: dict[str, object], workspace: Path, rules_directory: Path) -> None:
@@ -70,10 +76,10 @@ def _apply_consumer_rules_directory(merged: dict[str, object], overrides: dict[s
     """Overlay a consumer LINTER_RULES_PATH without hiding baked configs.
 
     MegaLinter treats LINTER_RULES_PATH as a replacement.  The coding-standards
-    image instead keeps its baked directory as the fallback and assigns the
-    consumer directory to each linter whose config exists there.  Per-linter
-    paths also avoid MegaLinter v9.6's activation bug with an absolute global
-    rules path.
+    image instead keeps its baked directory as the fallback and selects each
+    matching consumer config by its explicit workspace-relative path. This also
+    avoids MegaLinter v9.6's root-first search order and absolute-path
+    activation bug.
     """
     rules_path = overrides.pop("LINTER_RULES_PATH", None)
     if rules_path is None:
@@ -86,7 +92,7 @@ def _apply_consumer_rules_directory(merged: dict[str, object], overrides: dict[s
         return
 
     rules_directory = _local_rules_directory(rules_path, workspace)
-    _assign_matching_rules_paths(merged, rules_path, rules_directory)
+    _select_matching_consumer_configs(merged, overrides, rules_path, rules_directory)
     _warn_for_missing_overrides(overrides, workspace, rules_directory)
 
 
@@ -245,7 +251,13 @@ def show_config() -> None:
     """Show which config file each linter uses + local overrides."""
     os.chdir(_workspace())
     subprocess.run(
-        ["python3", str(SCRIPTS / "show_config.py"), ".", "--mega-linter-yml", str(BAKED_CONFIG)],
+        [
+            "python3",
+            str(SCRIPTS / "show_config.py"),
+            ".",
+            "--mega-linter-yml",
+            os.environ.get("MEGALINTER_CONFIG", str(BAKED_CONFIG)),
+        ],
         check=True,
     )
 
