@@ -11,6 +11,8 @@ def test_dclint_receives_compose_files_without_removed_subcommand() -> None:
 
     assert dclint["cli_lint_mode"] == "list_of_files"
     assert dclint["cli_lint_extra_args"] == []
+    assert dclint["cli_config_arg_name"] == "--config"
+    assert dclint["config_file_name"] == ".dclintrc.yaml"
 
 
 def test_betterleaks_scans_git_history_with_compatible_config() -> None:
