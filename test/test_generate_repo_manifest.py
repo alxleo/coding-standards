@@ -83,7 +83,17 @@ def test_canonical_linter_rules_directory_is_manifest_authority(tmp_path: Path) 
     (rules / ".gitleaks.toml").write_text("[allowlist]\n")
     (rules / ".gitleaksignore").write_text("example\n")
     (rules / "trivy.yaml").write_text("scan: {}\n")
-    (rules / ".trivyignore.yaml").write_text("- id: example\n")
+    (rules / ".trivyignore.yaml").write_text(
+        "vulnerabilities:\n"
+        "  - id: CVE-2026-0001\n"
+        "    paths:\n"
+        "      - usr/lib/example\n"
+        "    statement: accepted risk\n"
+        "secrets:\n"
+        "  - id: generic-api-key\n"
+        "    paths:\n"
+        "      - test/fixture.txt\n"
+    )
     (rules / "commitlint.config.mjs").write_text("export default {};\n")
 
     manifest = generate(tmp_path)
@@ -94,7 +104,7 @@ def test_canonical_linter_rules_directory_is_manifest_authority(tmp_path: Path) 
     assert manifest["files"]["trivy"] is True
     assert manifest["files"]["commitlint_config"] is True
     assert manifest["suppressions"]["gitleaksignore"] == 1
-    assert manifest["suppressions"]["trivyignore"] == 1
+    assert manifest["suppressions"]["trivyignore"] == 2
 
 
 def test_js_repo_detects_files(js_repo: Path) -> None:

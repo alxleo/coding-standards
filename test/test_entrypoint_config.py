@@ -181,3 +181,16 @@ class TestRulesDirectoryResolution:
 
         with pytest.raises(ValueError, match="not a file under quality/lint"):
             _run_setup()
+
+    @pytest.mark.parametrize("rules_path", ["/opt/custom", "https://example.com/configs"])
+    def test_required_local_configs_reject_non_local_rules_path(self, workspace, rules_path):
+        _write_consumer_config(
+            workspace,
+            {
+                "LINTER_RULES_PATH": rules_path,
+                "CODING_STANDARDS_REQUIRED_LOCAL_CONFIGS": ["PYTHON_RUFF_CONFIG_FILE"],
+            },
+        )
+
+        with pytest.raises(ValueError, match="workspace-relative LINTER_RULES_PATH"):
+            _run_setup()

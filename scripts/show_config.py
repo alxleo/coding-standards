@@ -112,12 +112,8 @@ def show_config(workspace: Path, yml_path: Path) -> list[dict[str, str]]:
             resolved_path = entry["config_path"]
         else:
             shadows = _find_shadows(workspace, entry["config_basename"])
-            if shadows:
-                source = "workspace"
-                resolved_path = shadows[0]
-            else:
-                source = "baseline"
-                resolved_path = entry["config_path"]
+            source = "baseline"
+            resolved_path = entry["config_path"]
         tier = "warn" if linter in warn_linters else "error"
         rows.append(
             {

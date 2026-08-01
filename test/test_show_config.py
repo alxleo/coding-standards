@@ -120,6 +120,18 @@ class TestShowConfig:
         rows = show_config(workspace_with_ruff, sample_yml)
         ruff_row = next(r for r in rows if r["linter"] == "PYTHON_RUFF")
         assert "ruff.toml" in ruff_row["shadow"]
+        assert ruff_row["source"] == "baseline"
+        assert ruff_row["path"] == "/opt/coding-standards/configs/ruff.toml"
+
+    def test_alternate_shadow_is_not_reported_as_selected(self, empty_workspace: Path, sample_yml: Path) -> None:
+        (empty_workspace / "pyproject.toml").write_text("[tool.ruff]\n")
+
+        rows = show_config(empty_workspace, sample_yml)
+
+        ruff_row = next(r for r in rows if r["linter"] == "PYTHON_RUFF")
+        assert ruff_row["shadow"] == "pyproject.toml"
+        assert ruff_row["source"] == "baseline"
+        assert ruff_row["path"] == "/opt/coding-standards/configs/ruff.toml"
 
     def test_detects_selected_rules_directory_config(self, empty_workspace: Path, sample_yml: Path) -> None:
         rules = empty_workspace / "quality" / "lint"

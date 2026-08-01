@@ -121,6 +121,9 @@ def _apply_consumer_rules_directory(merged: dict[str, object], overrides: dict[s
         message = "LINTER_RULES_PATH must be a non-empty directory path"
         raise ValueError(message)
     if rules_path.startswith("http") or Path(rules_path).is_absolute():
+        if required is not None:
+            message = f"{REQUIRED_LOCAL_CONFIGS_KEY} requires a workspace-relative LINTER_RULES_PATH"
+            raise ValueError(message)
         merged["LINTER_RULES_PATH"] = rules_path
         return
 

@@ -584,7 +584,16 @@ def _count_suppressions(root: Path, inventory: WorkspaceInventory) -> dict[str, 
         (path for name in (".trivyignore", ".trivyignore.yaml") if (path := rules_root / name).is_file()), None
     )
     gitleaks_ignore = rules_root / ".gitleaksignore"
-    counts["trivyignore"] = len(trivy_ignore.read_text().splitlines()) if trivy_ignore else 0
+    if trivy_ignore and trivy_ignore.suffix == ".yaml":
+        trivy_data = yaml.safe_load(trivy_ignore.read_text())
+        if isinstance(trivy_data, dict):
+            counts["trivyignore"] = sum(len(entries) for entries in trivy_data.values() if isinstance(entries, list))
+        elif isinstance(trivy_data, list):
+            counts["trivyignore"] = len(trivy_data)
+        else:
+            counts["trivyignore"] = 0
+    else:
+        counts["trivyignore"] = len(trivy_ignore.read_text().splitlines()) if trivy_ignore else 0
     counts["gitleaksignore"] = len(gitleaks_ignore.read_text().splitlines()) if gitleaks_ignore.is_file() else 0
     counts["total"] = sum(counts.values())
     return counts
