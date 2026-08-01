@@ -117,18 +117,23 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 
 - Most linters: `_CONFIG_FILE` pointing to baked config. MegaLinter auto-passes it via `cli_config_arg_name`.
 - Consumer repos override via `<LINTER>_CONFIG_FILE: myconfig.toml` — one line, works correctly.
-- Exceptions (tools where `_CONFIG_FILE` injects the wrong flag):
-  - **JSON v8r**: built-in descriptor's `-c` means `--catalogs`, not config. Config copied to workspace via PRE_COMMANDS; cosmiconfig discovers it.
-  - **shellcheck**: built-in descriptor inherits default `-c` which shellcheck has never accepted (uses `--rcfile` since v0.10, auto-discovery since v0.7). Config copied to workspace via PRE_COMMANDS.
+- MegaLinter v9.6 correctly wires ShellCheck through `--rcfile` and both v8r
+  descriptors through `V8R_CONFIG_FILE`; they now use `_CONFIG_FILE` like the
+  other linters.
+- Remaining discovery exceptions:
   - **shfmt**: reads `.editorconfig` from file's directory tree. Symlinked at repo root, copied to workspace via PRE_COMMANDS.
   - **editorconfig-checker**: built-in `-config` expects `.ecrc` (tool JSON config), not `.editorconfig`. Auto-discovers `.editorconfig` from workspace.
-- PRE_COMMANDS copies use `test ! -f` guards — consumer files at workspace root take precedence over baked defaults.
+- PRE_COMMANDS copies use `test ! -f` guards for the remaining discovery files.
 
 ### Config distribution: baked + override
 
 - Image ships .mega-linter.yml + linter configs. Works offline.
-- Consumer repos override via own .mega-linter.yml or per-linter _CONFIG_FILE.
-- LINTER_RULES_PATH points inside image (/opt/coding-standards/configs).
+- The baked `LINTER_RULES_PATH` points inside the image
+  (`/opt/coding-standards/configs`).
+- A consumer sets `LINTER_RULES_PATH: quality/lint` once. The entrypoint selects
+  matching files with explicit workspace-relative `_CONFIG_FILE` values,
+  preserving baked fallbacks while avoiding MegaLinter v9.6's root-first search
+  order and absolute-path activation bug.
 - No EXTENDS / CONFIG_PROPERTIES_TO_APPEND by default. Replace > merge (simpler).
 
 ### Reporters
@@ -152,7 +157,10 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 ### PRE_COMMANDS
 
 - git safe.directory + autocrlf fix (Docker UID mismatch).
-- Copy baked configs to workspace root for tools that auto-discover (v8r, shellcheck, shfmt, editorconfig-checker, codespell, ls-lint). Uses `cp` not symlinks (prettier rejects symlinks). NOTE: MegaLinter checks `active_only_if_file_found` BEFORE PRE_COMMANDS, so these copies provide config, not activation. commitlint excluded — needs git history (HEAD~1) which Docker-mounted workspaces lack.
+- Copy only `.editorconfig` and `.v8rignore` to the workspace for their native
+  discovery protocols. CLI-addressable configs use `_CONFIG_FILE` and the rules
+  directory instead. commitlint remains excluded because it needs git history
+  (`HEAD~1`) that Docker-mounted workspaces may lack.
 - npm ci guard (runs only if package-lock.json exists).
 
 ### Self-lint: MEGALINTER_CONFIG override

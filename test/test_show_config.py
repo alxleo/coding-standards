@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 # Import via spec loader (script lives in scripts/, not a package)
 _script = Path(__file__).resolve().parent.parent / "scripts" / "show_config.py"
@@ -118,6 +119,19 @@ class TestShowConfig:
         rows = show_config(workspace_with_ruff, sample_yml)
         ruff_row = next(r for r in rows if r["linter"] == "PYTHON_RUFF")
         assert "ruff.toml" in ruff_row["shadow"]
+
+    def test_detects_selected_rules_directory_config(self, empty_workspace: Path, sample_yml: Path) -> None:
+        rules = empty_workspace / "quality" / "lint"
+        rules.mkdir(parents=True)
+        (rules / "ruff.toml").write_text("[lint]\n")
+        data = yaml.safe_load(sample_yml.read_text())
+        data["PYTHON_RUFF_CONFIG_FILE"] = "quality/lint/ruff.toml"
+        sample_yml.write_text(yaml.safe_dump(data))
+
+        rows = show_config(empty_workspace, sample_yml)
+
+        ruff_row = next(r for r in rows if r["linter"] == "PYTHON_RUFF")
+        assert ruff_row["shadow"] == "quality/lint/ruff.toml"
 
     def test_tier_classification(self, empty_workspace: Path, sample_yml: Path) -> None:
         rows = show_config(empty_workspace, sample_yml)

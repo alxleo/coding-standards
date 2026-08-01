@@ -213,8 +213,8 @@ if has_files(["*.py"]) and not file_exists("ruff.toml"):
             "reason": "Python files detected but no ruff.toml — using baked defaults",
             "value": "Custom rule selection, per-file ignores, line length. Extend the baseline or replace it.",
             "setup": [
-                "# Extend baked config:",
-                "# echo 'extend = \".mega-linter-config/ruff.toml\"' > ruff.toml",
+                "# Add a repository config at quality/lint/ruff.toml",
+                "# and set LINTER_RULES_PATH: quality/lint in .mega-linter.yml",
                 "# Or see: just cs-help ruff",
             ],
         }
@@ -258,8 +258,8 @@ if has_files(["*.yml", "*.yaml"]) and not file_exists(".yamllint"):
             "reason": "YAML files detected but no .yamllint — using baked defaults",
             "value": "Custom line length, truthy values, comment indentation rules",
             "setup": [
-                "# Create .yamllint to override specific rules",
-                "# See baked config: .mega-linter-config/.yamllint",
+                "# Create quality/lint/.yamllint to override specific rules",
+                "# Set LINTER_RULES_PATH: quality/lint in .mega-linter.yml",
             ],
         }
     )

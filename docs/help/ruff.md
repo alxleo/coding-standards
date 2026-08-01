@@ -1,25 +1,22 @@
 # Overriding Python (ruff) config
 
-## Extend the baseline
+## Repository config
 
 ```toml
-# ruff.toml
-extend = ".mega-linter-config/ruff.toml"
+# quality/lint/ruff.toml
 [lint]
 select = ["ALL"]
 ```
 
-## Full replacement
-
-```toml
-# ruff.toml — your own, no extend
-```
-
-Set in `.mega-linter.yml`:
+Select the shared config directory in `.mega-linter.yml`:
 
 ```yaml
-PYTHON_RUFF_CONFIG_FILE: ruff.toml
+LINTER_RULES_PATH: quality/lint
 ```
+
+The filename already matches the baseline default, so no Ruff-specific
+MegaLinter setting is required. This repository config replaces the baked Ruff
+baseline.
 
 ## Migration recipe
 

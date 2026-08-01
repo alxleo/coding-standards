@@ -64,10 +64,10 @@ Touch these files — the integrity hook validates completeness:
 
 ## Key constraints
 
-- **`_CONFIG_FILE` must be bare filenames** — `ruff.toml` not `/opt/.../ruff.toml`. MegaLinter concatenates `LINTER_RULES_PATH + _CONFIG_FILE`. Enforced by `check-megalinter-config-paths`.
+- **Baked `_CONFIG_FILE` values must be bare filenames** — `ruff.toml` not `/opt/.../ruff.toml`. The entrypoint qualifies matching consumer files from `LINTER_RULES_PATH`; absolute baked paths break MegaLinter resolution. Enforced by `check-megalinter-config-paths`.
 - **Binary checksums: both architectures** — every `curl` download needs `_SHA256_amd64` and `_SHA256_arm64`. PMD is exempt (Java, arch-agnostic). Enforced by integrity hook.
 - **Semgrep rule IDs: `coding-standards.` prefix** — ensures predictable `--exclude-rule` for consumers.
-- **No workspace root pollution** — baked configs go to `.mega-linter-config/` via PRE_COMMANDS. Exceptions: `.editorconfig` (spec requires root), `.v8rrc.yml` (symlink for cosmiconfig).
+- **No workspace root pollution** — consumers keep linter configs in the directory named by `LINTER_RULES_PATH`. `.editorconfig` is the deliberate root exception because the EditorConfig specification requires directory-tree discovery.
 - **No runtime network calls** — the image is offline-first. Schemas, semgrep rules, trivy DB baked at build time. Tools that need network (zizmor pin verification) run with `--offline` in CI; online checks go in scheduled workflows. Token passthrough (env-file, git credential store) exists for opt-in online use.
 - **Consumer files are read-only** — never `sed -i` or modify mounted workspace files. Use temp copies.
 
