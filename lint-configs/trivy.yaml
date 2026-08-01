@@ -1,0 +1,3 @@
+# Neutral fallback configuration. Consumers can replace this from their
+# LINTER_RULES_PATH without keeping trivy.yaml in the workspace root.
+scan: {}

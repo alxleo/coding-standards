@@ -21,6 +21,7 @@ def workspace(tmp_path):
                 "ENABLE_LINTERS": "PYTHON_RUFF",
                 "LINTER_RULES_PATH": "/opt/coding-standards/configs",
                 "PYTHON_RUFF_CONFIG_FILE": "ruff.toml",
+                "REPOSITORY_TRIVY_CUSTOM_CONFIG_FILE": "trivy.yaml",
             }
         )
     )
@@ -58,6 +59,7 @@ class TestRulesDirectoryResolution:
         rules.mkdir(parents=True)
         (rules / "ruff.toml").write_text("[lint]\nselect = ['E']\n")
         (rules / "actionlint.yaml").write_text("self-hosted-runner: {}\n")
+        (rules / "trivy.yaml").write_text("scan:\n  skip-dirs: [.decrypted]\n")
         _write_consumer_config(
             workspace,
             {
@@ -73,6 +75,7 @@ class TestRulesDirectoryResolution:
         assert merged["PYTHON_RUFF_CONFIG_FILE"] == "quality/lint/ruff.toml"
         assert "ACTION_ACTIONLINT_RULES_PATH" not in merged
         assert merged["ACTION_ACTIONLINT_CONFIG_FILE"] == "quality/lint/actionlint.yaml"
+        assert merged["REPOSITORY_TRIVY_CUSTOM_CONFIG_FILE"] == "quality/lint/trivy.yaml"
 
     def test_rules_directory_preserves_baked_fallback(self, workspace):
         """Linters without a consumer config retain the baked rules path."""
