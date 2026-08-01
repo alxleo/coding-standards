@@ -147,6 +147,7 @@ BASH_SHELLCHECK_FILTER_REGEX_EXCLUDE: "semgrep-rules/.*\\.sh"
 # rumdl: custom plugin with cli_config_arg_name: --config. Clean _CONFIG_FILE.
 MARKDOWN_RUMDL_CONFIG_FILE: .markdownlint-cli2.yaml
 REPOSITORY_COMMITLINT_CONFIG_FILE: commitlint.config.mjs
+REPOSITORY_TRIVY_CUSTOM_CONFIG_FILE: trivy.yaml
 REPOSITORY_ZIZMOR_CONFIG_FILE: .zizmor.yml
 # Offline mode: no network calls at lint time. Pin verification runs in
 # scheduled workflows (with token). Static checks (injection, permissions,

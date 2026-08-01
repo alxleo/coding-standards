@@ -19,7 +19,9 @@ linters:
       - "1"
       - --quiet
       - .
+    cli_config_arg_name: "--config"
     cli_help_arg_name: --help
     cli_version_arg_name: --version
+    config_file_name: trivy.yaml
     files_sub_directory: ""
     file_extensions: []
