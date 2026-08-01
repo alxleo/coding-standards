@@ -152,6 +152,25 @@ class TestBlastRadius:
         for r in results:
             assert r["file"] not in r["referencing_files"]
 
+    def test_absent_filename_skips_boundary_regex(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        nested = tmp_path / "nested"
+        nested.mkdir()
+        (nested / "config.toml").write_text("[settings]\n")
+        (tmp_path / "app.py").write_text("print('unrelated')\n")
+
+        class SearchProbe:
+            def search(self, _content: str) -> bool:
+                raise AssertionError
+
+        def compile_probe(_pattern: str) -> SearchProbe:
+            return SearchProbe()
+
+        monkeypatch.setattr(br.re, "compile", compile_probe)
+
+        results = br.compute_blast_radius(tmp_path)
+        by_file = {result["file"]: result for result in results}
+        assert by_file["nested/config.toml"]["blast_radius"] == 0
+
 
 # ── Signal 2: Temporal Coupling ──────────────────────────────────────
 
