@@ -13,7 +13,7 @@ Type ignore:       # type: ignore[arg-type]
 
 ```
 Trivy:     .trivyignore          (CVE IDs)
-Gitleaks:  .gitleaksignore       (path patterns)
+Betterleaks: .gitleaksignore     (compatible fingerprints and paths)
 Codespell: .codespellrc          (word whitelist)
 ```
 

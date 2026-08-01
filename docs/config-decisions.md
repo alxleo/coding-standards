@@ -28,10 +28,11 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 - syft: no SBOM consumer.
 - Trivy is checksum-pinned to a post-incident release. MegaLinter re-enabled Trivy after the upstream incident was resolved.
 
-### Secrets: Gitleaks in CI; Betterleaks available for opt-in trials
+### Secrets: Betterleaks with full Git history
 
-- Gitleaks remains the default because it scans repository history. MegaLinter v9.6 invokes Betterleaks in filesystem mode by default, which would miss secrets removed from the final working tree but retained in earlier commits.
-- Betterleaks remains installed for explicit consumer trials; it accepts existing `.gitleaks.toml` and `.gitleaksignore` files.
+- `REPOSITORY_BETTERLEAKS_GIT` is the default. It wraps Betterleaks in `git` mode because MegaLinter v9.6's built-in `REPOSITORY_BETTERLEAKS` uses filesystem mode and misses secrets removed from the current tree.
+- The wrapper preserves existing `.gitleaks.toml` and `.gitleaksignore` files. When a selected config lives in a canonical rules directory, the sibling ignore file is passed automatically.
+- Gitleaks remains installed temporarily for consumers that have not migrated, but it is no longer enabled by the baseline.
 - secretlint: strict subset of Gitleaks coverage.
 - trufflehog: valuable for `--only-verified` audits. Use as periodic cron, not CI.
 

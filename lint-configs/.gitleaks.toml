@@ -1,8 +1,8 @@
-# Gitleaks baseline — synced to all repos.
-# Each repo adds its own .gitleaks.toml at the root for allowlists.
-# https://github.com/gitleaks/gitleaks
+# Betterleaks baseline using its Gitleaks-compatible format.
+# Consumer configs and sibling .gitleaksignore files may live under LINTER_RULES_PATH.
+# https://github.com/betterleaks/betterleaks
 
-title = "coding-standards gitleaks baseline"
+title = "coding-standards Betterleaks baseline"
 
 [extend]
 useDefault = true
