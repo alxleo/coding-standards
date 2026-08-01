@@ -6,6 +6,7 @@ Uses tmp_path fixtures to simulate workspace dirs with/without shadowing configs
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -132,6 +133,8 @@ class TestShowConfig:
 
         ruff_row = next(r for r in rows if r["linter"] == "PYTHON_RUFF")
         assert ruff_row["shadow"] == "quality/lint/ruff.toml"
+        assert ruff_row["source"] == "consumer"
+        assert ruff_row["path"] == "quality/lint/ruff.toml"
 
     def test_tier_classification(self, empty_workspace: Path, sample_yml: Path) -> None:
         rows = show_config(empty_workspace, sample_yml)
@@ -172,3 +175,12 @@ class TestMain:
         captured = capsys.readouterr()
         assert "3 linters with baked configs" in captured.out
         assert "1 overridden locally" in captured.out
+
+    def test_json_output_reports_config_source(
+        self, empty_workspace: Path, sample_yml: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        result = main([str(empty_workspace), "--mega-linter-yml", str(sample_yml), "--format", "json"])
+
+        assert result == 0
+        rows = json.loads(capsys.readouterr().out)
+        assert rows[0]["source"] == "baseline"

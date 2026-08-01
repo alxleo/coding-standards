@@ -311,6 +311,22 @@ def extract_extends_url(root: Path) -> str | None:
     return None
 
 
+def linter_rules_root(root: Path) -> Path:
+    """Return the safe workspace-local rules directory selected by MegaLinter."""
+    config = root / ".mega-linter.yml"
+    if not config.is_file():
+        return root
+    try:
+        data = yaml.safe_load(config.read_text()) or {}
+    except (OSError, yaml.YAMLError):
+        return root
+    rules_path = data.get("LINTER_RULES_PATH") if isinstance(data, dict) else None
+    if not isinstance(rules_path, str) or not rules_path.strip() or Path(rules_path).is_absolute():
+        return root
+    candidate = (root / rules_path).resolve()
+    return candidate if candidate.is_relative_to(root.resolve()) else root
+
+
 def check_gitignore_covers(root: Path, pattern: str) -> bool:
     gi = root / ".gitignore"
     if not gi.exists():
@@ -563,12 +579,13 @@ def _count_suppressions(root: Path, inventory: WorkspaceInventory) -> dict[str, 
         for name, pattern in patterns.items():
             counts[name] += len(re.findall(pattern, text))
     # File-level suppressions
-    counts["trivyignore"] = (
-        len((root / ".trivyignore").read_text().splitlines()) if (root / ".trivyignore").exists() else 0
+    rules_root = linter_rules_root(root)
+    trivy_ignore = next(
+        (path for name in (".trivyignore", ".trivyignore.yaml") if (path := rules_root / name).is_file()), None
     )
-    counts["gitleaksignore"] = (
-        len((root / ".gitleaksignore").read_text().splitlines()) if (root / ".gitleaksignore").exists() else 0
-    )
+    gitleaks_ignore = rules_root / ".gitleaksignore"
+    counts["trivyignore"] = len(trivy_ignore.read_text().splitlines()) if trivy_ignore else 0
+    counts["gitleaksignore"] = len(gitleaks_ignore.read_text().splitlines()) if gitleaks_ignore.is_file() else 0
     counts["total"] = sum(counts.values())
     return counts
 
@@ -578,20 +595,21 @@ def generate(root: Path) -> dict[str, Any]:
 
     inventory = WorkspaceInventory.build(root)
     ack = load_acknowledged(root)
+    rules_root = linter_rules_root(root)
     data = {
         "files": {
-            "pyrightconfig": (root / "pyrightconfig.json").exists(),
-            "ruff": (root / "ruff.toml").exists(),
-            "gitleaks": (root / ".gitleaks.toml").exists(),
+            "pyrightconfig": (rules_root / "pyrightconfig.json").exists(),
+            "ruff": (rules_root / "ruff.toml").exists(),
+            "gitleaks": (rules_root / ".gitleaks.toml").exists(),
             "sops": (root / ".sops.yaml").exists(),
-            "trivy": (root / "trivy.yaml").exists(),
+            "trivy": (rules_root / "trivy.yaml").exists(),
             "mega_linter": (root / ".mega-linter.yml").exists(),
             "mega_linter_extends_url": extract_extends_url(root),
-            "conftest_toml": (root / "conftest.toml").exists(),
+            "conftest_toml": (rules_root / "conftest.toml").exists() or (root / "conftest.toml").exists(),
             "editorconfig": (root / ".editorconfig").exists(),
             "tsconfig": (root / "tsconfig.json").exists(),
             "eslint_config": any(
-                (root / f).exists()
+                (rules_root / f).exists()
                 for f in [
                     "eslint.config.js",
                     "eslint.config.mjs",
@@ -600,9 +618,10 @@ def generate(root: Path) -> dict[str, Any]:
                     ".eslintrc.yml",
                 ]
             ),
-            "pre_commit_config": (root / ".pre-commit-config.yaml").exists(),
+            "pre_commit_config": (root / ".pre-commit-config.yaml").exists()
+            or (rules_root / ".pre-commit-config.yaml").exists(),
             "commitlint_config": any(
-                (root / f).exists()
+                (rules_root / f).exists()
                 for f in [
                     "commitlint.config.js",
                     "commitlint.config.mjs",

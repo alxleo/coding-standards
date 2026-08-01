@@ -77,6 +77,20 @@ use the configs baked into the image. Keep only `.mega-linter.yml` at the repo
 root and place linter-owned files such as `ruff.toml`, `.yamllint`,
 `.shellcheckrc`, and `.gitleaks.toml` in `quality/lint/`.
 
+Repositories that require particular overrides can make that contract fail
+closed by listing their MegaLinter config keys:
+
+```yaml
+CODING_STANDARDS_REQUIRED_LOCAL_CONFIGS:
+  - BASH_SHELLCHECK_CONFIG_FILE
+  - PYTHON_RUFF_CONFIG_FILE
+  - YAML_YAMLLINT_CONFIG_FILE
+```
+
+The entrypoint removes this coding-standards-only setting before MegaLinter
+starts. It fails if any listed key does not resolve to an existing file below
+`LINTER_RULES_PATH`. Unlisted linters continue to use the baked baseline.
+
 `.editorconfig` is the deliberate exception. It is a repository-wide editor
 standard whose discovery protocol requires it in the directory tree, not a
 MegaLinter-only config file.

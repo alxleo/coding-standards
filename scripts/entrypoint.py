@@ -22,6 +22,7 @@ import yaml
 SCRIPTS = Path("/opt/coding-standards/scripts")
 BAKED_CONFIG = Path("/opt/coding-standards/.mega-linter-default.yml")
 EXTENDS_URL = "https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml"
+REQUIRED_LOCAL_CONFIGS_KEY = "CODING_STANDARDS_REQUIRED_LOCAL_CONFIGS"
 
 app = typer.Typer(
     name="coding-standards",
@@ -72,6 +73,33 @@ def _warn_for_missing_overrides(overrides: dict[str, object], workspace: Path, r
             typer.echo(f"Warning: {key} override points to missing file: {value}", err=True)
 
 
+def _validate_required_local_configs(
+    merged: dict[str, object], required: object, workspace: Path, rules_directory: Path
+) -> None:
+    if required is None:
+        return
+    if not isinstance(required, list) or not all(isinstance(key, str) for key in required):
+        message = f"{REQUIRED_LOCAL_CONFIGS_KEY} must be a list of _CONFIG_FILE keys"
+        raise ValueError(message)
+
+    errors: list[str] = []
+    for key in required:
+        if not key.endswith("_CONFIG_FILE"):
+            errors.append(f"{key}: expected a _CONFIG_FILE key")
+            continue
+        value = merged.get(key)
+        if not isinstance(value, str):
+            errors.append(f"{key}: no effective config is declared")
+            continue
+        resolved = (workspace / value).resolve() if not Path(value).is_absolute() else Path(value).resolve()
+        if not resolved.is_relative_to(rules_directory) or not resolved.is_file():
+            errors.append(f"{key}: {value} is not a file under {rules_directory.relative_to(workspace)}")
+
+    if errors:
+        message = "Required local linter configs did not resolve:\n- " + "\n- ".join(errors)
+        raise ValueError(message)
+
+
 def _apply_consumer_rules_directory(merged: dict[str, object], overrides: dict[str, object], workspace: Path) -> None:
     """Overlay a consumer LINTER_RULES_PATH without hiding baked configs.
 
@@ -81,8 +109,13 @@ def _apply_consumer_rules_directory(merged: dict[str, object], overrides: dict[s
     avoids MegaLinter v9.6's root-first search order and absolute-path
     activation bug.
     """
+    required = overrides.pop(REQUIRED_LOCAL_CONFIGS_KEY, None)
+    merged.pop(REQUIRED_LOCAL_CONFIGS_KEY, None)
     rules_path = overrides.pop("LINTER_RULES_PATH", None)
     if rules_path is None:
+        if required is not None:
+            message = f"{REQUIRED_LOCAL_CONFIGS_KEY} requires LINTER_RULES_PATH"
+            raise ValueError(message)
         return
     if not isinstance(rules_path, str) or not rules_path.strip():
         message = "LINTER_RULES_PATH must be a non-empty directory path"
@@ -94,6 +127,7 @@ def _apply_consumer_rules_directory(merged: dict[str, object], overrides: dict[s
     rules_directory = _local_rules_directory(rules_path, workspace)
     _select_matching_consumer_configs(merged, overrides, rules_path, rules_directory)
     _warn_for_missing_overrides(overrides, workspace, rules_directory)
+    _validate_required_local_configs(merged, required, workspace, rules_directory)
 
 
 def _setup() -> None:
@@ -246,8 +280,8 @@ def warnings() -> None:
     subprocess.run(["python3", str(SCRIPTS / "show_warnings.py")], check=True)
 
 
-@app.command(name="show-config")
-def show_config() -> None:
+@app.command(name="show-config", context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+def show_config(ctx: typer.Context) -> None:
     """Show which config file each linter uses + local overrides."""
     os.chdir(_workspace())
     subprocess.run(
@@ -257,6 +291,7 @@ def show_config() -> None:
             ".",
             "--mega-linter-yml",
             os.environ.get("MEGALINTER_CONFIG", str(BAKED_CONFIG)),
+            *ctx.args,
         ],
         check=True,
     )

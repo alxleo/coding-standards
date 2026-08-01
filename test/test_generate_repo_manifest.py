@@ -74,6 +74,29 @@ def test_python_repo_detects_files(python_repo: Path) -> None:
     assert manifest["dependencies"]["test_deps_defined"] is True
 
 
+def test_canonical_linter_rules_directory_is_manifest_authority(tmp_path: Path) -> None:
+    rules = tmp_path / "quality" / "lint"
+    rules.mkdir(parents=True)
+    (tmp_path / ".mega-linter.yml").write_text("LINTER_RULES_PATH: quality/lint\n")
+    (rules / "ruff.toml").write_text("[lint]\n")
+    (rules / "pyrightconfig.json").write_text("{}\n")
+    (rules / ".gitleaks.toml").write_text("[allowlist]\n")
+    (rules / ".gitleaksignore").write_text("example\n")
+    (rules / "trivy.yaml").write_text("scan: {}\n")
+    (rules / ".trivyignore.yaml").write_text("- id: example\n")
+    (rules / "commitlint.config.mjs").write_text("export default {};\n")
+
+    manifest = generate(tmp_path)
+
+    assert manifest["files"]["ruff"] is True
+    assert manifest["files"]["pyrightconfig"] is True
+    assert manifest["files"]["gitleaks"] is True
+    assert manifest["files"]["trivy"] is True
+    assert manifest["files"]["commitlint_config"] is True
+    assert manifest["suppressions"]["gitleaksignore"] == 1
+    assert manifest["suppressions"]["trivyignore"] == 1
+
+
 def test_js_repo_detects_files(js_repo: Path) -> None:
     manifest = generate(js_repo)
     assert manifest["content"]["typescript_files"] == 1
