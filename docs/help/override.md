@@ -13,4 +13,13 @@ the baseline default, declare only that override:
 ACTION_ACTIONLINT_CONFIG_FILE: actionlint.yaml
 ```
 
+Require important repository overrides to remain local instead of silently
+falling back to the baked baseline:
+
+```yaml
+CODING_STANDARDS_REQUIRED_LOCAL_CONFIGS:
+  - ACTION_ACTIONLINT_CONFIG_FILE
+  - PYTHON_RUFF_CONFIG_FILE
+```
+
 Run `just cs-show-config` to see what each linter uses.

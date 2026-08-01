@@ -12,6 +12,7 @@ Usage:
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 from typing import Any
@@ -95,7 +96,7 @@ def _find_shadows(workspace: Path, config_basename: str) -> list[str]:
 def show_config(workspace: Path, yml_path: Path) -> list[dict[str, str]]:
     """Build the config table rows.
 
-    Returns list of dicts with: linter, config_file, tier, shadow.
+    Returns list of dicts with: linter, config_file, tier, shadow, source, path.
     """
     data = _parse_yml(yml_path)
     entries = _extract_config_entries(data)
@@ -107,8 +108,12 @@ def show_config(workspace: Path, yml_path: Path) -> list[dict[str, str]]:
         selected_path = Path(entry["config_path"])
         if len(selected_path.parts) > 1 and not selected_path.is_absolute() and (workspace / selected_path).is_file():
             shadows = [entry["config_path"]]
+            source = "consumer"
+            resolved_path = entry["config_path"]
         else:
             shadows = _find_shadows(workspace, entry["config_basename"])
+            source = "baseline"
+            resolved_path = entry["config_path"]
         tier = "warn" if linter in warn_linters else "error"
         rows.append(
             {
@@ -116,6 +121,8 @@ def show_config(workspace: Path, yml_path: Path) -> list[dict[str, str]]:
                 "config_file": entry["config_basename"],
                 "tier": tier,
                 "shadow": ", ".join(shadows) if shadows else "",
+                "source": source,
+                "path": resolved_path,
             }
         )
     return rows
@@ -153,11 +160,15 @@ def main(argv: list[str] | None = None) -> int:
 
     workspace = Path()
     yml_path = Path(_DEFAULT_YML)
+    output_format = "table"
 
     i = 0
     while i < len(args):
         if args[i] == "--mega-linter-yml" and i + 1 < len(args):
             yml_path = Path(args[i + 1])
+            i += 2
+        elif args[i] == "--format" and i + 1 < len(args):
+            output_format = args[i + 1]
             i += 2
         else:
             workspace = Path(args[i])
@@ -168,7 +179,13 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     rows = show_config(workspace, yml_path)
-    _print_table(rows)
+    if output_format == "json":
+        print(json.dumps(rows, indent=2))
+    elif output_format == "table":
+        _print_table(rows)
+    else:
+        print(f"Unsupported format: {output_format}", file=sys.stderr)
+        return 2
     return 0
 
 

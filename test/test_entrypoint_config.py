@@ -135,3 +135,62 @@ class TestRulesDirectoryResolution:
         merged = _read_merged_config()
         assert merged["PYTHON_RUFF_RULES_PATH"] == "custom/ruff"
         assert merged["PYTHON_RUFF_CONFIG_FILE"] == "ruff.toml"
+
+    def test_required_local_configs_resolve_and_private_key_is_removed(self, workspace):
+        rules = workspace / "quality" / "lint"
+        rules.mkdir(parents=True)
+        (rules / "ruff.toml").write_text("[lint]\n")
+        _write_consumer_config(
+            workspace,
+            {
+                "LINTER_RULES_PATH": "quality/lint",
+                "CODING_STANDARDS_REQUIRED_LOCAL_CONFIGS": ["PYTHON_RUFF_CONFIG_FILE"],
+            },
+        )
+
+        _run_setup()
+
+        merged = _read_merged_config()
+        assert merged["PYTHON_RUFF_CONFIG_FILE"] == "quality/lint/ruff.toml"
+        assert "CODING_STANDARDS_REQUIRED_LOCAL_CONFIGS" not in merged
+
+    def test_required_local_config_missing_fails_closed(self, workspace):
+        (workspace / "quality" / "lint").mkdir(parents=True)
+        _write_consumer_config(
+            workspace,
+            {
+                "LINTER_RULES_PATH": "quality/lint",
+                "CODING_STANDARDS_REQUIRED_LOCAL_CONFIGS": ["PYTHON_RUFF_CONFIG_FILE"],
+            },
+        )
+
+        with pytest.raises(ValueError, match="PYTHON_RUFF_CONFIG_FILE"):
+            _run_setup()
+
+    def test_required_local_config_rejects_root_override(self, workspace):
+        (workspace / "quality" / "lint").mkdir(parents=True)
+        (workspace / "ruff.toml").write_text("[lint]\n")
+        _write_consumer_config(
+            workspace,
+            {
+                "LINTER_RULES_PATH": "quality/lint",
+                "PYTHON_RUFF_CONFIG_FILE": "ruff.toml",
+                "CODING_STANDARDS_REQUIRED_LOCAL_CONFIGS": ["PYTHON_RUFF_CONFIG_FILE"],
+            },
+        )
+
+        with pytest.raises(ValueError, match="not a file under quality/lint"):
+            _run_setup()
+
+    @pytest.mark.parametrize("rules_path", ["/opt/custom", "https://example.com/configs"])
+    def test_required_local_configs_reject_non_local_rules_path(self, workspace, rules_path):
+        _write_consumer_config(
+            workspace,
+            {
+                "LINTER_RULES_PATH": rules_path,
+                "CODING_STANDARDS_REQUIRED_LOCAL_CONFIGS": ["PYTHON_RUFF_CONFIG_FILE"],
+            },
+        )
+
+        with pytest.raises(ValueError, match="workspace-relative LINTER_RULES_PATH"):
+            _run_setup()
