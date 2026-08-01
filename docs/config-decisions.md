@@ -26,11 +26,13 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 - checkov/kics: IaC overlap with trivy. Noisy, slow.
 - grype: vuln overlap with trivy.
 - syft: no SBOM consumer.
-- trivy pinned to v0.69.3 (supply chain compromise in v0.69.4-6).
+- Trivy is checksum-pinned to a post-incident release. MegaLinter re-enabled Trivy after the upstream incident was resolved.
 
-### Secrets: gitleaks only in CI
+### Secrets: Gitleaks in CI; Betterleaks available for opt-in trials
 
-- secretlint: strict subset of gitleaks.
+- Gitleaks remains the default because it scans repository history. MegaLinter v9.6 invokes Betterleaks in filesystem mode by default, which would miss secrets removed from the final working tree but retained in earlier commits.
+- Betterleaks remains installed for explicit consumer trials; it accepts existing `.gitleaks.toml` and `.gitleaksignore` files.
+- secretlint: strict subset of Gitleaks coverage.
 - trufflehog: valuable for `--only-verified` audits. Use as periodic cron, not CI.
 
 ### Config files: keep existing stack

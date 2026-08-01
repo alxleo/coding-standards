@@ -1,33 +1,44 @@
 // coding-standards baseline ESLint config (flat config format).
 // Consumer repos override by placing their own eslint.config.mjs at root.
 //
-// Plugins baked into the Docker image (cupcake + our installs):
+// Plugins baked into the Docker image:
+//   - @eslint/js:  current ESLint recommended rules
+//   - typescript-eslint: TypeScript parser and recommended rules
 //   - unicorn:     best practices, filename conventions, modernization
 //   - security:    injection, unsafe eval, prototype pollution
 //   - sonarjs:     complexity, duplication, code smells
-//   - react:       React-specific rules
-//   - react-hooks: hooks rules (exhaustive-deps)
-//   - jsx-a11y:    accessibility for JSX
-//   - jest:        test quality
+//   - @eslint-react: React, hooks, DOM, and web API safety
 //   - i18next:     internationalization (hardcoded strings in JSX)
 
+import js from "@eslint/js";
+import eslintReact from "@eslint-react/eslint-plugin";
+import globals from "globals";
 import unicorn from "eslint-plugin-unicorn";
 import security from "eslint-plugin-security";
 import sonarjs from "eslint-plugin-sonarjs";
-import react from "eslint-plugin-react";
-import reactHooks from "eslint-plugin-react-hooks";
-import jsxA11y from "eslint-plugin-jsx-a11y";
-import importPlugin from "eslint-plugin-import";
+import importX from "eslint-plugin-import-x";
+import jsxA11y from "eslint-plugin-jsx-a11y-x";
 import testingLibrary from "eslint-plugin-testing-library";
 import i18next from "eslint-plugin-i18next";
+import tseslint from "typescript-eslint";
 
 export default [
+  js.configs.recommended,
+  {
+    languageOptions: {
+      globals: { ...globals.browser, ...globals.node },
+    },
+  },
+  ...tseslint.configs.recommended.map((config) => ({
+    ...config,
+    files: ["**/*.ts", "**/*.tsx"],
+  })),
   {
     plugins: {
       unicorn,
       security,
       sonarjs,
-      import: importPlugin,
+      "import-x": importX,
     },
     rules: {
       // ── Filename conventions ──────────────────────────────
@@ -42,18 +53,18 @@ export default [
       "security/detect-unsafe-regex": "error",
 
       // ── Best practices (unicorn) ──────────────────────────
-      "unicorn/no-array-for-each": "warn",
+      "unicorn/no-for-each": "warn",
       "unicorn/prefer-node-protocol": "error",
       "unicorn/prefer-module": "warn",
       "unicorn/no-useless-undefined": "warn",
       "unicorn/prefer-string-replace-all": "warn",
       "unicorn/prefer-at": "warn",
 
-      // ── Import hygiene (already in cupcake) ─────────────────
-      "import/no-cycle": ["warn", { maxDepth: 2 }], // depth 2 balances coverage vs performance on large codebases
-      "import/no-self-import": "error",
-      "import/no-mutable-exports": "error",
-      "import/no-extraneous-dependencies": "warn",
+      // ── Import hygiene ────────────────────────────────────
+      "import-x/no-cycle": ["warn", { maxDepth: 2 }], // depth 2 balances coverage vs performance on large codebases
+      "import-x/no-self-import": "error",
+      "import-x/no-mutable-exports": "error",
+      "import-x/no-extraneous-dependencies": "warn",
 
       // ── Code smells (sonarjs) ─────────────────────────────
       "sonarjs/no-duplicate-string": ["warn", { threshold: 4 }],
@@ -63,30 +74,24 @@ export default [
       "sonarjs/prefer-single-boolean-return": "warn",
     },
   },
-  // ── React/JSX (auto-activates for .jsx/.tsx files) ────────
+  // ── React/JSX (auto-activates for .jsx/.tsx files) ───────
   {
     files: ["**/*.jsx", "**/*.tsx"],
+    languageOptions: {
+      parserOptions: { ecmaFeatures: { jsx: true } },
+    },
     plugins: {
-      react,
-      "react-hooks": reactHooks,
+      ...eslintReact.configs.recommended.plugins,
       "jsx-a11y": jsxA11y,
       i18next,
     },
-    settings: {
-      react: { version: "detect" },
-    },
+    settings: eslintReact.configs.recommended.settings,
     rules: {
-      // Hooks
-      "react-hooks/rules-of-hooks": "error",
-      "react-hooks/exhaustive-deps": "warn",
+      ...eslintReact.configs.recommended.rules,
 
-      // React best practices
-      "react/jsx-no-target-blank": "error",
-      "react/no-danger": "warn",
-      "react/self-closing-comp": "warn",
-
-      // i18n — catch hardcoded strings early (painful to retrofit)
-      "i18next/no-literal-string": "warn",
+      // React DOM safety
+      "@eslint-react/dom-no-unsafe-target-blank": "error",
+      "@eslint-react/dom-no-dangerously-set-innerhtml": "warn",
 
       // Accessibility
       "jsx-a11y/alt-text": "warn",
@@ -94,6 +99,9 @@ export default [
       "jsx-a11y/click-events-have-key-events": "warn",
       "jsx-a11y/no-autofocus": "warn",
       "jsx-a11y/label-has-associated-control": "warn",
+
+      // i18n — catch hardcoded strings early (painful to retrofit)
+      "i18next/no-literal-string": "warn",
     },
   },
   // ── Test files: testing-library + jest rules ───────────────
