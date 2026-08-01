@@ -1,4 +1,4 @@
-"""Tests for entrypoint.py _CONFIG_FILE path resolution logic."""
+"""Tests for entrypoint.py consumer rules-directory resolution."""
 
 from __future__ import annotations
 
@@ -15,7 +15,15 @@ def workspace(tmp_path):
     """Create a temp workspace with a baked config and consumer .mega-linter.yml."""
     # Baked config (minimal)
     baked = tmp_path / "baked.yml"
-    baked.write_text(yaml.dump({"ENABLE_LINTERS": "PYTHON_RUFF"}))
+    baked.write_text(
+        yaml.dump(
+            {
+                "ENABLE_LINTERS": "PYTHON_RUFF",
+                "LINTER_RULES_PATH": "/opt/coding-standards/configs",
+                "PYTHON_RUFF_CONFIG_FILE": "ruff.toml",
+            }
+        )
+    )
 
     # Patch constants
     with patch("scripts.entrypoint.BAKED_CONFIG", baked), patch("scripts.entrypoint._workspace", return_value=tmp_path):
@@ -43,55 +51,83 @@ def _read_merged_config() -> dict:
     return yaml.safe_load(Path(config_path).read_text())
 
 
-class TestConfigFileResolution:
-    def test_relative_config_rewritten_to_absolute(self, workspace):
-        """Consumer ruff.toml override is rewritten to workspace-absolute path."""
-        (workspace / "ruff.toml").write_text("[lint]\nselect = ['E']\n")
-        _write_consumer_config(workspace, {"PYTHON_RUFF_CONFIG_FILE": "ruff.toml"})
+class TestRulesDirectoryResolution:
+    def test_rules_directory_applies_to_matching_linter(self, workspace):
+        """A single rules directory selects a matching consumer config."""
+        rules = workspace / "quality" / "lint"
+        rules.mkdir(parents=True)
+        (rules / "ruff.toml").write_text("[lint]\nselect = ['E']\n")
+        (rules / "actionlint.yaml").write_text("self-hosted-runner: {}\n")
+        _write_consumer_config(
+            workspace,
+            {
+                "LINTER_RULES_PATH": "quality/lint",
+                "ACTION_ACTIONLINT_CONFIG_FILE": "actionlint.yaml",
+            },
+        )
 
         _run_setup()
 
         merged = _read_merged_config()
-        expected = str((workspace / "ruff.toml").resolve())
-        assert merged["PYTHON_RUFF_CONFIG_FILE"] == expected
+        assert merged["PYTHON_RUFF_RULES_PATH"] == "quality/lint"
+        assert merged["PYTHON_RUFF_CONFIG_FILE"] == "ruff.toml"
+        assert merged["ACTION_ACTIONLINT_RULES_PATH"] == "quality/lint"
+        assert merged["ACTION_ACTIONLINT_CONFIG_FILE"] == "actionlint.yaml"
 
-    def test_path_traversal_rejected(self, workspace):
-        """../../etc/passwd traversal is blocked by is_relative_to check."""
-        _write_consumer_config(workspace, {"PYTHON_RUFF_CONFIG_FILE": "../../etc/passwd"})
+    def test_rules_directory_preserves_baked_fallback(self, workspace):
+        """Linters without a consumer config retain the baked rules path."""
+        baked = workspace / "baked.yml"
+        baked.write_text(
+            yaml.dump(
+                {
+                    "LINTER_RULES_PATH": "/opt/coding-standards/configs",
+                    "PYTHON_RUFF_CONFIG_FILE": "ruff.toml",
+                }
+            )
+        )
+        rules = workspace / "quality" / "lint"
+        rules.mkdir(parents=True)
+        _write_consumer_config(workspace, {"LINTER_RULES_PATH": "quality/lint"})
 
         _run_setup()
 
         merged = _read_merged_config()
-        # Should NOT be rewritten — the original relative path stays as-is
-        assert merged.get("PYTHON_RUFF_CONFIG_FILE") == "../../etc/passwd"
+        assert merged["LINTER_RULES_PATH"] == "/opt/coding-standards/configs"
+        assert "PYTHON_RUFF_RULES_PATH" not in merged
 
-    def test_missing_file_produces_warning(self, workspace, capsys):
+    def test_explicit_missing_file_produces_warning(self, workspace, capsys):
         """Missing file within workspace produces a stderr warning."""
-        _write_consumer_config(workspace, {"PYTHON_RUFF_CONFIG_FILE": "nonexistent.toml"})
+        rules = workspace / "quality" / "lint"
+        rules.mkdir(parents=True)
+        _write_consumer_config(
+            workspace,
+            {"LINTER_RULES_PATH": "quality/lint", "PYTHON_RUFF_CONFIG_FILE": "nonexistent.toml"},
+        )
 
         _run_setup()
 
         merged = _read_merged_config()
-        # Not rewritten since file doesn't exist
-        assert merged.get("PYTHON_RUFF_CONFIG_FILE") != str(workspace / "nonexistent.toml")
+        assert merged["PYTHON_RUFF_CONFIG_FILE"] == "nonexistent.toml"
 
         captured = capsys.readouterr()
         assert "Warning: PYTHON_RUFF_CONFIG_FILE override points to missing file" in captured.err
 
-    def test_absolute_path_not_modified(self, workspace):
-        """Absolute paths are left as-is (consumer knows what they're doing)."""
-        _write_consumer_config(workspace, {"PYTHON_RUFF_CONFIG_FILE": "/opt/custom/ruff.toml"})
+    def test_invalid_rules_directory_rejected(self, workspace):
+        _write_consumer_config(workspace, {"LINTER_RULES_PATH": "../../outside"})
+
+        with pytest.raises(ValueError, match="workspace directory"):
+            _run_setup()
+
+    def test_explicit_per_linter_rules_path_wins(self, workspace):
+        rules = workspace / "quality" / "lint"
+        rules.mkdir(parents=True)
+        (rules / "ruff.toml").write_text("[lint]\n")
+        _write_consumer_config(
+            workspace,
+            {"LINTER_RULES_PATH": "quality/lint", "PYTHON_RUFF_RULES_PATH": "custom/ruff"},
+        )
 
         _run_setup()
 
         merged = _read_merged_config()
-        assert merged["PYTHON_RUFF_CONFIG_FILE"] == "/opt/custom/ruff.toml"
-
-    def test_non_config_file_keys_not_modified(self, workspace):
-        """Keys that don't end in _CONFIG_FILE are left alone."""
-        _write_consumer_config(workspace, {"PYTHON_RUFF_ARGUMENTS": ["--fix"]})
-
-        _run_setup()
-
-        merged = _read_merged_config()
-        assert merged["PYTHON_RUFF_ARGUMENTS"] == ["--fix"]
+        assert merged["PYTHON_RUFF_RULES_PATH"] == "custom/ruff"

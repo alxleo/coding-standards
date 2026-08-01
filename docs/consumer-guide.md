@@ -34,8 +34,8 @@ ENABLE_LINTERS:
   - YAML_YAMLLINT
   # ... add what your repo needs
 
-# Use your repo's own linter config
-PYTHON_RUFF_CONFIG_FILE: ruff.toml
+# Keep all repository-owned linter configs out of the root.
+LINTER_RULES_PATH: quality/lint
 ```
 
 Without a `.mega-linter.yml`, the image runs with its baked defaults (all 55 linters, baseline configs).
@@ -63,12 +63,23 @@ DISABLE_LINTERS:
   - TERRAFORM_TFLINT      # no terraform here
   - REPOSITORY_KNIP       # no JS/TS
 
-# Use your repo's own linter config — just set _CONFIG_FILE.
-# MegaLinter passes it via the appropriate mechanism (CLI flag or native discovery).
-ANSIBLE_ANSIBLE_LINT_CONFIG_FILE: .ansible-lint
-PYTHON_RUFF_CONFIG_FILE: ruff.toml
-REPOSITORY_GITLEAKS_CONFIG_FILE: .gitleaks.toml
+# Canonical directory for every repository-owned linter config.
+# Config filenames that match the baseline need no per-linter entries.
+LINTER_RULES_PATH: quality/lint
+
+# Only declare a filename when it differs from the baseline default.
+ACTION_ACTIONLINT_CONFIG_FILE: actionlint.yaml
 ```
+
+With the coding-standards image, a workspace-relative `LINTER_RULES_PATH` is an
+overlay: matching files in that directory win, while missing files continue to
+use the configs baked into the image. Keep only `.mega-linter.yml` at the repo
+root and place linter-owned files such as `ruff.toml`, `.yamllint`,
+`.shellcheckrc`, and `.gitleaks.toml` in `quality/lint/`.
+
+`.editorconfig` is the deliberate exception. It is a repository-wide editor
+standard whose discovery protocol requires it in the directory tree, not a
+MegaLinter-only config file.
 
 ### Suppress specific semgrep rules
 
@@ -219,13 +230,14 @@ POST_COMMANDS:
     continue_if_failed: false
 ```
 
-### 5. Per-linter config overrides
+### 5. Linter config directory and filename overrides
 
-Override any linter's config by setting `<LINTER>_CONFIG_FILE` in your `.mega-linter.yml`:
+Set the shared directory once. Override `<LINTER>_CONFIG_FILE` only when a file
+uses a non-default name:
 
 ```yaml
-YAML_YAMLLINT_CONFIG_FILE: .yamllint
-PYTHON_RUFF_CONFIG_FILE: ruff.toml
+LINTER_RULES_PATH: quality/lint
+ACTION_ACTIONLINT_CONFIG_FILE: actionlint.yaml
 ```
 
 ## Migrating to new rules

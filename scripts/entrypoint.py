@@ -35,19 +35,59 @@ def _workspace() -> Path:
     return Path(os.environ.get("DEFAULT_WORKSPACE", "/tmp/lint"))
 
 
-def _resolve_config_overrides(overrides: dict[str, object], workspace: Path) -> None:
-    """Rewrite _CONFIG_FILE overrides to workspace-absolute paths."""
-    workspace_resolved = workspace.resolve()
+def _local_rules_directory(rules_path: str, workspace: Path) -> Path:
+    rules_directory = (workspace / rules_path).resolve()
+    if rules_directory.is_relative_to(workspace.resolve()) and rules_directory.is_dir():
+        return rules_directory
+    message = f"LINTER_RULES_PATH should be a workspace directory ({rules_path})"
+    raise ValueError(message)
+
+
+def _assign_matching_rules_paths(merged: dict[str, object], rules_path: str, rules_directory: Path) -> None:
+    for key, value in tuple(merged.items()):
+        if not (key.endswith("_CONFIG_FILE") and isinstance(value, str)):
+            continue
+        config_path = Path(value)
+        if config_path.is_absolute() or len(config_path.parts) != 1:
+            continue
+        if (rules_directory / config_path).is_file():
+            rules_key = f"{key.removesuffix('_CONFIG_FILE')}_RULES_PATH"
+            merged.setdefault(rules_key, rules_path)
+
+
+def _warn_for_missing_overrides(overrides: dict[str, object], workspace: Path, rules_directory: Path) -> None:
     for key, value in overrides.items():
-        if not (key.endswith("_CONFIG_FILE") and isinstance(value, str) and not Path(value).is_absolute()):
+        if not (key.endswith("_CONFIG_FILE") and isinstance(value, str)):
             continue
-        candidate = (workspace / value).resolve()
-        if not candidate.is_relative_to(workspace_resolved):
+        config_path = Path(value)
+        if config_path.is_absolute():
             continue
-        if candidate.is_file():
-            overrides[key] = str(candidate)
-        else:
-            typer.echo(f"Warning: {key} override points to missing file: {candidate}", err=True)
+        if not (workspace / config_path).is_file() and not (rules_directory / config_path).is_file():
+            typer.echo(f"Warning: {key} override points to missing file: {value}", err=True)
+
+
+def _apply_consumer_rules_directory(merged: dict[str, object], overrides: dict[str, object], workspace: Path) -> None:
+    """Overlay a consumer LINTER_RULES_PATH without hiding baked configs.
+
+    MegaLinter treats LINTER_RULES_PATH as a replacement.  The coding-standards
+    image instead keeps its baked directory as the fallback and assigns the
+    consumer directory to each linter whose config exists there.  Per-linter
+    paths also avoid MegaLinter v9.6's activation bug with an absolute global
+    rules path.
+    """
+    rules_path = overrides.pop("LINTER_RULES_PATH", None)
+    if rules_path is None:
+        return
+    if not isinstance(rules_path, str) or not rules_path.strip():
+        message = "LINTER_RULES_PATH must be a non-empty directory path"
+        raise ValueError(message)
+    if rules_path.startswith("http") or Path(rules_path).is_absolute():
+        merged["LINTER_RULES_PATH"] = rules_path
+        return
+
+    rules_directory = _local_rules_directory(rules_path, workspace)
+    _assign_matching_rules_paths(merged, rules_path, rules_directory)
+    _warn_for_missing_overrides(overrides, workspace, rules_directory)
 
 
 def _setup() -> None:
@@ -99,8 +139,11 @@ def _setup() -> None:
         baked = yaml.safe_load(BAKED_CONFIG.read_text())
         overrides = yaml.safe_load(content) if content.strip() else {}
         if overrides:
-            _resolve_config_overrides(overrides, workspace)
+            consumer_rules_path = overrides.pop("LINTER_RULES_PATH", None)
             baked.update(overrides)
+            if consumer_rules_path is not None:
+                overrides["LINTER_RULES_PATH"] = consumer_rules_path
+            _apply_consumer_rules_directory(baked, overrides, workspace)
         with tempfile.NamedTemporaryFile(suffix=".yml", prefix="mega-linter-merged-", delete=False, mode="w") as f:
             yaml.dump(baked, f, default_flow_style=False)
             os.environ["MEGALINTER_CONFIG"] = f.name
