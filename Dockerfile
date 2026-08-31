@@ -39,6 +39,14 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # and every Python linter invocation in a run pays that startup tax. Trading
 # 5% image size for seconds off every consumer's CI is the right side of that
 # deal; `--no-cache-dir` still keeps the pip cache out of the layer.
+#
+# multiprocessing-logging is MegaLinter's OWN dependency, pinned here because
+# upstream leaves it unpinned. 0.4.0 (2026-08-19) added an assert in
+# install_mp_handler raising "This module only works with the 'fork' start
+# method" — and Python 3.14 no longer defaults to fork on Linux, so every
+# PARALLEL run dies at MegaLinter.py:437. The published image predates that
+# release and still carries 0.3.4, which is why consumers are green while
+# every fresh build fails. Revisit when MegaLinter pins it or drops the dep.
 # hadolint ignore=DL3013,DL3059
 RUN --mount=type=cache,target=/root/.cache/pip \
   pip install --no-cache-dir \
@@ -55,7 +63,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
   networkx==3.6.1 \
   pydantic==2.13.4 \
   import-linter==2.13 \
-  rumdl==0.2.47 && \
+  rumdl==0.2.47 \
+  multiprocessing-logging==0.3.4 && \
   apk del build-base musl-dev libffi-dev
 
 # ── npm tools (single layer, cache mount) ────────────────────
