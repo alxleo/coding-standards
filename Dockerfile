@@ -27,9 +27,21 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # ── MegaLinter engine + Python linters (single layer) ────────
 # Semgrep 1.171+ requires Click 8.4; SQLFluff 4.2 requires Click <8.4.
+#
+# Bytecode is COMPILED INTO THE IMAGE — pip's default, restored by dropping
+# `--no-compile`. That flag keeps the image ~240MB smaller, but a
+# linter container is started fresh for every job and exits immediately, so
+# without baked .pyc every single run recompiles the same source and throws
+# the result away. Measured on ghcr.io/alxleo/coding-standards:latest vs the
+# same image with site-packages compiled:
+#   `import megalinter.run`   4.85-6.22s  ->  2.18-3.61s
+#   `ansible-lint --version`  1.09-1.31s  ->  0.52-0.55s
+# and every Python linter invocation in a run pays that startup tax. Trading
+# 5% image size for seconds off every consumer's CI is the right side of that
+# deal; `--no-cache-dir` still keeps the pip cache out of the layer.
 # hadolint ignore=DL3013,DL3059
 RUN --mount=type=cache,target=/root/.cache/pip \
-  pip install --no-cache-dir --no-compile \
+  pip install --no-cache-dir \
   "megalinter @ git+https://github.com/oxsecurity/megalinter.git@v9.6.0" \
   typer==0.27.0 \
   semgrep==1.170.0 \
