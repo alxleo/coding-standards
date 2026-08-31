@@ -27,9 +27,29 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # ── MegaLinter engine + Python linters (single layer) ────────
 # Semgrep 1.171+ requires Click 8.4; SQLFluff 4.2 requires Click <8.4.
+#
+# Bytecode is COMPILED INTO THE IMAGE — pip's default, restored by dropping
+# `--no-compile`. That flag keeps the image ~240MB smaller, but a
+# linter container is started fresh for every job and exits immediately, so
+# without baked .pyc every single run recompiles the same source and throws
+# the result away. Measured on ghcr.io/alxleo/coding-standards:latest vs the
+# same image with site-packages compiled:
+#   `import megalinter.run`   4.85-6.22s  ->  2.18-3.61s
+#   `ansible-lint --version`  1.09-1.31s  ->  0.52-0.55s
+# and every Python linter invocation in a run pays that startup tax. Trading
+# 5% image size for seconds off every consumer's CI is the right side of that
+# deal; `--no-cache-dir` still keeps the pip cache out of the layer.
+#
+# multiprocessing-logging is MegaLinter's OWN dependency, pinned here because
+# upstream leaves it unpinned. 0.4.0 (2026-08-19) added an assert in
+# install_mp_handler raising "This module only works with the 'fork' start
+# method" — and Python 3.14 no longer defaults to fork on Linux, so every
+# PARALLEL run dies at MegaLinter.py:437. The published image predates that
+# release and still carries 0.3.4, which is why consumers are green while
+# every fresh build fails. Revisit when MegaLinter pins it or drops the dep.
 # hadolint ignore=DL3013,DL3059
 RUN --mount=type=cache,target=/root/.cache/pip \
-  pip install --no-cache-dir --no-compile \
+  pip install --no-cache-dir \
   "megalinter @ git+https://github.com/oxsecurity/megalinter.git@v9.6.0" \
   typer==0.27.0 \
   semgrep==1.170.0 \
@@ -43,7 +63,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
   networkx==3.6.1 \
   pydantic==2.13.4 \
   import-linter==2.13 \
-  rumdl==0.2.47 && \
+  rumdl==0.2.47 \
+  multiprocessing-logging==0.3.4 && \
   apk del build-base musl-dev libffi-dev
 
 # ── npm tools (single layer, cache mount) ────────────────────
