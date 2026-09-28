@@ -112,7 +112,7 @@ RUN --mount=type=cache,target=/root/.npm \
 # ── Binary tools (combined layer, SHA-pinned, TARGETARCH) ────
 # All checksums looked up from GitHub release pages, never guessed.
 # renovate: datasource annotations are inline where applicable.
-ARG TARGETARCH=amd64
+ARG TARGETARCH
 # hadolint ignore=DL3059
 RUN set -eux && \
   # ── shellcheck ──
