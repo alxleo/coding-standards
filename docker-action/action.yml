@@ -55,12 +55,22 @@ runs:
           pull_policy=always
         fi
 
+        workspace_uid="$(id -u)"
+        workspace_gid="$(id -g)"
+        # Rootless Docker maps container UID 0 to the host runner user. Passing
+        # the host UID instead would map it to a subordinate UID and leave the
+        # checkout unreadable to subsequent host steps and runner cleanup.
+        if docker info --format '{{json .SecurityOptions}}' | grep -q '"name=rootless"'; then
+          workspace_uid=0
+          workspace_gid=0
+        fi
+
         # Resolve the standard mutable tag while preserving local-only image overrides.
         docker run --pull="${pull_policy}" --rm \
           -v "${ws}:/tmp/lint" \
           -e DEFAULT_WORKSPACE=/tmp/lint \
           -e APPLY_FIXES="${CS_APPLY_FIXES}" \
-          -e WORKSPACE_UID="$(id -u)" \
-          -e WORKSPACE_GID="$(id -g)" \
+          -e WORKSPACE_UID="${workspace_uid}" \
+          -e WORKSPACE_GID="${workspace_gid}" \
           "${env_args[@]}" \
           "${CS_IMAGE}"
