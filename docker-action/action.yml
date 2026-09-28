@@ -57,12 +57,14 @@ runs:
 
         workspace_uid="$(id -u)"
         workspace_gid="$(id -g)"
-        # Rootless Docker maps container UID 0 to the host runner user. Passing
-        # the host UID instead would map it to a subordinate UID and leave the
-        # checkout unreadable to subsequent host steps and runner cleanup.
+        # Rootless Docker remaps host IDs inside the container. Read the bind
+        # mount's owner there so MegaLinter restores the existing owner rather
+        # than chowning the checkout to an unrelated subordinate host UID.
         if docker info --format '{{json .SecurityOptions}}' | grep -q '"name=rootless"'; then
-          workspace_uid=0
-          workspace_gid=0
+          workspace_owner="$(docker run --rm --pull=missing \
+            -v "${ws}:/tmp/lint:ro" --entrypoint stat "${CS_IMAGE}" -c '%u:%g' /tmp/lint)"
+          workspace_uid="${workspace_owner%:*}"
+          workspace_gid="${workspace_owner#*:}"
         fi
 
         # Resolve the standard mutable tag while preserving local-only image overrides.
