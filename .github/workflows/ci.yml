@@ -98,7 +98,9 @@ jobs:
           CTX_TAG: ${{ steps.ctx.outputs.hash }}
         run: |
           TAG="${REGISTRY}/${IMAGE_NAME}:${CTX_TAG}"
-          if docker manifest inspect "$TAG" > /dev/null 2>&1; then
+          if manifest="$(docker buildx imagetools inspect --raw "$TAG" 2>/dev/null)" &&
+             jq -e '[.manifests[]? | select(.platform.os == "linux") | .platform.architecture]
+               | (index("amd64") != null and index("arm64") != null)' <<< "$manifest" > /dev/null; then
             echo "hit=true" >> "$GITHUB_OUTPUT"
             echo "Cache hit — pulling $TAG"
           else
@@ -232,11 +234,14 @@ jobs:
         if: github.event_name != 'pull_request' && steps.cache.outputs.hit == 'true'
         env:
           TAGS: ${{ steps.meta.outputs.tags }}
+          CTX_TAG: ${{ steps.ctx.outputs.hash }}
         run: |
-          echo "::group::Push image (re-tag from cache)"
+          set -euo pipefail
+          echo "::group::Push image (copy multi-arch manifest from cache)"
           trap 'echo "::endgroup::"' EXIT
+          source="${REGISTRY}/${IMAGE_NAME}:${CTX_TAG}"
           echo "$TAGS" | while IFS= read -r tag; do
             [ -z "$tag" ] && continue
-            docker tag "${REGISTRY}/${IMAGE_NAME}:ci-test" "$tag"
-            docker push "$tag"
+            [ "$tag" = "$source" ] && continue
+            docker buildx imagetools create --tag "$tag" "$source"
           done
