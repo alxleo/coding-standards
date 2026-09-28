@@ -55,12 +55,24 @@ runs:
           pull_policy=always
         fi
 
+        workspace_uid="$(id -u)"
+        workspace_gid="$(id -g)"
+        # Rootless Docker remaps host IDs inside the container. Read the bind
+        # mount's owner there so MegaLinter restores the existing owner rather
+        # than chowning the checkout to an unrelated subordinate host UID.
+        if docker info --format '{{json .SecurityOptions}}' | grep -q '"name=rootless"'; then
+          workspace_owner="$(docker run --rm --pull=missing \
+            -v "${ws}:/tmp/lint:ro" --entrypoint stat "${CS_IMAGE}" -c '%u:%g' /tmp/lint)"
+          workspace_uid="${workspace_owner%:*}"
+          workspace_gid="${workspace_owner#*:}"
+        fi
+
         # Resolve the standard mutable tag while preserving local-only image overrides.
         docker run --pull="${pull_policy}" --rm \
           -v "${ws}:/tmp/lint" \
           -e DEFAULT_WORKSPACE=/tmp/lint \
           -e APPLY_FIXES="${CS_APPLY_FIXES}" \
-          -e WORKSPACE_UID="$(id -u)" \
-          -e WORKSPACE_GID="$(id -g)" \
+          -e WORKSPACE_UID="${workspace_uid}" \
+          -e WORKSPACE_GID="${workspace_gid}" \
           "${env_args[@]}" \
           "${CS_IMAGE}"
