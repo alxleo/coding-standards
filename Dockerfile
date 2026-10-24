@@ -81,8 +81,8 @@ RUN --mount=type=cache,target=/root/.npm \
   stylelint@17.14.1 \
   htmlhint@1.9.2 \
   @ls-lint/ls-lint@2.3.1 \
-  @commitlint/cli@21.2.1 \
-  @commitlint/config-conventional@21.2.0 \
+  @commitlint/cli@21.2.4 \
+  @commitlint/config-conventional@21.2.4 \
   dclint@3.1.0 \
   pyright@1.1.411 \
   @typescript/native@npm:typescript@7.0.2 \
