@@ -1,0 +1,12 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: example
+spec:
+  endpoints:
+    - port: metrics
+      params:
+        # ruleid: coding-standards.unexpanded-env-var-in-yaml
+        token: ["${SOME_TOKEN}"]
+        # ok: coding-standards.unexpanded-env-var-in-yaml
+        literal: ["$${ESCAPED}"]
