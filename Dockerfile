@@ -26,8 +26,6 @@ RUN apk add --no-cache \
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # ── MegaLinter engine + Python linters (single layer) ────────
-# Semgrep 1.171+ requires Click 8.4; SQLFluff 4.2 requires Click <8.4.
-#
 # Bytecode is COMPILED INTO THE IMAGE — pip's default, restored by dropping
 # `--no-compile`. That flag keeps the image ~240MB smaller, but a
 # linter container is started fresh for every job and exits immediately, so
@@ -40,31 +38,28 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # 5% image size for seconds off every consumer's CI is the right side of that
 # deal; `--no-cache-dir` still keeps the pip cache out of the layer.
 #
-# multiprocessing-logging is MegaLinter's OWN dependency, pinned here because
-# upstream leaves it unpinned. 0.4.0 (2026-08-19) added an assert in
-# install_mp_handler raising "This module only works with the 'fork' start
-# method" — and Python 3.14 no longer defaults to fork on Linux, so every
-# PARALLEL run dies at MegaLinter.py:437. The published image predates that
-# release and still carries 0.3.4, which is why consumers are green while
-# every fresh build fails. Revisit when MegaLinter pins it or drops the dep.
+# pyjwt and certifi are floors for CRITICAL advisories (PyJWT key validation,
+# certifi's emSign roots). MegaLinter leaves both loose, and the weekly rebuild
+# once reused this layer from cache, so they never moved and the scan failed.
 # hadolint ignore=DL3013,DL3059
 RUN --mount=type=cache,target=/root/.cache/pip \
   pip install --no-cache-dir \
-  "megalinter @ git+https://github.com/oxsecurity/megalinter.git@v9.6.0" \
+  "megalinter @ git+https://github.com/oxsecurity/megalinter.git@v10.2.0" \
+  "pyjwt>=2.14.0" \
+  "certifi>=2026.10.19" \
   typer==0.27.0 \
-  semgrep==1.170.0 \
-  ruff==0.16.1 \
+  semgrep==1.182.1 \
+  ruff==0.16.10 \
   codespell==2.4.3 \
   ansible-lint==26.6.0 \
-  sqlfluff==4.2.2 \
-  zizmor==1.28.0 \
+  sqlfluff==4.4.0 \
+  zizmor==1.31.1 \
   vulture==2.16 \
   deptry==0.25.1 \
   networkx==3.6.1 \
   pydantic==2.13.4 \
   import-linter==2.13 \
-  rumdl==0.2.47 \
-  multiprocessing-logging==0.3.4 && \
+  rumdl==0.2.47 && \
   apk del build-base musl-dev libffi-dev
 
 # ── npm tools (single layer, cache mount) ────────────────────

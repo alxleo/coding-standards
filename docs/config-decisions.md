@@ -160,8 +160,10 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 - git safe.directory + autocrlf fix (Docker UID mismatch).
 - Copy only `.editorconfig` and `.v8rignore` to the workspace for their native
   discovery protocols. CLI-addressable configs use `_CONFIG_FILE` and the rules
-  directory instead. commitlint remains excluded because it needs git history
-  (`HEAD~1`) that Docker-mounted workspaces may lack.
+  directory instead. Since MegaLinter 10, a file in the rules directory also
+  satisfies `active_only_if_file_found`, so the bundled commitlint, ls-lint and
+  codespell configs switch those linters on for every consumer. commitlint lints
+  only the last commit (`--last`), which a shallow checkout still has.
 - npm ci guard (runs only if package-lock.json exists).
 
 ### Self-lint: MEGALINTER_CONFIG override
