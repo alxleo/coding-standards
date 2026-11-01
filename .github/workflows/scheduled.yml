@@ -64,7 +64,7 @@ jobs:
           context: .
           load: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ci-test
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          no-cache: true # a cached dependency layer would hide every new advisory
 
       - name: Trivy vulnerability scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
@@ -90,7 +90,7 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          no-cache: true
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=min
 
   # Prune stale GHA caches — safety net for residual buildkit blobs.
@@ -153,6 +153,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           branch="maintenance/update-actions-$(date +%Y%m%d)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$branch"
           git add -A
           git commit -m "ci: update GitHub Actions versions"

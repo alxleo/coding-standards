@@ -11,8 +11,7 @@ linters:
     linter_url: https://commitlint.js.org/
     cli_executable: commitlint
     cli_lint_extra_args:
-      - --from
-      - HEAD~1
+      - --last
     cli_config_arg_name: "--config"
     cli_help_arg_name: --help
     cli_version_arg_name: --version
