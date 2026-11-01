@@ -14,7 +14,7 @@ from pathlib import Path
 # Libraries/frameworks, not CLIs — no --version to test
 SKIP = re.compile(
     r"eslint-plugin-|@commitlint/config-|typescript$|globals$"
-    r"|networkx|pydantic|pyyaml|typer|multiprocessing-logging"
+    r"|networkx|pydantic|pyyaml|typer"
 )
 
 # Package name → CLI binary name (when they differ)
