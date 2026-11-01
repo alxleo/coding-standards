@@ -1,0 +1,13 @@
+# semgrep --test fails on any finding in a fixture without a `ruleid:` line,
+# so this Gatus config passes only while the rule leaves it alone.
+alerting:
+  pushover:
+    application-token: ${PUSHOVER_API_TOKEN}
+endpoints:
+  - name: example
+    url: https://example.org/
+    conditions:
+      - "[STATUS] == 200"
+external-endpoints:
+  - name: nightly-job
+    token: ${JOB_TOKEN}

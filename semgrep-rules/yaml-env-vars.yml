@@ -6,7 +6,16 @@ rules:
       mechanism, or inject the value at runtime.
     languages: [yaml]
     severity: WARNING
-    pattern-regex: '(?<!\$)\$\{[A-Z_][A-Z0-9_]*\}'
+    patterns:
+      - pattern-regex: '(?<!\$)\$\{[A-Z_][A-Z0-9_]*\}'
+      # Gatus runs os.ExpandEnv over the raw file before parsing it, and its
+      # README documents ${VAR} in the config as the way to take secrets
+      # (config/config.go; "Use environment variables in config files").
+      # A file is Gatus's own config when it has a top-level `endpoints:`
+      # list whose entries carry `conditions:`. A ServiceMonitor's nested
+      # `endpoints:` is not at the left margin, so it is still flagged.
+      - pattern-not-inside:
+          pattern-regex: '(?s)\A(?=.*^endpoints:[ \t]*\n)(?=.*^[ \t-]+conditions:).*\z'
     paths:
       include:
         - "*.yml"
