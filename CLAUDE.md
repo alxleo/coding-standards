@@ -107,6 +107,6 @@ scripts/
 .github/workflows/
   ci.yml                            # fast-checks → build (with context-hash skip) → push
   cache-cleanup.yml                 # Delete branch caches on PR close
-  scheduled.yml                     # Weekly: rebuild + trivy + dive + cache prune
+  scheduled.yml                     # Weekly: rebuild + trivy + dockle + dive + cache prune
   release.yml                       # Auto-release on CI success
 ```
