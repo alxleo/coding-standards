@@ -55,10 +55,18 @@ Two-tier blocking:
 
 ### Override the config
 
-Drop a `.mega-linter.yml` in your repo root. MegaLinter natively discovers it.
+Drop a `.mega-linter.yml` in your repo root (MegaLinter's other names such as
+`.megalinter.yml` or `.config/mega-linter.yml` work too). Keep the baseline
+`EXTENDS` line: it is what makes your keys overlay the baked config. Without it
+your file is the whole configuration.
 
 ```yaml
 # .mega-linter.yml — consumer overrides
+EXTENDS:
+  - https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml
+
+# The baseline enables linters by name; let your DISABLE_LINTERS win over it.
+ENABLE_DISABLE_LINTERS_PRIORITY: DISABLE
 DISABLE_LINTERS:
   - TERRAFORM_TFLINT      # no terraform here
   - REPOSITORY_KNIP       # no JS/TS
