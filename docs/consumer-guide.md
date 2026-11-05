@@ -102,13 +102,17 @@ The baseline ships cached rulesets (security-audit, trailofbits) + custom rules.
 ```yaml
 # .mega-linter.yml — suppress individual semgrep rules
 REPOSITORY_SEMGREP_ARGUMENTS: >-
-  --exclude-rule=coding-standards.python-silent-fallback-or
-  --exclude-rule=trailofbits.python.some-noisy-rule
+  --exclude-rule=rules.custom.coding-standards.python-silent-fallback-or
+  --exclude-rule=rules.trailofbits.python.some-noisy-rule
 ```
 
 Or inline in code: `# nosemgrep: coding-standards.python-silent-fallback-or`
 
-Custom rules from this image use the `coding-standards.` prefix. Third-party rules keep their original prefixes (e.g. `trailofbits.`).
+Semgrep prefixes rules loaded from the image's `/rules` directory, so the IDs
+it reports are `rules.custom.coding-standards.<id>` for this image's rules and
+`rules.<registry id>` for cached rulesets (e.g. `rules.trailofbits.generic...`).
+`--exclude-rule` needs that full ID; `nosemgrep` also accepts the unprefixed
+suffix.
 
 Do NOT override `REPOSITORY_SEMGREP_RULESETS` — it contains absolute image paths that break when merged with consumer values.
 
