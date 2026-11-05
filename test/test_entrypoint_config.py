@@ -194,3 +194,110 @@ class TestRulesDirectoryResolution:
 
         with pytest.raises(ValueError, match="workspace-relative LINTER_RULES_PATH"):
             _run_setup()
+
+
+class TestConsumerConfigDiscovery:
+    @pytest.fixture(autouse=True)
+    def _fresh_env(self, monkeypatch):
+        monkeypatch.delenv("MEGALINTER_CONFIG", raising=False)
+
+    def _merged_or_none(self) -> dict | None:
+        config_path = os.environ.get("MEGALINTER_CONFIG")
+        return yaml.safe_load(Path(config_path).read_text()) if config_path else None
+
+    @pytest.mark.parametrize("name", [".megalinter.yml", ".mega-linter.yaml", ".config/mega-linter.yml"])
+    def test_other_megalinter_filenames_extend_the_baseline(self, workspace, name):
+        from scripts.entrypoint import EXTENDS_URL  # noqa: PLC0415
+
+        path = workspace / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(yaml.dump({"EXTENDS": [EXTENDS_URL], "DISABLE_LINTERS": ["SQL_SQLFLUFF"]}))
+
+        _run_setup()
+
+        merged = self._merged_or_none()
+        assert merged is not None, "consumer config under another name was ignored"
+        assert merged["DISABLE_LINTERS"] == ["SQL_SQLFLUFF"]
+        assert merged["ENABLE_LINTERS"] == "PYTHON_RUFF"
+
+    def test_standalone_config_under_another_name_is_not_replaced_by_the_baseline(self, workspace):
+        (workspace / ".megalinter.yml").write_text(yaml.dump({"ENABLE_LINTERS": ["BASH_SHELLCHECK"]}))
+
+        _run_setup()
+
+        assert "MEGALINTER_CONFIG" not in os.environ
+
+    def test_config_without_extends_stands_alone(self, workspace):
+        (workspace / ".mega-linter.yml").write_text(yaml.dump({"ENABLE_LINTERS": ["BASH_SHELLCHECK"]}))
+
+        _run_setup()
+
+        assert "MEGALINTER_CONFIG" not in os.environ
+
+    @pytest.mark.parametrize(
+        "extends_yaml",
+        [
+            'EXTENDS:\n  - "{url}"\n',
+            "EXTENDS: {url}\n",
+            "EXTENDS: [{url}]\n",
+        ],
+    )
+    def test_any_yaml_form_of_the_baseline_extends_is_merged_offline(self, workspace, extends_yaml):
+        from scripts.entrypoint import EXTENDS_URL  # noqa: PLC0415
+
+        text = extends_yaml.format(url=EXTENDS_URL) + "DISABLE_LINTERS: [SQL_SQLFLUFF]\n"
+        (workspace / ".mega-linter.yml").write_text(text)
+
+        _run_setup()
+
+        merged = self._merged_or_none()
+        assert merged is not None
+        assert "EXTENDS" not in merged, "baseline EXTENDS would make MegaLinter fetch it at runtime"
+        assert merged["DISABLE_LINTERS"] == ["SQL_SQLFLUFF"]
+
+    def test_other_extends_entries_are_kept(self, workspace):
+        from scripts.entrypoint import EXTENDS_URL  # noqa: PLC0415
+
+        own = "https://example.com/team-overrides.yml"
+        config = f"EXTENDS:\n  - {EXTENDS_URL}\n  - {own}\nSHOW_ELAPSED_TIME: true\n"
+        (workspace / ".mega-linter.yml").write_text(config)
+
+        _run_setup()
+
+        merged = self._merged_or_none()
+        assert merged["EXTENDS"] == [own]
+        assert merged["SHOW_ELAPSED_TIME"] is True
+
+
+class TestLinterNameResolution:
+    @pytest.fixture(autouse=True)
+    def _baked_linters(self, tmp_path, monkeypatch):
+        baked = tmp_path / "linters.yml"
+        linters = ["PYTHON_RUFF", "PYTHON_RUFF_FORMAT", "BASH_SHELLCHECK", "REPOSITORY_SEMGREP"]
+        baked.write_text(yaml.dump({"ENABLE_LINTERS": linters}))
+        monkeypatch.setenv("MEGALINTER_CONFIG", str(baked))
+
+    def _resolve(self, name: str) -> str:
+        from scripts.entrypoint import _resolve_linters  # noqa: PLC0415
+
+        return _resolve_linters(name)
+
+    @pytest.mark.parametrize(
+        ("requested", "expected"),
+        [
+            ("ruff", "PYTHON_RUFF"),
+            ("ruff_format", "PYTHON_RUFF_FORMAT"),
+            ("PYTHON_RUFF", "PYTHON_RUFF"),
+            ("shellcheck,semgrep", "BASH_SHELLCHECK,REPOSITORY_SEMGREP"),
+            ("PYTHON_BLACK", "PYTHON_BLACK"),
+        ],
+    )
+    def test_short_and_full_names(self, requested, expected):
+        assert self._resolve(requested) == expected
+
+    def test_unknown_short_name_fails_instead_of_running_nothing(self):
+        import typer  # noqa: PLC0415
+
+        with pytest.raises(typer.Exit) as exc:
+            self._resolve("rufff")
+        assert exc.value.exit_code == 2

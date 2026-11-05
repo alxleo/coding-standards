@@ -12,11 +12,11 @@ rules:
     severity: ERROR
 ```
 
-Your rule IDs get a `.semgrep.` prefix from the directory.
+Your rule IDs get a `semgrep.` prefix from the directory (`semgrep.no-hardcoded-api-key`).
 
 ## Suppress a rule
 
-Inline: `# nosemgrep: .semgrep.no-hardcoded-api-key`
+Inline: `# nosemgrep: semgrep.no-hardcoded-api-key` (the bare `no-hardcoded-api-key` also works)
 
 Via config (`.mega-linter.yml`):
 

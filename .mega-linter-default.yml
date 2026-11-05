@@ -197,8 +197,10 @@ KUBERNETES_KUBECONFORM_ARGUMENTS:
 # Rules downloaded as JSON at Docker build time — 381x faster to parse than YAML.
 # Refreshed on every image rebuild (weekly scheduled + every merge to main).
 # Custom rules in semgrep-rules/ are always local.
-# Rule ID prefixes: rules.security-audit.<id>, rules.trailofbits.<id>, rules.custom.<id>
-# Consumers can --exclude-rule with these predictable short prefixes.
+# Semgrep prefixes every rule loaded from a local file with its directory, so
+# in this image IDs read rules.<registry id> (rules.trailofbits.generic...)
+# and rules.custom.coding-standards.<id>. --exclude-rule matches the full ID
+# exactly; inline nosemgrep also accepts the unprefixed suffix.
 REPOSITORY_SEMGREP_RULESETS:
   - /rules/security-audit.json
   - /rules/trailofbits.json
@@ -208,10 +210,10 @@ REPOSITORY_SEMGREP_RULESETS:
 # semgrep-rules/network-security.yml (see #82)
 REPOSITORY_SEMGREP_ARGUMENTS:
   - "--exclude=semgrep-rules" # don't scan rule definitions (patterns contain http://, curl, etc.)
-  - "--exclude-rule=trailofbits.yaml.docker-compose.port-all-interfaces.port-all-interfaces"
-  - "--exclude-rule=trailofbits.generic.curl-unencrypted-url.curl-unencrypted-url"
-  - "--exclude-rule=trailofbits.generic.wget-unencrypted-url.wget-unencrypted-url"
-  - "--exclude-rule=trailofbits.generic.postgres-insecure-sslmode.postgres-insecure-sslmode"
+  - "--exclude-rule=rules.trailofbits.yaml.docker-compose.port-all-interfaces.port-all-interfaces"
+  - "--exclude-rule=rules.trailofbits.generic.curl-unencrypted-url.curl-unencrypted-url"
+  - "--exclude-rule=rules.trailofbits.generic.wget-unencrypted-url.wget-unencrypted-url"
+  - "--exclude-rule=rules.trailofbits.generic.postgres-insecure-sslmode.postgres-insecure-sslmode"
 
 # ── Formatting / style ────────────────────────────────────────
 FORMATTERS_DISABLE_ERRORS: true # formatters warn, don't block (explicit)
@@ -292,24 +294,35 @@ PRE_COMMANDS:
     cwd: workspace
     continue_if_failed: true
   # EditorConfig and v8r's ignore file are discovery files, not CLI configs.
-  # Keep the remaining compatibility copies guarded so consumer files win.
+  # Copy them only where the consumer has none, and record each copy so the
+  # matching POST_COMMAND removes it: the workspace must end the run as it began.
   - command: >-
-      test ! -f .editorconfig &&
-        cp /opt/coding-standards/configs/.editorconfig .editorconfig 2>/dev/null || true &&
-      test ! -f .v8rignore &&
-        cp /opt/coding-standards/configs/.v8rignore .v8rignore 2>/dev/null || true
+      for f in .editorconfig .v8rignore; do
+        if [ ! -e "$f" ] && cp "/opt/coding-standards/configs/$f" "$f" 2>/dev/null; then
+          echo "$f" >> /tmp/coding-standards-copied-files;
+        fi;
+      done; true
     cwd: workspace
     continue_if_failed: true
-  # Install JS deps if package-lock.json exists
-  # (needed for knip, dep-cruiser, tsc)
+  # Install JS deps if package-lock.json exists (needed for knip, dep-cruiser,
+  # tsc). Skip when node_modules exists: npm ci would delete a developer's
+  # install and rebuild it without install scripts.
   - command: >-
-      test -f package-lock.json &&
+      test -f package-lock.json && test ! -d node_modules &&
       npm ci --ignore-scripts || true
     cwd: workspace
     continue_if_failed: true
 
 # ── POST_COMMANDS ─────────────────────────────────────────────
 POST_COMMANDS:
+  # Remove the discovery files PRE_COMMANDS copied into the workspace.
+  - command: >-
+      if [ -f /tmp/coding-standards-copied-files ]; then
+        while IFS= read -r f; do rm -f "./$f"; done < /tmp/coding-standards-copied-files;
+        rm -f /tmp/coding-standards-copied-files;
+      fi
+    cwd: workspace
+    continue_if_failed: true
   # Fix file ownership for self-hosted runners. Container runs as root,
   # creating files the runner user can't clean up. Restore ownership to
   # the original workspace owner (passed via WORKSPACE_UID/GID env vars).
