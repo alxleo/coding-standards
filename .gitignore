@@ -14,3 +14,7 @@ uv.lock
 # Claude session data
 .claude/
 .lycheecache
+
+# Python bytecode (pytest pre-commit hook writes these in-tree)
+__pycache__/
+*.py[cod]
