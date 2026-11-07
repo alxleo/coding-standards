@@ -11,7 +11,6 @@ Usage:
 from __future__ import annotations
 
 import os
-import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -22,6 +21,21 @@ import yaml
 SCRIPTS = Path("/opt/coding-standards/scripts")
 BAKED_CONFIG = Path("/opt/coding-standards/.mega-linter-default.yml")
 EXTENDS_URL = "https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml"
+# MegaLinter 10.2's own discovery order (megalinter/config.py); first match wins.
+CONSUMER_CONFIG_NAMES = (
+    ".mega-linter.yml",
+    ".megalinter.yml",
+    ".mega-linter.yaml",
+    ".megalinter.yaml",
+    ".config/mega-linter.yml",
+    ".config/megalinter.yml",
+    ".config/mega-linter.yaml",
+    ".config/megalinter.yaml",
+    ".config/.mega-linter.yml",
+    ".config/.megalinter.yml",
+    ".config/.mega-linter.yaml",
+    ".config/.megalinter.yaml",
+)
 REQUIRED_LOCAL_CONFIGS_KEY = "CODING_STANDARDS_REQUIRED_LOCAL_CONFIGS"
 
 app = typer.Typer(
@@ -133,6 +147,63 @@ def _apply_consumer_rules_directory(merged: dict[str, object], overrides: dict[s
     _validate_required_local_configs(merged, required, workspace, rules_directory)
 
 
+def _consumer_config(workspace: Path) -> Path | None:
+    """Return the consumer config MegaLinter itself would discover, if any."""
+    for name in CONSUMER_CONFIG_NAMES:
+        candidate = workspace / name
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _without_baseline_extends(config: dict[str, object]) -> tuple[dict[str, object], bool]:
+    """Drop EXTENDS entries naming the baked baseline and report whether one did.
+
+    MegaLinter accepts EXTENDS as a list or a comma-separated string. Any other
+    entries stay, so MegaLinter still resolves the consumer's own extensions.
+    """
+    extends = config.get("EXTENDS")
+    if isinstance(extends, str):
+        entries: list[object] = extends.split(",")
+    elif isinstance(extends, list):
+        entries = list(extends)
+    else:
+        return config, False
+    kept = [entry for entry in entries if not (isinstance(entry, str) and entry.strip() == EXTENDS_URL)]
+    if len(kept) == len(entries):
+        return config, False
+    overrides = {key: value for key, value in config.items() if key != "EXTENDS"}
+    if kept:
+        overrides["EXTENDS"] = kept
+    return overrides, True
+
+
+def _resolve_linters(requested: str) -> str:
+    """Map `ruff` or `shellcheck,ruff` to MegaLinter keys such as PYTHON_RUFF.
+
+    MegaLinter matches ENABLE_LINTERS names exactly, so a short name used to
+    enable nothing and the run passed with zero linters.
+    """
+    config_path = Path(os.environ.get("MEGALINTER_CONFIG", str(BAKED_CONFIG)))
+    config = yaml.safe_load(config_path.read_text()) if config_path.is_file() else {}
+    known = config.get("ENABLE_LINTERS", []) if isinstance(config, dict) else []
+    if isinstance(known, str):
+        known = known.split(",")
+    elif not isinstance(known, list):
+        known = []
+    resolved: list[str] = []
+    for name in (part.strip().upper() for part in requested.split(",") if part.strip()):
+        matches = [key for key in known if key == name] or [key for key in known if key.endswith(f"_{name}")]
+        if matches:
+            resolved.extend(matches)
+        elif "_" in name:
+            resolved.append(name)  # full MegaLinter key outside the baseline list
+        else:
+            typer.echo(f"Unknown linter '{name.lower()}'. Use a MegaLinter key such as PYTHON_RUFF.", err=True)
+            raise typer.Exit(2)
+    return ",".join(dict.fromkeys(resolved))
+
+
 def _setup() -> None:
     """Pre-flight: git safe.directory, config resolution, semgrep discovery."""
     workspace = _workspace()
@@ -167,20 +238,17 @@ def _setup() -> None:
     # MegaLinter resolves EXTENDS relative to workspace — absolute paths break.
     # Strip EXTENDS, use baked config as MEGALINTER_CONFIG, inject consumer
     # overrides as environment variables.
-    consumer_config = workspace / ".mega-linter.yml"
-    if not consumer_config.exists():
+    # A consumer config that does not extend the baseline stands alone
+    # (docs/config-decisions.md); MegaLinter discovers it under any of its names.
+    consumer_config = _consumer_config(workspace)
+    loaded = yaml.safe_load(consumer_config.read_text()) if consumer_config else None
+    overrides, extends_baseline = _without_baseline_extends(loaded if isinstance(loaded, dict) else {})
+    if consumer_config is None:
         os.environ["MEGALINTER_CONFIG"] = str(BAKED_CONFIG)
-    elif EXTENDS_URL in consumer_config.read_text():
-        content = consumer_config.read_text()
-        content = re.sub(
-            r"EXTENDS:\s*\n\s*-\s*" + re.escape(EXTENDS_URL) + r"\s*\n?",
-            "",
-            content,
-        )
+    elif extends_baseline:
         # Write a merged config: baked defaults + consumer overrides (without EXTENDS).
         # Can't use env vars for _ARGUMENTS (MegaLinter doesn't parse JSON arrays).
         baked = yaml.safe_load(BAKED_CONFIG.read_text())
-        overrides = yaml.safe_load(content) if content.strip() else {}
         if overrides:
             consumer_rules_path = overrides.pop("LINTER_RULES_PATH", None)
             baked.update(overrides)
@@ -217,7 +285,7 @@ def main(ctx: typer.Context) -> None:
 def lint(linter: str = typer.Argument(None, help="Linter name (e.g. ruff, PYTHON_RUFF)")) -> None:
     """Run full lint suite, or a single linter."""
     if linter:
-        os.environ["ENABLE_LINTERS"] = linter.upper()
+        os.environ["ENABLE_LINTERS"] = _resolve_linters(linter)
     _run_megalinter()
 
 

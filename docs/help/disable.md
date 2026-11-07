@@ -1,8 +1,13 @@
 # Disabling linters
 
-In your `.mega-linter.yml`:
+In your `.mega-linter.yml`, below the baseline `EXTENDS` line:
 
 ```yaml
+EXTENDS:
+  - https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml
+
+# The baseline's ENABLE_LINTERS wins over DISABLE_LINTERS unless you flip it.
+ENABLE_DISABLE_LINTERS_PRIORITY: DISABLE
 DISABLE_LINTERS:
   - TERRAFORM_TFLINT       # no terraform files
   - ANSIBLE_ANSIBLE_LINT   # no ansible playbooks

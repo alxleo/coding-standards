@@ -76,11 +76,22 @@ jobs:
           scanners: vuln
           trivyignores: .trivyignore
 
+      # Exemptions are by design, not drift:
+      # - CIS-DI-0001: the lint image runs as root; docker-action passes
+      #   WORKSPACE_UID so MegaLinter restores checkout ownership afterwards.
+      # - DKL-DI-0004: fires on the apk layers inside the upstream
+      #   python:*-alpine base; our own layers are covered by hadolint DL3019.
+      # - settings.py: module names in semgrep, mcp and python-gitlab, not
+      #   credential files. Real secrets (id_rsa, .env, *_TOKEN env) still fail.
       - name: Dockle CIS benchmark
         run: |
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
             goodwithtech/dockle@sha256:eade932f793742de0aa8755406c7677cd7696f8675b6180926f7eeffa7abe6b9 \
             --exit-code 1 \
+            --exit-level warn \
+            --ignore CIS-DI-0001 \
+            --ignore DKL-DI-0004 \
+            --accept-file settings.py \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ci-test
 
       - name: Build + push multi-arch
