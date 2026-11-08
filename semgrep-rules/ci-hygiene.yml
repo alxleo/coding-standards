@@ -1,0 +1,21 @@
+# CI workflow hygiene shared by every repository.
+
+rules:
+  # GitHub bills artifacts by size times hours held, from one account-wide
+  # allowance; once it fills, every upload in every repository fails until
+  # usage is recalculated. Same rule as homelab's no-github-artifact-uploads.
+  - id: coding-standards.no-github-artifact-uploads
+    message: >-
+      GitHub artifact storage is one small account-wide allowance. Hand small
+      data between jobs as job outputs, put findings in the job summary or log,
+      and publish deliverables to the container registry or the signed Nix
+      cache.
+    languages: [generic]
+    severity: ERROR
+    pattern-regex: '(?m)^[ \t]*(?:-[ \t]*)?uses:[ \t]*[''"]?actions/(?:upload(?:-pages)?|download)-artifact(?:/[a-z-]+)?@'
+    paths:
+      include:
+        - /.github/workflows/**
+        - /.github/actions/**
+        - /.gitea/workflows/**
+        - /.forgejo/workflows/**
