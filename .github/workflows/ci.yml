@@ -224,13 +224,13 @@ jobs:
             -e MEGALINTER_CONFIG=/opt/coding-standards/.mega-linter-default.yml \
             "$img"
 
-      - name: Upload MegaLinter report
+      # The report goes to the job summary, never to artifact storage: that is
+      # one small allowance shared by every repository in the account.
+      - name: Summarize MegaLinter report
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: megalinter-report
-          path: megalinter-reports/
-          retention-days: 2
+        run: |
+          report=megalinter-reports/megalinter-report.md
+          if [ -f "$report" ]; then cat "$report" >> "$GITHUB_STEP_SUMMARY"; fi
 
       - name: Push image (cache-hit only — multi-arch build pushes directly)
         if: github.event_name != 'pull_request' && steps.cache.outputs.hit == 'true'
