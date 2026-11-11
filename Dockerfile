@@ -92,7 +92,7 @@ RUN --mount=type=cache,target=/root/.npm \
   eslint-plugin-import-x@4.17.1 \
   eslint-plugin-unicorn@72.0.0 \
   eslint-plugin-security@4.0.1 \
-  eslint-plugin-sonarjs@4.2.0 \
+  eslint-plugin-sonarjs@4.2.2 \
   eslint-plugin-testing-library@7.16.2 \
   oxlint@1.76.0 \
   type-coverage@2.30.1 \
