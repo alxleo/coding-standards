@@ -7,7 +7,8 @@
 
 set unstable
 
-image := "coding-standards:test"
+image := ""
+invoke := quote(just_executable()) + " --justfile " + quote(justfile()) + ' --working-directory "$PWD"'
 docker_args := '-v "$PWD:/tmp/lint" -e DEFAULT_WORKSPACE=/tmp/lint'
 
 # Mount branch configs over baked configs — always test current code, not stale image
@@ -44,44 +45,46 @@ check:
 
 [doc('Full MegaLinter suite via Docker image (mounts branch configs)')]
 [group('workflow')]
+[positional-arguments]
 lint *LINTER:
-    docker run --rm --platform linux/amd64 {{ docker_args }} {{ config_mounts }} {{ image }} lint {{ LINTER }}
+    {{ invoke }} _with-image _run lint "$@"
 
 [doc('Both: fast checks + full image lint + rego tests')]
 [group('workflow')]
-verify: check lint test-rego
+verify: check
+    {{ invoke }} _with-image _verify
 
 # ── Image commands (via entrypoint) ──────────────────────────
 
-[doc('Build the image locally')]
+[doc('Check that the image builds locally and discard the build')]
 [group('image')]
 build:
-    docker build --platform linux/amd64 -t {{ image }} .
+    {{ invoke }} _with-image
 
 [doc('Auto-fix all fixable issues')]
 [group('image')]
 fix:
-    docker run --rm --platform linux/amd64 {{ docker_args }} {{ config_mounts }} {{ image }} fix
+    {{ invoke }} _with-image _run fix
 
 [doc('Repo-standards checks only')]
 [group('image')]
 standards:
-    docker run --rm --platform linux/amd64 {{ docker_args }} {{ config_mounts }} {{ image }} standards
+    {{ invoke }} _with-image _run standards
 
 [doc('Show warnings from last run')]
 [group('image')]
 warnings:
-    docker run --rm --platform linux/amd64 {{ docker_args }} {{ config_mounts }} {{ image }} warnings
+    {{ invoke }} _with-image _run warnings
 
 [doc('Show linter config sources + local overrides')]
 [group('image')]
 show-config:
-    docker run --rm --platform linux/amd64 {{ docker_args }} {{ config_mounts }} {{ image }} show-config
+    {{ invoke }} _with-image _run show-config
 
 [doc('Show full catalog')]
 [group('image')]
 catalog:
-    docker run --rm --platform linux/amd64 {{ docker_args }} {{ image }} catalog
+    {{ invoke }} _with-image _catalog
 
 # ── Individual checks ──────────────────────────────────────
 
@@ -93,6 +96,56 @@ test:
 [doc('Validate Rego policies')]
 [group('check')]
 test-rego:
+    {{ invoke }} _with-image _test-rego
+
+[positional-arguments]
+_with-image *COMMAND:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    build_dir=$(mktemp -d "${TMPDIR:-/tmp}/coding-standards.XXXXXX")
+    builder="coding-standards-${build_dir##*.}"
+    tag="coding-standards:$builder"
+    builder_created=false
+
+    # The unique builder owns its cache volume and the invocation owns its image tag.
+    cleanup() {
+        local result=$?
+        local cleanup_failed=false
+        if docker image inspect "$tag" >/dev/null 2>&1; then
+            docker image rm "$tag" || cleanup_failed=true
+        fi
+        if "$builder_created"; then
+            docker buildx rm "$builder" || cleanup_failed=true
+        fi
+        rmdir "$build_dir" || cleanup_failed=true
+        if (( result == 0 )) && "$cleanup_failed"; then
+            result=1
+        fi
+        exit "$result"
+    }
+    trap cleanup EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+
+    docker buildx create --driver docker-container --name "$builder"
+    builder_created=true
+    if (( $# == 0 )); then
+        docker buildx build --builder "$builder" --platform linux/amd64 --output type=cacheonly .
+    else
+        docker buildx build --builder "$builder" --platform linux/amd64 --load --tag "$tag" .
+        {{ invoke }} --set image "$tag" "$@"
+    fi
+
+_verify: (_run "lint") _test-rego
+
+[positional-arguments]
+_run +COMMAND:
+    docker run --rm --platform linux/amd64 {{ docker_args }} {{ config_mounts }} "{{ image }}" "$@"
+
+_catalog:
+    docker run --rm --platform linux/amd64 {{ docker_args }} "{{ image }}" catalog
+
+_test-rego:
     docker run --rm --entrypoint conftest -v "$PWD/policies:/policies" {{ image }} verify -p /policies/repo-standards/
     docker run --rm --entrypoint conftest -v "$PWD/policies:/policies" {{ image }} verify -p /policies/compose/
 
