@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/oxsecurity/megalinter/v10.2.0/megalinter/descriptors/schemas/megalinter-configuration.jsonschema.json
-ENABLE_LINTERS: &stock_linters
+ENABLE_LINTERS:
   - ACTION_ACTIONLINT
   - ANSIBLE_ANSIBLE_LINT
   - BASH_SHELLCHECK
@@ -34,8 +34,6 @@ ENABLE_LINTERS: &stock_linters
   - YAML_V8R
   - YAML_YAMLLINT
 
-NATIVE_LINTERS: *stock_linters
-
 ENABLE_DISABLE_LINTERS_PRIORITY: DISABLE
 DISABLE_ERRORS_LINTERS:
   - CSS_STYLELINT
@@ -67,6 +65,7 @@ PYTHON_PYRIGHT_ARGUMENTS: [--level, error]
 PYTHON_RUFF_CONFIG_FILE: ruff.toml
 REPOSITORY_BETTERLEAKS_CONFIG_FILE: .gitleaks.toml
 REPOSITORY_TRIVY_CONFIG_FILE: trivy.yaml
+REPOSITORY_SEMGREP_TIMEOUT_SECONDS: 1080
 REPOSITORY_SEMGREP_RULESETS:
   - ../policy/semgrep-rules
   - p/security-audit

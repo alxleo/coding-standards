@@ -1,6 +1,4 @@
 [tools]
 conftest = "0.71.1"
-node = "24.22.2"
-uv = "0.13.9"
 java = "temurin-21.0.13.1+2.0.LTS"
 "github:pmd/pmd" = { version = "7.26.0", version_prefix = "pmd_releases/", asset_pattern = "pmd-dist-{{ version }}-bin.zip", checksum = "sha256:9f55cb7ff0e9f9a66dd2f005eaa370e84c8a4cd971b134aa14a930c4a283ebc9" }

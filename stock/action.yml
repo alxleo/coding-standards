@@ -2,7 +2,7 @@ name: Run stock lint
 description: Run the shared policy with MegaLinter, zizmor, Conftest and PMD CPD
 inputs:
   runtime:
-    description: Execution runtime, image or native-arm64
+    description: Execution runtime, image or per-linter
     required: true
   source-ref:
     description: Optional fixed source ref
@@ -18,6 +18,12 @@ inputs:
     default: none
   advisory:
     description: Report lint findings without blocking the smoke check
+    default: "false"
+  ephemeral:
+    description: Permit Actions cache on an ephemeral self-hosted runner
+    default: "false"
+  smoke:
+    description: Exercise representative per-linter entry points in hosted CI
     default: "false"
 runs:
   using: composite
@@ -38,71 +44,34 @@ runs:
         STOCK_RUNTIME: ${{ inputs.runtime }}
         CACHE_NAMESPACE: ${{ inputs.cache-namespace }}
       run: |
-        case "$STOCK_RUNTIME" in image|native-arm64) ;; *) exit 2;; esac
+        case "$STOCK_RUNTIME" in image|per-linter) ;; *) exit 2;; esac
         [[ "$CACHE_NAMESPACE" =~ ^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$ ]]
         printf 'Runner: %s (%s), runtime: %s\n' "$RUNNER_NAME" "$RUNNER_ARCH" "$STOCK_RUNTIME"
-        if [[ "$STOCK_RUNTIME" == native-arm64 ]]; then
-          [[ "$RUNNER_ARCH" == ARM64 ]]
-          native_home="$HOME/.cache/coding-standards/stock-native/$CACHE_NAMESPACE"
-          {
-            echo "MEGALINTER_HOME=$native_home"
-            echo "npm_config_cache=$native_home/npm"
-            echo "UV_PYTHON_INSTALL_DIR=$native_home/python"
-            echo 'UV_PYTHON_PREFERENCE=only-managed'
-          } >> "$GITHUB_ENV"
-          echo "native-home=$native_home" >> "$GITHUB_OUTPUT"
-        else
+        if [[ "$STOCK_RUNTIME" == image ]]; then
           apk add --no-cache --upgrade tar zstd zstd-libs
         fi
         echo "date=$(date -u +%F)" >> "$GITHUB_OUTPUT"
 
-    - name: Restore native engine and locked tools
-      id: native-cache
-      if: ${{ inputs.runtime == 'native-arm64' }}
-      uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-      with:
-        path: |
-          ${{ steps.cache-date.outputs.native-home }}
-          !${{ steps.cache-date.outputs.native-home }}/cache
-        key: stock-native-${{ runner.os }}-${{ runner.arch }}-${{ inputs.cache-namespace }}-${{ hashFiles('policy/stock/native.py', 'policy/stock/mega-linter.yml', 'policy/stock/mise.toml') }}
-
     - name: Restore scanner databases
       id: scanner-cache
+      if: ${{ runner.environment != 'self-hosted' || inputs.ephemeral == 'true' }}
       uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: |
-          .stock-cache/trivy/db
-          .stock-cache/trivy/java-db
-          .stock-cache/trivy/policy
-        key: stock-trivy-${{ inputs.runtime }}-${{ runner.arch }}-${{ inputs.cache-namespace }}-${{ hashFiles('policy/stock/native.py', 'policy/stock/mega-linter.yml') }}-${{ steps.cache-date.outputs.date }}
-        restore-keys: stock-trivy-${{ inputs.runtime }}-${{ runner.arch }}-${{ inputs.cache-namespace }}-${{ hashFiles('policy/stock/native.py', 'policy/stock/mega-linter.yml') }}-
+          .stock-cache/trivy
+          .stock-cache/trivy-*
+          .stock-cache/semgrep-*
+        key: stock-data-${{ inputs.runtime }}-${{ runner.arch }}-${{ inputs.cache-namespace }}-${{ hashFiles('policy/stock/images.json', 'policy/stock/mega-linter.yml') }}-${{ steps.cache-date.outputs.date }}
+        restore-keys: stock-data-${{ inputs.runtime }}-${{ runner.arch }}-${{ inputs.cache-namespace }}-${{ hashFiles('policy/stock/images.json', 'policy/stock/mega-linter.yml') }}-
 
     - name: Install Conftest and PMD
       uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
       with:
         version: "2026.10.23"
         working_directory: policy/stock
-        install_args: ${{ inputs.runtime == 'native-arm64' && 'conftest github:pmd/pmd node uv java' || 'conftest github:pmd/pmd' }}
+        install_args: ${{ inputs.runtime == 'per-linter' && 'conftest github:pmd/pmd java' || 'conftest github:pmd/pmd' }}
+        cache: ${{ runner.environment != 'self-hosted' || inputs.ephemeral == 'true' }}
         cache_save: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
-
-    - name: Install pinned native MegaLinter and tools
-      id: native-install
-      if: ${{ inputs.runtime == 'native-arm64' && steps.native-cache.outputs.cache-hit != 'true' }}
-      shell: bash
-      working-directory: source
-      run: uv run --script ../policy/stock/native.py install
-
-    - name: Save native engine and locked tools
-      if: >-
-        steps.native-install.outcome == 'success' &&
-        (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-        github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
-      uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-      with:
-        path: |
-          ${{ steps.cache-date.outputs.native-home }}
-          !${{ steps.cache-date.outputs.native-home }}/cache
-        key: ${{ steps.native-cache.outputs.cache-primary-key }}
 
     - name: Run stock MegaLinter
       id: lint
@@ -113,6 +82,9 @@ runs:
         DISABLE_ERRORS: ${{ inputs.advisory }}
         STOCK_RUNTIME: ${{ inputs.runtime }}
         STOCK_BASE_SHA: ${{ inputs.base-sha }}
+        STOCK_PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        STOCK_PERSISTENT: ${{ runner.environment == 'self-hosted' && inputs.ephemeral != 'true' }}
+        STOCK_SMOKE: ${{ inputs.smoke }}
         VALIDATE_ALL_CODEBASE: ${{ inputs.base-sha == '' && (github.event_name != 'pull_request' || inputs.source-ref != '') }}
         REPOSITORY_BETTERLEAKS_PR_COMMITS_SCAN: "true"
         REPOSITORY_BETTERLEAKS_PR_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
@@ -120,6 +92,27 @@ runs:
         MEGALINTER_CONFIG: stock.mega-linter.yml
         EXTENDS: ../policy/stock/mega-linter.yml
       run: |
+        if [[ "$STOCK_RUNTIME" == per-linter ]]; then
+          if [[ "$APPLY_FIXES" != none ]]; then
+            echo 'Use the image runtime to apply fixes to the shared checkout.'
+            exit 2
+          fi
+          cache="$GITHUB_WORKSPACE/.stock-cache"
+          options=()
+          if [[ "$STOCK_PERSISTENT" == true ]]; then
+            cache="${XDG_CACHE_HOME:-$HOME/.cache}/coding-standards/stock-containers"
+            options+=(--persistent)
+          fi
+          if [[ "$VALIDATE_ALL_CODEBASE" == false ]]; then
+            options+=(--base "${STOCK_BASE_SHA:-$STOCK_PR_BASE_SHA}")
+          fi
+          if [[ "$DISABLE_ERRORS" == true ]]; then options+=(--advisory); fi
+          if [[ "$STOCK_SMOKE" == true ]]; then
+            options+=(--linter PYTHON_RUFF --linter ACTION_ZIZMOR --linter REPOSITORY_SEMGREP)
+          fi
+          python3 ../policy/stock/containers.py --source "$PWD" --cache "$cache" --reports "$GITHUB_WORKSPACE/stock-reports" "${options[@]}"
+          exit
+        fi
         if [[ -n "$STOCK_BASE_SHA" ]]; then
           [[ "$STOCK_BASE_SHA" =~ ^[0-9a-f]{40}$ ]]
           git cat-file -e "$STOCK_BASE_SHA^{commit}"
@@ -133,14 +126,10 @@ runs:
         export REPORT_OUTPUT_FOLDER="$GITHUB_WORKSPACE/stock-reports"
         export DEFAULT_WORKSPACE="$PWD"
         export GITHUB_WORKSPACE="$PWD"
-        if [[ "$STOCK_RUNTIME" == native-arm64 ]]; then
-          uv run --script ../policy/stock/native.py scan
-        else
-          /bin/bash /entrypoint.sh
-        fi
+        /bin/bash /entrypoint.sh
 
     - name: Audit workflows and composite actions with zizmor
-      if: ${{ !cancelled() && (steps.lint.outcome == 'success' || steps.lint.outcome == 'failure') }}
+      if: ${{ inputs.runtime == 'image' && !cancelled() && (steps.lint.outcome == 'success' || steps.lint.outcome == 'failure') }}
       continue-on-error: ${{ inputs.advisory == 'true' }}
       uses: zizmorcore/zizmor-action@45d7276c9ca790aabd705e31ca99c6185c3e76dd # v0.8.1
       env:
@@ -174,13 +163,14 @@ runs:
     - name: Save scanner databases on the default branch
       if: >-
         !cancelled() && steps.lint.outcome != 'skipped' &&
+        (runner.environment != 'self-hosted' || inputs.ephemeral == 'true') &&
         steps.scanner-cache.outputs.cache-hit != 'true' &&
         (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
         github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
       uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: |
-          .stock-cache/trivy/db
-          .stock-cache/trivy/java-db
-          .stock-cache/trivy/policy
+          .stock-cache/trivy
+          .stock-cache/trivy-*
+          .stock-cache/semgrep-*
         key: ${{ steps.scanner-cache.outputs.cache-primary-key }}
