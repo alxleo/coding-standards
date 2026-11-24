@@ -60,7 +60,7 @@ def main():
                 descriptor = yaml.safe_load(stream)
             category = descriptor["descriptor_id"]
             for linter in descriptor["linters"]:
-                key = linter.get("name") or f"{category}_{linter['linter_name'].upper().replace('-', '_')}"
+                key = linter.get("name", f"{category}_{linter['linter_name'].upper().replace('-', '_')}")
                 if key in lock["images"]:
                     selectors[key] = file_filters(category, key, {**descriptor, **linter}, policy)
     if selectors.keys() != lock["images"].keys():
