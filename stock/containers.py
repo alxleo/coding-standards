@@ -185,7 +185,7 @@ def mount(path, target, *, writable=False):
     return ["--mount", f"type=bind,src={path},dst={target}" + ("" if writable else ",readonly")]
 
 
-def scan_one(key, digest, args, cpus):
+def scan_one(key, digest, args):
     source, reports, cache, base, advisory = args.source, args.reports, args.cache, args.base, args.advisory
     policy = LOCK.parent.parent.resolve()
     image_ref, image, registry_bytes, pull_seconds = image_for(key, digest)
@@ -259,8 +259,6 @@ def scan_one(key, digest, args, cpus):
         "run",
         "--rm",
         "--pull=never",
-        "--cpus",
-        str(cpus),
         "--label",
         "io.coding-standards.stock=true",
         "--security-opt=no-new-privileges",
@@ -346,13 +344,13 @@ def scan(args):
             # Give it exclusive access to the checkout until it restores HEAD.
             head = command("git", "rev-parse", "HEAD", cwd=source).stdout
             keys = [key for key in keys if key != "REPOSITORY_SEMGREP"]
-            results.append(scan_one("REPOSITORY_SEMGREP", lock["REPOSITORY_SEMGREP"][ARCH], args, cpus))
+            results.append(scan_one("REPOSITORY_SEMGREP", lock["REPOSITORY_SEMGREP"][ARCH], args))
             if command("git", "rev-parse", "HEAD", cwd=source).stdout != head:
                 message = "Semgrep exited before restoring the checkout"
                 raise RuntimeError(message)
             command("git", "diff", "--exit-code", "HEAD", cwd=source)
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
-            tasks = [executor.submit(scan_one, key, lock[key][ARCH], args, 1) for key in keys]
+            tasks = [executor.submit(scan_one, key, lock[key][ARCH], args) for key in keys]
             results.extend(task.result() for task in tasks)
         sizes = sum(path.stat().st_blocks * 512 for path in cache.rglob("*") if path.is_file())
     metrics = {
