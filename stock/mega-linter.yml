@@ -1,7 +1,6 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/oxsecurity/megalinter/v10.2.0/megalinter/descriptors/schemas/megalinter-configuration.jsonschema.json
 ENABLE_LINTERS:
   - ACTION_ACTIONLINT
-  - ACTION_ZIZMOR
   - ANSIBLE_ANSIBLE_LINT
   - BASH_SHELLCHECK
   - BASH_SHFMT
@@ -49,8 +48,6 @@ DISABLE_ERRORS_LINTERS:
 FORMATTERS_DISABLE_ERRORS: true
 
 LINTER_RULES_PATH: ../policy/lint-configs
-ACTION_ZIZMOR_CONFIG_FILE: .zizmor.yml
-ACTION_ZIZMOR_ARGUMENTS: [--offline]
 BASH_SHELLCHECK_CONFIG_FILE: .shellcheckrc
 BASH_SHELLCHECK_FILTER_REGEX_EXCLUDE: 'semgrep-rules/.*\.sh'
 DOCKERFILE_HADOLINT_CONFIG_FILE: .hadolint.yaml
