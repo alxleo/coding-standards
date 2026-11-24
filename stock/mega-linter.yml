@@ -54,7 +54,10 @@ BASH_SHELLCHECK_CONFIG_FILE: .shellcheckrc
 BASH_SHELLCHECK_FILTER_REGEX_EXCLUDE: 'semgrep-rules/.*\.sh'
 DOCKERFILE_HADOLINT_CONFIG_FILE: .hadolint.yaml
 JAVASCRIPT_DEFAULT_STYLE: prettier
-JSON_V8R_CONFIG_FILE: .v8rrc.yml
+JAVASCRIPT_ES_CONFIG_FILE: eslint.config.cjs
+JAVASCRIPT_ES_RULES_PATH: ../policy/stock
+JSON_V8R_CONFIG_FILE: LINTER_DEFAULT
+JSX_ESLINT_RULES_PATH: ../policy/stock
 KUBERNETES_KUBECONFORM_ARGUMENTS: [--strict]
 MARKDOWN_DEFAULT_STYLE: rumdl
 MARKDOWN_RUMDL_RULES_PATH: ../policy/stock
@@ -74,8 +77,11 @@ REPOSITORY_SEMGREP_ARGUMENTS:
   - --exclude-rule=trailofbits.generic.wget-unencrypted-url.wget-unencrypted-url
   - --exclude-rule=trailofbits.generic.postgres-insecure-sslmode.postgres-insecure-sslmode
 TERRAFORM_TFLINT_CONFIG_FILE: .tflint.hcl
+TSX_ESLINT_RULES_PATH: ../policy/stock
 TYPESCRIPT_DEFAULT_STYLE: prettier
-YAML_V8R_CONFIG_FILE: .v8rrc.yml
+TYPESCRIPT_ES_CONFIG_FILE: eslint.config.cjs
+TYPESCRIPT_ES_RULES_PATH: ../policy/stock
+YAML_V8R_CONFIG_FILE: LINTER_DEFAULT
 
 FAIL_IF_MISSING_LINTER_IN_FLAVOR: true
 SHOW_ELAPSED_TIME: true
