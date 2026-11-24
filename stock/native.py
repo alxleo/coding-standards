@@ -6,18 +6,19 @@
 """Install or run the pinned native MegaLinter profile."""
 
 import argparse
+import logging
 import os
-from pathlib import Path
 import platform
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 import yaml
 
-
 LAUNCHER = "10.2.1-beta202611232244.0"
 ENGINE = "10.2.0.post0.dev20261123224600"
+LOGGER = logging.getLogger(__name__)
 
 
 def main() -> int:
@@ -42,10 +43,11 @@ def main() -> int:
     else:
         environment["NATIVE_MISSING_LINTERS"] = "fail"
         arguments += ["--native"]
-    print(f"Native launcher {LAUNCHER}, engine {ENGINE}, platform {platform.machine()}", flush=True)
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    LOGGER.info("Native launcher %s, engine %s, platform %s", LAUNCHER, ENGINE, platform.machine())
     start = time.monotonic()
-    result = subprocess.run(arguments, env=environment, check=False)
-    print(f"MegaLinter native {args.command} seconds: {time.monotonic() - start:.2f}", flush=True)
+    result = subprocess.run(arguments, env=environment, check=False)  # noqa: S603 - pinned launcher and policy keys
+    LOGGER.info("MegaLinter native %s seconds: %.2f", args.command, time.monotonic() - start)
     return result.returncode
 
 
