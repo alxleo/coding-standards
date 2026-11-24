@@ -53,7 +53,8 @@ jobs:
             lint-configs
             semgrep-rules
             policies/compose
-      - uses: ./policy/stock
+      # The pinned policy checkout supplies this workspace path.
+      - uses: ./policy/stock # zizmor: ignore[self-repository]
         with:
           runtime: ${{ inputs.runtime || matrix.runtime }}
           source-ref: ${{ inputs.source-ref }}
