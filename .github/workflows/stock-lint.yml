@@ -4,8 +4,19 @@ on:
   workflow_call:
     inputs:
       runner:
-        description: Linux x64 runner label supporting job containers
+        description: Linux runner label compatible with the selected runtime
         required: true
+        type: string
+      runtime:
+        description: Execution runtime (image or native-arm64)
+        default: image
+        type: string
+      source-ref:
+        description: Optional fixed source ref for a full scan
+        type: string
+      cache-namespace:
+        description: Optional isolated cache scope for a paired scan
+        default: default
         type: string
       apply-fixes:
         description: MegaLinter APPLY_FIXES selection
@@ -21,16 +32,24 @@ permissions:
 
 jobs:
   stock:
-    runs-on: ${{ inputs.runner || 'ubuntu-24.04' }}
-    timeout-minutes: 20
-    container:
-      image: ghcr.io/oxsecurity/megalinter-cupcake:v10.2.0@sha256:0e62d95de2e4388530579e1cdf531e3752ac70549ab78666c64429bd734dbae7
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime: ${{ fromJSON(inputs.runner == '' && '["image","native-arm64"]' || inputs.runtime == 'native-arm64' && '["native-arm64"]' || '["image"]') }}
+    runs-on: ${{ inputs.runner || (matrix.runtime == 'native-arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04') }}
+    timeout-minutes: 35
+    container: ${{ matrix.runtime == 'image' && 'ghcr.io/oxsecurity/megalinter-cupcake:v10.2.0@sha256:0e62d95de2e4388530579e1cdf531e3752ac70549ab78666c64429bd734dbae7' || '' }}
+    env:
+      STOCK_RUNTIME: ${{ matrix.runtime }}
+      CACHE_NAMESPACE: ${{ inputs.cache-namespace || 'default' }}
+      CAN_SAVE_CACHE: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           path: source
+          ref: ${{ inputs.source-ref }}
           persist-credentials: false
       - name: Check out policy at the workflow revision
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -49,10 +68,38 @@ jobs:
       - name: Prepare the scanner cache
         id: cache-date
         shell: bash
+        env:
+          RUNNER_NAME: ${{ runner.name }}
+          REQUESTED_RUNTIME: ${{ inputs.runtime || 'image' }}
         run: |
-          apk add --no-cache --upgrade tar zstd zstd-libs
-          zstd --version
+          case "$REQUESTED_RUNTIME" in image|native-arm64) ;; *) exit 2;; esac
+          [[ "$CACHE_NAMESPACE" =~ ^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$ ]]
+          printf 'Runner: %s (%s), runtime: %s\n' "$RUNNER_NAME" "$RUNNER_ARCH" "$STOCK_RUNTIME"
+          if [[ "$STOCK_RUNTIME" == native-arm64 ]]; then
+            [[ "$RUNNER_ARCH" == ARM64 ]]
+            native_home="$HOME/.cache/coding-standards/stock-native/$CACHE_NAMESPACE"
+            {
+              echo "MEGALINTER_HOME=$native_home"
+              echo "npm_config_cache=$native_home/npm"
+              echo "UV_PYTHON_INSTALL_DIR=$native_home/python"
+              echo 'UV_PYTHON_PREFERENCE=only-managed'
+            } >> "$GITHUB_ENV"
+            echo "native-home=$native_home" >> "$GITHUB_OUTPUT"
+          else
+            apk add --no-cache --upgrade tar zstd zstd-libs
+          fi
           echo "date=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore native engine and locked tools
+        id: native-cache
+        if: ${{ matrix.runtime == 'native-arm64' }}
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            ${{ steps.cache-date.outputs.native-home }}
+            !${{ steps.cache-date.outputs.native-home }}/cache
+          key: stock-native-${{ runner.os }}-${{ runner.arch }}-${{ env.CACHE_NAMESPACE }}-${{ hashFiles('policy/stock/native.py', 'policy/stock/mega-linter.yml', 'policy/stock/mise.toml') }}
+
       - name: Restore scanner databases
         id: scanner-cache
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
@@ -61,16 +108,32 @@ jobs:
             .stock-cache/trivy/db
             .stock-cache/trivy/java-db
             .stock-cache/trivy/policy
-          key: stock-trivy-v10.2.0-${{ runner.arch }}-${{ steps.cache-date.outputs.date }}
-          restore-keys: stock-trivy-v10.2.0-${{ runner.arch }}-
+          key: stock-trivy-${{ matrix.runtime }}-${{ runner.arch }}-${{ env.CACHE_NAMESPACE }}-${{ hashFiles('policy/stock/native.py', 'policy/stock/mega-linter.yml') }}-${{ steps.cache-date.outputs.date }}
+          restore-keys: stock-trivy-${{ matrix.runtime }}-${{ runner.arch }}-${{ env.CACHE_NAMESPACE }}-${{ hashFiles('policy/stock/native.py', 'policy/stock/mega-linter.yml') }}-
 
       - name: Install Conftest and PMD
         uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
         with:
           version: '2026.10.23'
           working_directory: policy/stock
-          install_args: conftest github:pmd/pmd
-          cache_save: ${{ github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+          install_args: ${{ matrix.runtime == 'native-arm64' && 'conftest github:pmd/pmd node uv java' || 'conftest github:pmd/pmd' }}
+          cache_save: ${{ env.CAN_SAVE_CACHE == 'true' }}
+
+      - name: Install pinned native MegaLinter and tools
+        id: native-install
+        if: ${{ matrix.runtime == 'native-arm64' && steps.native-cache.outputs.cache-hit != 'true' }}
+        shell: bash
+        working-directory: source
+        run: uv run --script ../policy/stock/native.py install
+
+      - name: Save native engine and locked tools
+        if: ${{ steps.native-install.outcome == 'success' && env.CAN_SAVE_CACHE == 'true' }}
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            ${{ steps.cache-date.outputs.native-home }}
+            !${{ steps.cache-date.outputs.native-home }}/cache
+          key: ${{ steps.native-cache.outputs.cache-primary-key }}
 
       - name: Run stock MegaLinter
         id: lint
@@ -80,7 +143,7 @@ jobs:
           APPLY_FIXES: ${{ inputs.apply-fixes || 'none' }}
           # A direct PR run exercises the candidate without gating on the repo's existing findings.
           DISABLE_ERRORS: ${{ inputs.runner == '' }}
-          VALIDATE_ALL_CODEBASE: ${{ github.event_name != 'pull_request' }}
+          VALIDATE_ALL_CODEBASE: ${{ github.event_name != 'pull_request' || inputs.source-ref != '' }}
           REPOSITORY_BETTERLEAKS_PR_COMMITS_SCAN: 'true'
           REPOSITORY_BETTERLEAKS_PR_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
           REPOSITORY_BETTERLEAKS_PR_TARGET_SHA: ${{ github.event.pull_request.base.sha }}
@@ -91,7 +154,11 @@ jobs:
           export REPORT_OUTPUT_FOLDER="$GITHUB_WORKSPACE/stock-reports"
           export DEFAULT_WORKSPACE="$PWD"
           export GITHUB_WORKSPACE="$PWD"
-          /bin/bash /entrypoint.sh
+          if [[ "$STOCK_RUNTIME" == native-arm64 ]]; then
+            uv run --script ../policy/stock/native.py scan
+          else
+            /bin/bash /entrypoint.sh
+          fi
 
       - name: Audit workflows and composite actions with zizmor
         if: ${{ !cancelled() && (steps.lint.outcome == 'success' || steps.lint.outcome == 'failure') }}
@@ -129,8 +196,7 @@ jobs:
         if: >-
           !cancelled() && steps.lint.outcome != 'skipped' &&
           steps.scanner-cache.outputs.cache-hit != 'true' &&
-          github.event_name == 'push' &&
-          github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+          env.CAN_SAVE_CACHE == 'true'
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |

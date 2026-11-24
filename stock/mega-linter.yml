@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/oxsecurity/megalinter/v10.2.0/megalinter/descriptors/schemas/megalinter-configuration.jsonschema.json
-ENABLE_LINTERS:
+ENABLE_LINTERS: &stock_linters
   - ACTION_ACTIONLINT
   - ANSIBLE_ANSIBLE_LINT
   - BASH_SHELLCHECK
@@ -33,6 +33,8 @@ ENABLE_LINTERS:
   - YAML_PRETTIER
   - YAML_V8R
   - YAML_YAMLLINT
+
+NATIVE_LINTERS: *stock_linters
 
 ENABLE_DISABLE_LINTERS_PRIORITY: DISABLE
 DISABLE_ERRORS_LINTERS:
