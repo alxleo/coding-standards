@@ -17,8 +17,6 @@ import subprocess
 import sys
 import time
 import urllib.parse
-from http import HTTPStatus
-from http.client import HTTPSConnection
 from pathlib import Path
 
 IMAGE_PREFIX = "coding-standards-stock-owned/"
@@ -54,16 +52,22 @@ def require_image(ref):
 
 
 def fetch(host, path, headers=None):
-    connection = HTTPSConnection(host, timeout=60)
-    try:
-        connection.request("GET", path, headers=headers or {})
-        response = connection.getresponse()
-        if response.status != HTTPStatus.OK:
-            message = f"HTTPS GET {host}{path} returned {response.status}"
-            raise RuntimeError(message)
-        return response.read()
-    finally:
-        connection.close()
+    options = []
+    for key, value in (headers or {}).items():
+        options += ["--header", f"{key}: {value}"]
+    return command(
+        "curl",
+        "--disable",
+        "--silent",
+        "--show-error",
+        "--fail",
+        "--proto",
+        "=https",
+        "--max-time",
+        "60",
+        *options,
+        f"https://{host}{path}",
+    ).stdout
 
 
 def manifest(repo, digest):
@@ -159,7 +163,7 @@ def packs(directory):
             continue
         body = fetch("semgrep.dev", f"/c/p/{name}")
         temporary = path.with_suffix(".partial")
-        temporary.write_bytes(body)
+        temporary.write_text(body)
         temporary.replace(path)
         LOGGER.info("Semgrep pack %s downloaded bytes: %s", name, len(body))
     return ",".join(("../policy/semgrep-rules", *(f"/stock-data/{name}.yaml" for name in names)))
