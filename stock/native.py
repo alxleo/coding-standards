@@ -18,6 +18,7 @@ import yaml
 
 LAUNCHER = "10.2.1-beta202611232244.0"
 ENGINE = "10.2.0.post0.dev20261123224600"
+SYSTEM_CA_BUNDLE = Path("/etc/ssl/certs/ca-certificates.crt")
 LOGGER = logging.getLogger(__name__)
 
 
@@ -38,12 +39,16 @@ def main() -> int:
         "NATIVE_ENV_ALLOWLIST": "TRIVY_CACHE_DIR",
         "UV_PYTHON_DOWNLOADS": "never",
     }
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    # The attestation verifier's managed Python can lack a usable OpenSSL default CA path.
+    if not environment.get("SSL_CERT_FILE") and SYSTEM_CA_BUNDLE.is_file():
+        environment["SSL_CERT_FILE"] = str(SYSTEM_CA_BUNDLE)
+        LOGGER.info("Native verifier CA bundle: %s", SYSTEM_CA_BUNDLE)
     if args.command == "install":
         arguments += ["--install-linters", *linters]
     else:
         environment["NATIVE_MISSING_LINTERS"] = "fail"
         arguments += ["--native"]
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
     LOGGER.info("Native launcher %s, engine %s, platform %s", LAUNCHER, ENGINE, platform.machine())
     start = time.monotonic()
     result = subprocess.run(arguments, env=environment, check=False)  # noqa: S603 - pinned launcher and policy keys
