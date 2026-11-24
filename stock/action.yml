@@ -6,7 +6,7 @@ inputs:
     required: true
   source-ref:
     description: Optional fixed source ref for a full scan
-    default: ''
+    default: ""
   cache-namespace:
     description: Isolated cache scope for paired scans
     default: default
@@ -15,7 +15,7 @@ inputs:
     default: none
   advisory:
     description: Report lint findings without blocking the smoke check
-    default: 'false'
+    default: "false"
 runs:
   using: composite
   steps:
@@ -77,7 +77,7 @@ runs:
     - name: Install Conftest and PMD
       uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
       with:
-        version: '2026.10.23'
+        version: "2026.10.23"
         working_directory: policy/stock
         install_args: ${{ inputs.runtime == 'native-arm64' && 'conftest github:pmd/pmd node uv java' || 'conftest github:pmd/pmd' }}
         cache_save: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
@@ -110,7 +110,7 @@ runs:
         DISABLE_ERRORS: ${{ inputs.advisory }}
         STOCK_RUNTIME: ${{ inputs.runtime }}
         VALIDATE_ALL_CODEBASE: ${{ github.event_name != 'pull_request' || inputs.source-ref != '' }}
-        REPOSITORY_BETTERLEAKS_PR_COMMITS_SCAN: 'true'
+        REPOSITORY_BETTERLEAKS_PR_COMMITS_SCAN: "true"
         REPOSITORY_BETTERLEAKS_PR_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
         REPOSITORY_BETTERLEAKS_PR_TARGET_SHA: ${{ github.event.pull_request.base.sha }}
         MEGALINTER_CONFIG: stock.mega-linter.yml
@@ -129,16 +129,16 @@ runs:
     - name: Audit workflows and composite actions with zizmor
       if: ${{ !cancelled() && (steps.lint.outcome == 'success' || steps.lint.outcome == 'failure') }}
       continue-on-error: ${{ inputs.advisory == 'true' }}
-      uses: zizmorcore/zizmor-action@45d7276c9ca790aabd705e31ca99c6185c3e76dd
+      uses: zizmorcore/zizmor-action@45d7276c9ca790aabd705e31ca99c6185c3e76dd # v0.8.1
       env:
-        ZIZMOR_OFFLINE: 'true'
+        ZIZMOR_OFFLINE: "true"
       with:
         inputs: source
         collect: workflows,actions
         config: policy/lint-configs/.zizmor.yml
-        online-audits: 'false'
-        advanced-security: 'false'
-        fail-on-no-inputs: 'false'
+        online-audits: "false"
+        advanced-security: "false"
+        fail-on-no-inputs: "false"
 
     - name: Check Compose policy
       if: ${{ !cancelled() && (steps.lint.outcome == 'success' || steps.lint.outcome == 'failure') }}
