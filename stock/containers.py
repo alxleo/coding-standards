@@ -189,6 +189,20 @@ def mount(path, target, *, writable=False):
     return ["--mount", f"type=bind,src={path},dst={target}" + ("" if writable else ",readonly")]
 
 
+def trivy_setup(args, digest):
+    directory = args.cache / f"trivy-{digest.removeprefix('sha256:')}"
+    if not directory.exists():
+        directory.mkdir()
+        (directory / ".stock-owned").touch()
+    env = trivy_environment(directory)
+    if args.trivy_config:
+        env.update(
+            REPOSITORY_TRIVY_RULES_PATH=f"{SOURCE}/{args.trivy_config.parent}",
+            REPOSITORY_TRIVY_CONFIG_FILE=args.trivy_config.name,
+        )
+    return mount(directory, "/stock-data", writable=True), env
+
+
 def scan_one(key, digest, args):
     source, reports, cache, base, advisory = args.source, args.reports, args.cache, args.base, args.advisory
     policy = LOCK.parent.parent.resolve()
@@ -219,13 +233,12 @@ def scan_one(key, digest, args):
         "GIT_CONFIG_KEY_1": "core.autocrlf",
         "GIT_CONFIG_VALUE_1": "false",
     }
+    if key == "PYTHON_RUFF":
+        env["RUFF_CACHE_DIR"] = "/tmp/ruff-cache"  # noqa: S108 - private to the lint container
     if key == "REPOSITORY_TRIVY":
-        directory = cache / f"trivy-{digest.removeprefix('sha256:')}"
-        if not directory.exists():
-            directory.mkdir()
-            (directory / ".stock-owned").touch()
-        options += mount(directory, "/stock-data", writable=True)
-        env.update(trivy_environment(directory))
+        data_mount, trivy_env = trivy_setup(args, digest)
+        options += data_mount
+        env.update(trivy_env)
     if key == "REPOSITORY_SEMGREP":
         directory = cache / f"semgrep-{digest.removeprefix('sha256:')}"
         if not directory.exists():
@@ -236,13 +249,14 @@ def scan_one(key, digest, args):
         if base:
             env["SEMGREP_BASELINE_COMMIT"] = base
         options += ["--network", "none"]
-    if key == "REPOSITORY_BETTERLEAKS" and base:
-        env.update(
-            REPOSITORY_BETTERLEAKS_PR_COMMITS_SCAN="true",
-            REPOSITORY_BETTERLEAKS_PR_TARGET_SHA=base,
-            REPOSITORY_BETTERLEAKS_PR_SOURCE_SHA=command("git", "rev-parse", "HEAD", cwd=source).stdout.strip(),
-        )
     args = [image_ref]
+    if key == "REPOSITORY_BETTERLEAKS" and base:
+        # The pinned adapter adds a caret to the base and scans one extra commit.
+        env.update(
+            REPOSITORY_BETTERLEAKS_PR_COMMITS_SCAN="false",
+            REPOSITORY_BETTERLEAKS_COMMAND_REMOVE_ARGUMENTS="dir",
+            REPOSITORY_BETTERLEAKS_ARGUMENTS=f'git "--log-opts=--no-merges {base}..HEAD"',
+        )
     if key == "ACTION_ZIZMOR":
         options += ["--entrypoint", "zizmor", "--network", "none"]
         args += [
@@ -320,6 +334,55 @@ def summary(results, reports):
             file.write("\n".join(text) + "\n")
 
 
+def selected_file(source, name, rules):
+    if not name.startswith(rules.get("files_sub_directory", "")):
+        return False
+    path = Path(name)
+    extension = path.suffix
+    extensions = rules.get("file_extensions", ())
+    if (
+        extension not in extensions
+        and "*" not in extensions
+        and not re.fullmatch("|".join(rules.get("file_names_regex", ())), path.name)
+    ):
+        return False
+    locations = (name, f"{SOURCE}/{name}")
+    include = rules.get("include")
+    if (
+        name.endswith(tuple(rules.get("file_names_not_ends_with", ())))
+        or (include and not any(re.search(rule, value) for rule in include for value in locations))
+        or any(re.search(rule, value) for rule in rules.get("exclude", ()) for value in locations)
+    ):
+        return False
+    content_extensions = rules.get("file_contains_regex_extensions", ())
+    if (content := rules.get("file_contains_regex")) and (not content_extensions or extension in content_extensions):
+        try:
+            matched = bool(re.search("|".join(content), (source / path).read_text(errors="ignore"), re.MULTILINE))
+        except OSError:
+            # Let MegaLinter handle files the host could not read.
+            matched = True
+        return matched
+    return True
+
+
+def pr_linters(source, base, lock, keys):
+    # A consumer-supplied config can change descriptor filters or switch a linter to project mode.
+    if (source / "stock.mega-linter.yml").is_file():
+        return keys
+    metadata = json.loads(LOCK.with_name("file-selectors.json").read_text())
+    selectors = metadata["selectors"]
+    if metadata["version"] != lock["version"] or selectors.keys() != lock["images"].keys():
+        message = "Regenerate stock file selectors for the locked MegaLinter release"
+        raise ValueError(message)
+    files = command("git", "diff", "--name-only", "-z", f"{base}...HEAD", cwd=source).stdout.split("\0")
+    files = [name for name in files if name and (source / name).is_file() and not (source / name).is_symlink()]
+    return [
+        key
+        for key in keys
+        if selectors[key] is None or any(selected_file(source, name, selectors[key]) for name in files)
+    ]
+
+
 def scan(args):
     start = time.monotonic()
     source = args.source = args.source.resolve()
@@ -327,8 +390,10 @@ def scan(args):
     cache = args.cache = args.cache.resolve()
     reports.mkdir(parents=True, exist_ok=True)
     cache.mkdir(parents=True, exist_ok=True)
-    lock = json.loads(LOCK.read_text())["images"]
+    image_lock = json.loads(LOCK.read_text())
+    lock = image_lock["images"]
     keys = args.linter or list(lock)
+    skipped = []
     base = args.base
     if base:
         if not re.fullmatch("[0-9a-f]{40}", base):
@@ -337,6 +402,10 @@ def scan(args):
         command("git", "merge-base", base, "HEAD", cwd=source)
         command("git", "update-ref", "refs/remotes/origin/stock-scan-base", base, cwd=source)
         LOGGER.info("Scanning changes against %s", base)
+        selected = pr_linters(source, base, image_lock, keys)
+        skipped = [key for key in keys if key not in selected]
+        keys = selected
+        LOGGER.info("Selected %d linters; skipped %d without changed inputs", len(keys), len(skipped))
     cpus = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else (os.cpu_count() or 1)
     cpus = min(cpus, int(docker("info", "--format", "{{.NCPU}}").stdout))
     with (cache / ".lock").open("a") as lease:
@@ -360,6 +429,7 @@ def scan(args):
     metrics = {
         "seconds": round(time.monotonic() - start, 2),
         "linters": results,
+        "skipped_linters": skipped,
         "cache_disk_bytes": sizes,
         "image_logical_bytes": sum({row["image_id"]: row["image_bytes"] for row in results}.values()),
         "registry_layer_bytes": sum(row["registry_layer_bytes"] for row in results)
@@ -422,6 +492,7 @@ def main():
     parser.add_argument("--reports", type=Path)
     parser.add_argument("--cache", type=Path)
     parser.add_argument("--base", default="")
+    parser.add_argument("--trivy-config", type=Path, help="Repository-relative Trivy configuration")
     parser.add_argument("--persistent", action="store_true")
     parser.add_argument("--advisory", action="store_true")
     parser.add_argument("--linter", action="append", help="Run only this key, for smoke checks")
@@ -431,6 +502,12 @@ def main():
         sys.exit(benchmark_current(args))
     if args.reports is None or args.cache is None:
         parser.error("--reports and --cache are required for a per-linter scan")
+    if args.trivy_config:
+        source = args.source.resolve()
+        config = (source / args.trivy_config).resolve()
+        if args.trivy_config.is_absolute() or not config.is_relative_to(source) or not config.is_file():
+            parser.error("--trivy-config must select a file inside the source checkout")
+        args.trivy_config = config.relative_to(source)
     sys.exit(scan(args))
 
 

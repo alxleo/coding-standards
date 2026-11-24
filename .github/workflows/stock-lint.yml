@@ -14,6 +14,9 @@ on:
       source-ref:
         description: Optional fixed source ref for a full scan
         type: string
+      trivy-config:
+        description: Optional repository-relative Trivy config for the per-linter runtime
+        type: string
       cache-namespace:
         description: Optional isolated cache scope for a paired scan
         default: default
@@ -62,6 +65,7 @@ jobs:
         with:
           runtime: ${{ inputs.runtime || matrix.runtime }}
           source-ref: ${{ inputs.source-ref }}
+          trivy-config: ${{ inputs.trivy-config }}
           cache-namespace: ${{ inputs.cache-namespace || 'default' }}
           apply-fixes: ${{ inputs.apply-fixes || 'none' }}
           advisory: ${{ inputs.runner == '' }}

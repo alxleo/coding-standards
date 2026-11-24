@@ -10,6 +10,9 @@ inputs:
   base-sha:
     description: Optional base commit SHA for a changed-files scan of the fixed source ref
     default: ""
+  trivy-config:
+    description: Optional repository-relative Trivy config for the per-linter runtime
+    default: ""
   cache-namespace:
     description: Isolated cache scope for paired scans
     default: default
@@ -82,6 +85,7 @@ runs:
         DISABLE_ERRORS: ${{ inputs.advisory }}
         STOCK_RUNTIME: ${{ inputs.runtime }}
         STOCK_BASE_SHA: ${{ inputs.base-sha }}
+        STOCK_TRIVY_CONFIG: ${{ inputs.trivy-config }}
         STOCK_PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         STOCK_PERSISTENT: ${{ runner.environment == 'self-hosted' && inputs.ephemeral != 'true' }}
         STOCK_SMOKE: ${{ inputs.smoke }}
@@ -106,6 +110,7 @@ runs:
           if [[ "$VALIDATE_ALL_CODEBASE" == false ]]; then
             options+=(--base "${STOCK_BASE_SHA:-$STOCK_PR_BASE_SHA}")
           fi
+          if [[ -n "$STOCK_TRIVY_CONFIG" ]]; then options+=(--trivy-config "$STOCK_TRIVY_CONFIG"); fi
           if [[ "$DISABLE_ERRORS" == true ]]; then options+=(--advisory); fi
           if [[ "$STOCK_SMOKE" == true ]]; then
             options+=(--linter PYTHON_RUFF --linter ACTION_ZIZMOR --linter REPOSITORY_SEMGREP)
