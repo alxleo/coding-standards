@@ -24,7 +24,7 @@ FIELDS = (
 
 
 def file_filters(category, key, rules, policy):
-    if category == "REPOSITORY" or key == "ACTION_ZIZMOR" or rules.get("cli_lint_mode") == "project":
+    if category == "REPOSITORY" or key == "ACTION_ZIZMOR" or rules.get("lint_all_files"):
         return None
     filters = {field: rules[field] for field in FIELDS if rules.get(field)}
     if rules.get("lint_all_other_linters_files") and "file_extensions" not in filters:

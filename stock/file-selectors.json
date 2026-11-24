@@ -5,7 +5,10 @@
       "files_sub_directory": ".github/workflows"
     },
     "ACTION_ZIZMOR": null,
-    "ANSIBLE_ANSIBLE_LINT": null,
+    "ANSIBLE_ANSIBLE_LINT": {
+      "file_extensions": [".yml", ".yaml"],
+      "file_names_not_ends_with": ["vault.yml", "vault.yaml", "galaxy.yml", "galaxy.yaml"]
+    },
     "BASH_SHELLCHECK": {
       "exclude": ["semgrep-rules/.*\\.sh"],
       "file_contains_regex": ["^#!/usr/bin/env bash", "^#!/bin/bash", "^#!/bin/sh"],
@@ -29,7 +32,9 @@
     "ENV_DOTENV_LINTER": {
       "file_extensions": [".env"]
     },
-    "GO_GOLANGCI_LINT": null,
+    "GO_GOLANGCI_LINT": {
+      "file_extensions": [".go"]
+    },
     "JAVASCRIPT_ES": {
       "file_extensions": [".js", ".vue"]
     },
@@ -99,7 +104,9 @@
     "SQL_SQLFLUFF": {
       "file_extensions": [".sql"]
     },
-    "TERRAFORM_TFLINT": null,
+    "TERRAFORM_TFLINT": {
+      "file_extensions": [".tf"]
+    },
     "TSX_ESLINT": {
       "file_extensions": [".tsx"]
     },
