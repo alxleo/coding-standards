@@ -5,7 +5,10 @@ inputs:
     description: Execution runtime, image or native-arm64
     required: true
   source-ref:
-    description: Optional fixed source ref for a full scan
+    description: Optional fixed source ref
+    default: ""
+  base-sha:
+    description: Optional base commit SHA for a changed-files scan of the fixed source ref
     default: ""
   cache-namespace:
     description: Isolated cache scope for paired scans
@@ -109,13 +112,23 @@ runs:
         APPLY_FIXES: ${{ inputs.apply-fixes }}
         DISABLE_ERRORS: ${{ inputs.advisory }}
         STOCK_RUNTIME: ${{ inputs.runtime }}
-        VALIDATE_ALL_CODEBASE: ${{ github.event_name != 'pull_request' || inputs.source-ref != '' }}
+        STOCK_BASE_SHA: ${{ inputs.base-sha }}
+        VALIDATE_ALL_CODEBASE: ${{ inputs.base-sha == '' && (github.event_name != 'pull_request' || inputs.source-ref != '') }}
         REPOSITORY_BETTERLEAKS_PR_COMMITS_SCAN: "true"
         REPOSITORY_BETTERLEAKS_PR_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
         REPOSITORY_BETTERLEAKS_PR_TARGET_SHA: ${{ github.event.pull_request.base.sha }}
         MEGALINTER_CONFIG: stock.mega-linter.yml
         EXTENDS: ../policy/stock/mega-linter.yml
       run: |
+        if [[ -n "$STOCK_BASE_SHA" ]]; then
+          [[ "$STOCK_BASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          git cat-file -e "$STOCK_BASE_SHA^{commit}"
+          git update-ref refs/remotes/origin/stock-scan-base "$STOCK_BASE_SHA"
+          export DEFAULT_BRANCH=stock-scan-base
+          export REPOSITORY_BETTERLEAKS_PR_SOURCE_SHA="$(git rev-parse HEAD)"
+          export REPOSITORY_BETTERLEAKS_PR_TARGET_SHA="$STOCK_BASE_SHA"
+          printf 'Scanning changes against %s\n' "$STOCK_BASE_SHA"
+        fi
         export TRIVY_CACHE_DIR="$GITHUB_WORKSPACE/.stock-cache/trivy"
         export REPORT_OUTPUT_FOLDER="$GITHUB_WORKSPACE/stock-reports"
         export DEFAULT_WORKSPACE="$PWD"
