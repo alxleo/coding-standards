@@ -209,9 +209,11 @@ def scan_one(key, digest, args, cpus):
         "MARKDOWN_SUMMARY_REPORTER_FILE_NAME": REPORT,
         "PRINT_ALPACA": "false",
         "DEFAULT_BRANCH": "stock-scan-base" if base else "HEAD",
-        "GIT_CONFIG_COUNT": "1",
+        "GIT_CONFIG_COUNT": "2",
         "GIT_CONFIG_KEY_0": "safe.directory",
         "GIT_CONFIG_VALUE_0": SOURCE,
+        "GIT_CONFIG_KEY_1": "core.autocrlf",
+        "GIT_CONFIG_VALUE_1": "false",
     }
     if key == "REPOSITORY_TRIVY":
         directory = cache / f"trivy-{digest.removeprefix('sha256:')}"
