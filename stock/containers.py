@@ -17,11 +17,12 @@ import subprocess
 import sys
 import time
 import urllib.parse
-import urllib.request
+from http import HTTPStatus
+from http.client import HTTPSConnection
 from pathlib import Path
 
 IMAGE_PREFIX = "coding-standards-stock-owned/"
-REGISTRY = "https://ghcr.io"
+REGISTRY = "ghcr.io"
 LOCK = Path(__file__).with_name("images.json")
 DAY = 24 * 60 * 60
 REPORT = "summary.md"
@@ -45,12 +46,32 @@ def inspect(ref):
     return json.loads(result.stdout)[0] if result.returncode == 0 else None
 
 
+def require_image(ref):
+    if image := inspect(ref):
+        return image
+    message = f"Docker image is missing after pull: {ref}"
+    raise RuntimeError(message)
+
+
+def fetch(host, path, headers=None):
+    connection = HTTPSConnection(host, timeout=60)
+    try:
+        connection.request("GET", path, headers=headers or {})
+        response = connection.getresponse()
+        if response.status != HTTPStatus.OK:
+            message = f"HTTPS GET {host}{path} returned {response.status}"
+            raise RuntimeError(message)
+        return response.read()
+    finally:
+        connection.close()
+
+
 def manifest(repo, digest):
     query = urllib.parse.urlencode({"scope": f"repository:{repo}:pull"})
-    with urllib.request.urlopen(f"{REGISTRY}/token?{query}", timeout=30) as response:  # noqa: S310
-        token = json.load(response)["token"]
-    request = urllib.request.Request(  # noqa: S310 - fixed HTTPS registry
-        f"{REGISTRY}/v2/{repo}/manifests/{digest}",
+    token = json.loads(fetch(REGISTRY, f"/token?{query}"))["token"]
+    body = fetch(
+        REGISTRY,
+        f"/v2/{repo}/manifests/{digest}",
         headers={
             "Authorization": f"Bearer {token}",
             "Accept": (
@@ -59,8 +80,7 @@ def manifest(repo, digest):
             ),
         },
     )
-    with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - fixed HTTPS registry
-        return json.load(response)
+    return json.loads(body)
 
 
 def pull(ref):
@@ -104,7 +124,7 @@ def image_for(key, digest):
     result = docker("image", "rm", ref, check=False)
     if result.returncode:
         LOGGER.info("%s", result.stdout.rstrip())
-    return owned, inspect(owned), size, elapsed
+    return owned, require_image(owned), size, elapsed
 
 
 def remove_stale(lock, cache):
@@ -137,8 +157,7 @@ def packs(directory):
         path = directory / f"{name}.yaml"
         if path.is_file():
             continue
-        with urllib.request.urlopen(f"https://semgrep.dev/c/p/{name}", timeout=60) as response:
-            body = response.read()
+        body = fetch("semgrep.dev", f"/c/p/{name}")
         temporary = path.with_suffix(".partial")
         temporary.write_bytes(body)
         temporary.replace(path)
@@ -173,7 +192,7 @@ def scan_one(key, digest, args, cpus):
     report_dir = reports / key.lower()
     report_dir.mkdir(parents=True, exist_ok=True)
     options = [
-        *mount(source, SOURCE),
+        *mount(source, SOURCE, writable=bool(base and key == "REPOSITORY_SEMGREP")),
         *mount(policy, POLICY),
         *mount(report_dir, "/stock-reports", writable=True),
     ]
@@ -209,9 +228,7 @@ def scan_one(key, digest, args, cpus):
         env.update(REPOSITORY_SEMGREP_RULESETS=packs(directory), SEMGREP_ENABLE_VERSION_CHECK="0")
         options += mount(directory, "/stock-data")
         if base:
-            # Semgrep's baseline worktree writes Git metadata, not the scanned tree.
-            options += mount(source / ".git", f"{SOURCE}/.git", writable=True)
-            env.update(SEMGREP_BASELINE_COMMIT=base, SEMGREP_DIFF_SCAN_USES_GIT_RESET="false")
+            env["SEMGREP_BASELINE_COMMIT"] = base
         options += ["--network", "none"]
     if key == "REPOSITORY_BETTERLEAKS" and base:
         env.update(
@@ -317,12 +334,24 @@ def scan(args):
         command("git", "update-ref", "refs/remotes/origin/stock-scan-base", base, cwd=source)
         LOGGER.info("Scanning changes against %s", base)
     cpus = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else (os.cpu_count() or 1)
+    cpus = min(cpus, int(docker("info", "--format", "{{.NCPU}}").stdout))
     with (cache / ".lock").open("a") as lease:
         fcntl.flock(lease, fcntl.LOCK_EX)
         remove_stale(lock, cache)
+        results = []
+        if base and "REPOSITORY_SEMGREP" in keys:
+            # The pinned Semgrep resets a clean checkout while checking its baseline.
+            # Give it exclusive access to the checkout until it restores HEAD.
+            head = command("git", "rev-parse", "HEAD", cwd=source).stdout
+            keys = [key for key in keys if key != "REPOSITORY_SEMGREP"]
+            results.append(scan_one("REPOSITORY_SEMGREP", lock["REPOSITORY_SEMGREP"][ARCH], args, cpus))
+            if command("git", "rev-parse", "HEAD", cwd=source).stdout != head:
+                message = "Semgrep exited before restoring the checkout"
+                raise RuntimeError(message)
+            command("git", "diff", "--exit-code", "HEAD", cwd=source)
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
             tasks = [executor.submit(scan_one, key, lock[key][ARCH], args, 1) for key in keys]
-            results = [task.result() for task in tasks]
+            results.extend(task.result() for task in tasks)
         sizes = sum(path.stat().st_blocks * 512 for path in cache.rglob("*") if path.is_file())
     metrics = {
         "seconds": round(time.monotonic() - start, 2),
@@ -346,7 +375,7 @@ def benchmark_current(args):
         message = "The comparison image must be a digest-pinned GHCR reference"
         raise ValueError(message)
     registry_bytes, pull_seconds = pull(ref)
-    image = inspect(ref)
+    image = require_image(ref)
     start = time.monotonic()
     workspace = "/github/workspace"
     options = mount(args.source.resolve(), workspace, writable=True)
