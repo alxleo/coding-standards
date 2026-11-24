@@ -12,12 +12,14 @@ Entrypoint handles: zero-config fallback, EXTENDS URL rewrite to local path, con
 
 ## Dev commands
 
-```bash
-just check       # pre-commit hooks — THE gate (CI calls this)
-just build       # docker build locally
-just lint        # full MegaLinter via Docker (mounts branch configs)
-just verify      # check + lint + rego tests
-```
+| Command | Runs |
+| --- | --- |
+| `just check` | The same pre-commit checks as CI |
+| `just build` | Checks that the Docker image builds and removes the builder and cache |
+| `just lint` | Builds an image and runs MegaLinter with branch configs mounted |
+| `just verify` | Runs `just check`, then reuses one local build for lint and Rego tests |
+
+Docker-backed recipes remove their temporary image and builder when they exit.
 
 ## Structural invariants (enforced by pre-commit)
 
@@ -47,7 +49,7 @@ Touch these files — the integrity hook validates completeness:
 5. **.mega-linter-default.yml** — add `_CONFIG_FILE: <bare-filename>` (resolved via `LINTER_RULES_PATH`)
 6. **.ci.json** — add `"<tool> --version"` smoke test
 7. **docs/help/** — ensure the linter's category has a help topic
-8. `just build && just lint` to verify
+8. `just lint` to build and verify
 
 ## Adding a semgrep rule
 
