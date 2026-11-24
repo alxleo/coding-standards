@@ -50,7 +50,8 @@ jobs:
         id: cache-date
         shell: bash
         run: |
-          apk add --no-cache tar zstd
+          apk add --no-cache --upgrade tar zstd zstd-libs
+          zstd --version
           echo "date=$(date -u +%F)" >> "$GITHUB_OUTPUT"
       - name: Restore scanner databases
         id: scanner-cache
@@ -63,12 +64,12 @@ jobs:
           key: stock-trivy-v10.2.0-${{ runner.arch }}-${{ steps.cache-date.outputs.date }}
           restore-keys: stock-trivy-v10.2.0-${{ runner.arch }}-
 
-      - name: Install Conftest
+      - name: Install Conftest and PMD
         uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
         with:
           version: '2026.10.23'
           working_directory: policy/stock
-          tool_versions: conftest 0.71.1
+          install_args: conftest github:pmd/pmd
           cache_save: ${{ github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
 
       - name: Run stock MegaLinter
@@ -86,9 +87,10 @@ jobs:
           MEGALINTER_CONFIG: stock.mega-linter.yml
           EXTENDS: ../policy/stock/mega-linter.yml
         run: |
-          export DEFAULT_WORKSPACE="$PWD"
           export TRIVY_CACHE_DIR="$GITHUB_WORKSPACE/.stock-cache/trivy"
           export REPORT_OUTPUT_FOLDER="$GITHUB_WORKSPACE/stock-reports"
+          export DEFAULT_WORKSPACE="$PWD"
+          export GITHUB_WORKSPACE="$PWD"
           /bin/bash /entrypoint.sh
 
       - name: Check Compose policy
@@ -100,6 +102,15 @@ jobs:
           ':(glob)**/docker-compose*.yml' ':(glob)**/docker-compose*.yaml' |
           xargs -0 -r conftest test --parser yaml --all-namespaces
           --policy ../policy/policies/compose --
+
+      - name: Report duplicate code with PMD CPD
+        if: ${{ !cancelled() && (steps.lint.outcome == 'success' || steps.lint.outcome == 'failure') }}
+        shell: bash
+        working-directory: source
+        run: >-
+          pmd cpd --language java --minimum-tokens 70 --dir .
+          --exclude node_modules,vendor,.terraform,.git,megalinter-reports,test
+          --skip-duplicate-files --no-fail-on-violation
 
       - name: Save scanner databases on the default branch
         if: >-
