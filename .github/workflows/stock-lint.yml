@@ -1,0 +1,116 @@
+name: Stock lint
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: Linux x64 runner label supporting job containers
+        required: true
+        type: string
+      apply-fixes:
+        description: MegaLinter APPLY_FIXES selection
+        default: none
+        type: string
+  pull_request:
+    paths:
+      - .github/workflows/stock-lint.yml
+      - stock/**
+
+permissions:
+  contents: read
+
+jobs:
+  stock:
+    runs-on: ${{ inputs.runner || 'ubuntu-24.04' }}
+    timeout-minutes: 20
+    container:
+      image: ghcr.io/oxsecurity/megalinter-cupcake:v10.2.0@sha256:0e62d95de2e4388530579e1cdf531e3752ac70549ab78666c64429bd734dbae7
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          path: source
+          persist-credentials: false
+      - name: Check out policy at the workflow revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # actionlint 1.7.12 predates the workflow identity fields in the job context.
+          repository: ${{ fromJSON(toJSON(job)).workflow_repository }}
+          ref: ${{ fromJSON(toJSON(job)).workflow_sha }}
+          path: policy
+          persist-credentials: false
+          sparse-checkout: |
+            stock
+            lint-configs
+            semgrep-rules
+            policies/compose
+
+      - name: Prepare the scanner cache
+        id: cache-date
+        shell: bash
+        run: |
+          apk add --no-cache tar zstd
+          echo "date=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+      - name: Restore scanner databases
+        id: scanner-cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            .stock-cache/trivy/db
+            .stock-cache/trivy/java-db
+            .stock-cache/trivy/policy
+          key: stock-trivy-v10.2.0-${{ runner.arch }}-${{ steps.cache-date.outputs.date }}
+          restore-keys: stock-trivy-v10.2.0-${{ runner.arch }}-
+
+      - name: Install Conftest
+        uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
+        with:
+          version: '2026.10.23'
+          working_directory: policy/stock
+          tool_versions: conftest 0.71.1
+          cache_save: ${{ github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+
+      - name: Run stock MegaLinter
+        id: lint
+        shell: bash
+        working-directory: source
+        env:
+          APPLY_FIXES: ${{ inputs.apply-fixes || 'none' }}
+          # A direct PR run exercises the candidate without gating on the repo's existing findings.
+          DISABLE_ERRORS: ${{ inputs.runner == '' }}
+          VALIDATE_ALL_CODEBASE: ${{ github.event_name != 'pull_request' }}
+          REPOSITORY_BETTERLEAKS_PR_COMMITS_SCAN: 'true'
+          REPOSITORY_BETTERLEAKS_PR_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+          REPOSITORY_BETTERLEAKS_PR_TARGET_SHA: ${{ github.event.pull_request.base.sha }}
+          MEGALINTER_CONFIG: stock.mega-linter.yml
+          EXTENDS: ../policy/stock/mega-linter.yml
+        run: |
+          export DEFAULT_WORKSPACE="$PWD"
+          export TRIVY_CACHE_DIR="$GITHUB_WORKSPACE/.stock-cache/trivy"
+          export REPORT_OUTPUT_FOLDER="$GITHUB_WORKSPACE/stock-reports"
+          /bin/bash /entrypoint.sh
+
+      - name: Check Compose policy
+        if: ${{ !cancelled() && (steps.lint.outcome == 'success' || steps.lint.outcome == 'failure') }}
+        shell: bash
+        working-directory: source
+        run: >-
+          git ls-files -z -- ':(glob)**/compose*.yml' ':(glob)**/compose*.yaml'
+          ':(glob)**/docker-compose*.yml' ':(glob)**/docker-compose*.yaml' |
+          xargs -0 -r conftest test --parser yaml --all-namespaces
+          --policy ../policy/policies/compose --
+
+      - name: Save scanner databases on the default branch
+        if: >-
+          !cancelled() && steps.lint.outcome != 'skipped' &&
+          steps.scanner-cache.outputs.cache-hit != 'true' &&
+          github.event_name == 'push' &&
+          github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            .stock-cache/trivy/db
+            .stock-cache/trivy/java-db
+            .stock-cache/trivy/policy
+          key: ${{ steps.scanner-cache.outputs.cache-primary-key }}
