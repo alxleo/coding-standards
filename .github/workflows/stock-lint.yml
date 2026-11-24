@@ -109,8 +109,7 @@ jobs:
         working-directory: source
         run: >-
           pmd cpd --language java --minimum-tokens 70 --dir .
-          --exclude node_modules,vendor,.terraform,.git,megalinter-reports,test
-          --skip-duplicate-files --no-fail-on-violation
+          --exclude .git --skip-duplicate-files --no-fail-on-violation
 
       - name: Save scanner databases on the default branch
         if: >-
