@@ -16,6 +16,7 @@ from subprocess import CompletedProcess
 from unittest.mock import patch
 
 import pytest
+from pydantic import ValidationError
 
 # Import via spec loader (script lives in scripts/, not a package)
 _script = Path(__file__).resolve().parent.parent / "scripts" / "generate_rule_catalog.py"
@@ -67,12 +68,15 @@ class TestNormalizeSeverity:
     ],
 )
 def test_ruff_filters_removed_and_deprecated_rules(
-    stable: str | dict, removed: str | dict, deprecated: str | dict
+    stable: str | dict[str, object], removed: str | dict[str, object], deprecated: str | dict[str, object]
 ) -> None:
     rules = [
         {"code": "E501", "status": stable},
         {"code": "E123", "status": removed},
         {"code": "E234", "status": deprecated},
+        {"code": None, "linter": None, "status": {"Preview": {"since": "0.17.0"}}},
+        {"code": "E502", "status": {}},
+        {"code": "E503"},
     ]
     responses = [
         CompletedProcess([], 0, stdout=json.dumps(rules)),
@@ -80,8 +84,21 @@ def test_ruff_filters_removed_and_deprecated_rules(
     ]
     with patch.object(_mod.subprocess, "run", side_effect=responses):
         result = _mod.extract_ruff()
-    assert result["rule_count"] == 1
-    assert [rule["id"] for rule in result["rules"]] == ["E501"]
+    assert result["rule_count"] == 4
+    assert [rule["id"] for rule in result["rules"]] == ["E501", None, "E502", "E503"]
+    assert result["rules"][1]["category"] is None
+
+
+def test_ruff_rejects_invalid_status() -> None:
+    responses = [
+        CompletedProcess([], 0, stdout='[{"code": "E501", "status": ["stable"]}]'),
+        CompletedProcess([], 0, stdout="ruff 0.15.4"),
+    ]
+    with (
+        patch.object(_mod.subprocess, "run", side_effect=responses),
+        pytest.raises(ValidationError, match=r"0\.status"),
+    ):
+        _mod.extract_ruff()
 
 
 # ── Semgrep ──────────────────────────────────────────────────
@@ -102,16 +119,23 @@ class TestSemgrep:
     severity: WARNING
     languages: [python]
     pattern: print(...)
+  - id: coding-standards.defaults
 """
         )
         result = extract_semgrep(tmp_path)
         assert result == {
             "version": "custom",
-            "rule_count": 1,
+            "rule_count": 2,
             "rules": [
                 {
                     "id": "coding-standards.test-rule",
                     "summary": "This is a test rule",
+                    "category": "test",
+                    "severity": "warning",
+                },
+                {
+                    "id": "coding-standards.defaults",
+                    "summary": "",
                     "category": "test",
                     "severity": "warning",
                 },
@@ -123,6 +147,24 @@ class TestSemgrep:
         rules_dir.mkdir()
         result = extract_semgrep(tmp_path)
         assert result["rule_count"] == 0
+
+    @pytest.mark.parametrize(
+        ("yaml_text", "field"),
+        [
+            ("rules: null", "Input should be a valid list"),
+            ("rules: [false]", "\n0\n"),
+            ("rules: [{id: 123}]", "0.id"),
+            ("rules: [{id: test, message: null}]", "0.message"),
+        ],
+    )
+    def test_invalid_rule_reports_filename_and_field(self, tmp_path: Path, yaml_text: str, field: str) -> None:
+        rules_dir = tmp_path / "semgrep-rules"
+        rules_dir.mkdir()
+        (rules_dir / "invalid.yml").write_text(yaml_text)
+        with pytest.raises(ValueError, match=r"Invalid Semgrep rules in .*invalid\.yml") as error:
+            extract_semgrep(tmp_path)
+        assert error.value.__cause__ is not None
+        assert field in str(error.value.__cause__)
 
     def test_missing_dir(self, tmp_path: Path) -> None:
         result = extract_semgrep(tmp_path)

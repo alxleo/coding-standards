@@ -17,9 +17,27 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 import yaml
+from pydantic import BaseModel, TypeAdapter, ValidationError
+
+
+class _SemgrepRuleSpec(BaseModel):
+    id: str
+    message: str = ""
+    severity: str = "WARNING"
+
+
+class SemgrepCatalogRule(TypedDict):
+    file: str
+    id: str
+    severity: str
+    message: str
+
+
+_YAML_MAPPING = TypeAdapter(dict[object, object])
+_SEMGREP_RULES = TypeAdapter(list[_SemgrepRuleSpec])
 
 
 def extract_linters(root: Path) -> tuple[list[str], list[str]]:
@@ -36,20 +54,28 @@ def extract_linters(root: Path) -> tuple[list[str], list[str]]:
     return error_tier, warn_tier
 
 
-def extract_semgrep_rules(root: Path) -> list[dict]:
+def extract_semgrep_rules(root: Path) -> list[SemgrepCatalogRule]:
     """Extract rule ID, severity, and first line of message from semgrep YAML."""
-    rules = []
+    rules: list[SemgrepCatalogRule] = []
     for f in sorted((root / "semgrep-rules").glob("*.yml")):
-        data = yaml.safe_load(f.read_text())
-        if not isinstance(data, dict):
+        with f.open() as source:
+            data = yaml.safe_load(source)
+        try:
+            document = _YAML_MAPPING.validate_python(data, strict=True)
+        except ValidationError:
             continue
-        for rule in data.get("rules", []):
-            msg = rule.get("message", "").strip().split("\n")[0].strip()
+        try:
+            specs = _SEMGREP_RULES.validate_python(document.get("rules", []), strict=True)
+        except ValidationError as exc:
+            msg = f"Invalid Semgrep rules in {f}"
+            raise ValueError(msg) from exc
+        for rule in specs:
+            msg = rule.message.strip().split("\n")[0].strip()
             rules.append(
                 {
                     "file": f.name,
-                    "id": rule["id"],
-                    "severity": rule.get("severity", "WARNING"),
+                    "id": rule.id,
+                    "severity": rule.severity,
                     "message": msg,
                 }
             )

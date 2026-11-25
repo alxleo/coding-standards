@@ -21,6 +21,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from pydantic import BaseModel, TypeAdapter, ValidationError, field_validator
 from show_catalog import extract_semgrep_rules
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
@@ -50,6 +51,30 @@ def _normalize_severity(severity: str) -> str:
 
 
 # ── Ruff ────────────────────────────────────────────────────────
+
+
+_RUFF_STATUS_FIELDS = TypeAdapter(dict[str, object])
+
+
+class _RuffRuleSpec(BaseModel):
+    code: str | None
+    summary: str = ""
+    linter: str | None = ""
+    fix_availability: str = "None"
+    status: str = "stable"
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def _parse_status(cls, value: object) -> object:
+        # Ruff versions emit a status string or a one-key status object.
+        try:
+            fields = _RUFF_STATUS_FIELDS.validate_python(value, strict=True)
+        except ValidationError:
+            return value
+        return next(iter(fields), "stable")
+
+
+_RUFF_RULES = TypeAdapter(list[_RuffRuleSpec])
 
 
 def extract_ruff() -> dict[str, Any]:
@@ -92,21 +117,17 @@ def extract_ruff() -> dict[str, Any]:
     ):
         pass
 
-    raw = json.loads(result.stdout)
     rules = []
-    for r in raw:
-        raw_status = r.get("status", "stable")
-        # ruff versions differ: string ("stable") or dict ({"Stable": {}})
-        status = (raw_status if isinstance(raw_status, str) else next(iter(raw_status), "stable")).lower()
-        if status in ("removed", "deprecated"):
+    for rule in _RUFF_RULES.validate_json(result.stdout, strict=True):
+        if rule.status.lower() in ("removed", "deprecated"):
             continue
         rules.append(
             {
-                "id": r["code"],
-                "summary": r.get("summary", ""),
-                "category": r.get("linter", ""),
+                "id": rule.code,
+                "summary": rule.summary,
+                "category": rule.linter,
                 "severity": "warning",  # ruff doesn't have severity — all selected rules are enforced
-                "fixable": r.get("fix_availability", "None") in ("Sometimes", "Always"),
+                "fixable": rule.fix_availability in ("Sometimes", "Always"),
             }
         )
     return {"version": version, "rule_count": len(rules), "rules": rules}
