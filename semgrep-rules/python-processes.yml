@@ -9,7 +9,6 @@ rules:
           - metavariable-regex:
               metavariable: $PYTHON
               regex: '^["'']python(?:3(?:\.[0-9]+)?)?["'']$'
-          - pattern-not: '[$PYTHON, "-m", "megalinter.run", ...]'
           - pattern-not: '[$PYTHON, "--version"]'
           - pattern-not: '[$PYTHON, "-V"]'
         exact: true
@@ -42,15 +41,6 @@ rules:
       - metavariable-regex:
           metavariable: $METHOD
           regex: ^(run|check_output|check_call|call)$
-      # The full linter owns its process lifetime.
-      - pattern-not: subprocess.run([$PYTHON, "-m", "megalinter.run", ...], ...)
-      - pattern-not: subprocess.run(..., args=[$PYTHON, "-m", "megalinter.run", ...], ...)
-      - pattern-not-inside: |
-          $ARGV = [$PYTHON, "-m", "megalinter.run", ...]
-          subprocess.run($ARGV, ...)
-      - pattern-not-inside: |
-          $ARGV = [$PYTHON, "-m", "megalinter.run", ...]
-          subprocess.run(..., args=$ARGV, ...)
     message: Give one-shot subprocesses an explicit timeout so the caller can recover.
     languages: [python]
     severity: ERROR

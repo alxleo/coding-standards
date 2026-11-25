@@ -206,6 +206,8 @@ def _setup() -> None:
 
 def _run_megalinter() -> None:
     """Run MegaLinter and exit with its return code."""
+    # The full lint run owns its process lifetime.
+    # nosemgrep: coding-standards.python-helper-interpreter, coding-standards.python-subprocess-timeout
     result = subprocess.run(["python3", "-m", "megalinter.run"], check=False)
     raise SystemExit(result.returncode)
 

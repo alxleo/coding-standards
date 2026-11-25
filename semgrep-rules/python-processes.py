@@ -28,17 +28,15 @@ def timeouts() -> None:
     # ok: coding-standards.python-subprocess-timeout
     capture(["git", "status"], timeout=5)
     # ok: coding-standards.python-helper-interpreter, coding-standards.python-subprocess-timeout
-    subprocess.run(["python3", "-m", "megalinter.run"], check=False)
-    # ok: coding-standards.python-helper-interpreter, coding-standards.python-subprocess-timeout
-    subprocess.run(args=["python3", "-m", "megalinter.run", "--debug"], check=False)
-    args = ["python3", "-m", "megalinter.run", "--debug"]
-    # ok: coding-standards.python-helper-interpreter, coding-standards.python-subprocess-timeout
-    subprocess.run(args, check=False)
-    args = ["python3", "-m", "megalinter.run", "--debug"]
-    # ok: coding-standards.python-helper-interpreter, coding-standards.python-subprocess-timeout
-    subprocess.run(args=args, check=False)
-    # ok: coding-standards.python-helper-interpreter, coding-standards.python-subprocess-timeout
     subprocess.Popen(["python3", "service.py"])
+
+
+def long_running_linter() -> None:
+    args = ["python3", "-m", "megalinter.run", "--debug"]
+    directory = "workspace"
+    # ok: coding-standards.python-helper-interpreter, coding-standards.python-subprocess-timeout
+    # nosemgrep: coding-standards.python-helper-interpreter, coding-standards.python-subprocess-timeout
+    subprocess.run(args=args, cwd=directory, check=False)
 
 
 def display_labels() -> None:
