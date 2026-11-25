@@ -762,7 +762,11 @@ def pr(ctx: typer.Context) -> None:
 def megalinter() -> None:
     """MegaLinter plugin mode: get changed files from git, output warnings."""
     root = _root()
-    changed = _git_changed_files(root)
+    try:
+        changed = _git_changed_files(root)
+    except subprocess.TimeoutExpired:
+        print("Change impact check skipped because git diff timed out", file=sys.stderr)
+        return
     if not changed:
         print("No changed files detected", file=sys.stderr)
         return

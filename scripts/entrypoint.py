@@ -134,18 +134,25 @@ def _apply_consumer_rules_directory(merged: dict[str, object], overrides: dict[s
     _validate_required_local_configs(merged, required, workspace, rules_directory)
 
 
+def _configure_git(*args: str) -> None:
+    try:
+        subprocess.run(
+            ["git", "config", "--global", *args],
+            check=False,
+            capture_output=True,
+            timeout=10,
+        )
+    except subprocess.TimeoutExpired:
+        typer.echo("Warning: git config timed out", err=True)
+
+
 def _setup() -> None:
     """Pre-flight: git safe.directory, config resolution, semgrep discovery."""
     workspace = _workspace()
 
     # Git safe.directory
     if workspace.is_dir():
-        subprocess.run(
-            ["git", "config", "--global", "--add", "safe.directory", str(workspace)],
-            check=False,
-            capture_output=True,
-            timeout=10,
-        )
+        _configure_git("--add", "safe.directory", str(workspace))
 
     # Git credential helper for GitHub API + git protocol.
     # Tools like zizmor use git-upload-pack (git protocol) to verify action
@@ -159,12 +166,7 @@ def _setup() -> None:
         fd = os.open(cred_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w") as f:
             f.write(f"https://x-access-token:{gh_token}@github.com\n")
-        subprocess.run(
-            ["git", "config", "--global", "credential.helper", f"store --file={cred_path}"],
-            check=False,
-            capture_output=True,
-            timeout=10,
-        )
+        _configure_git("credential.helper", f"store --file={cred_path}")
 
     # Config resolution (zero-config by default).
     # MegaLinter resolves EXTENDS relative to workspace — absolute paths break.

@@ -1,23 +1,27 @@
 rules:
   - id: coding-standards.python-helper-interpreter
-    patterns:
-      - pattern-either:
-          - pattern: subprocess.$METHOD([$PYTHON, ...], ...)
-          - pattern: subprocess.$METHOD(..., args=[$PYTHON, ...], ...)
-          - pattern: |
-              $ARGV = [$PYTHON, ...]
-              subprocess.$METHOD($ARGV, ...)
-          - pattern: |
-              $ARGV = [$PYTHON, ...]
-              subprocess.$METHOD(..., args=$ARGV, ...)
-      - metavariable-regex:
-          metavariable: $METHOD
-          regex: ^(run|check_output|check_call|call)$
-      - metavariable-regex:
-          metavariable: $PYTHON
-          regex: '^["'']python3?["'']$'
-      # The full linter owns its process lifetime.
-      - pattern-not: subprocess.run([$PYTHON, "-m", "megalinter.run"], ...)
+    mode: taint
+    options:
+      taint_assume_safe_functions: true
+    pattern-sources:
+      - patterns:
+          - pattern: "[$PYTHON, ...]"
+          - metavariable-regex:
+              metavariable: $PYTHON
+              regex: '^["'']python(?:3(?:\.[0-9]+)?)?["'']$'
+          - pattern-not: '[$PYTHON, "-m", "megalinter.run", ...]'
+          - pattern-not: '[$PYTHON, "--version"]'
+          - pattern-not: '[$PYTHON, "-V"]'
+        exact: true
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: subprocess.$METHOD($ARGV, ...)
+              - pattern: subprocess.$METHOD(..., args=$ARGV, ...)
+          - metavariable-regex:
+              metavariable: $METHOD
+              regex: ^(run|check_output|check_call|call)$
+          - focus-metavariable: $ARGV
     message: Launch Python helpers with sys.executable so they inherit the parent environment.
     languages: [python]
     severity: ERROR
@@ -38,7 +42,15 @@ rules:
       - metavariable-regex:
           metavariable: $METHOD
           regex: ^(run|check_output|check_call|call)$
-      - pattern-not: subprocess.run([$PYTHON, "-m", "megalinter.run"], ...)
+      # The full linter owns its process lifetime.
+      - pattern-not: subprocess.run([$PYTHON, "-m", "megalinter.run", ...], ...)
+      - pattern-not: subprocess.run(..., args=[$PYTHON, "-m", "megalinter.run", ...], ...)
+      - pattern-not-inside: |
+          $ARGV = [$PYTHON, "-m", "megalinter.run", ...]
+          subprocess.run($ARGV, ...)
+      - pattern-not-inside: |
+          $ARGV = [$PYTHON, "-m", "megalinter.run", ...]
+          subprocess.run(..., args=$ARGV, ...)
     message: Give one-shot subprocesses an explicit timeout so the caller can recover.
     languages: [python]
     severity: ERROR
