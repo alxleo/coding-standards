@@ -1,0 +1,50 @@
+rules:
+  - id: coding-standards.python-helper-interpreter
+    patterns:
+      - pattern-either:
+          - pattern: subprocess.$METHOD([$PYTHON, ...], ...)
+          - pattern: subprocess.$METHOD(..., args=[$PYTHON, ...], ...)
+          - pattern: |
+              $ARGV = [$PYTHON, ...]
+              subprocess.$METHOD($ARGV, ...)
+          - pattern: |
+              $ARGV = [$PYTHON, ...]
+              subprocess.$METHOD(..., args=$ARGV, ...)
+      - metavariable-regex:
+          metavariable: $METHOD
+          regex: ^(run|check_output|check_call|call)$
+      - metavariable-regex:
+          metavariable: $PYTHON
+          regex: '^["'']python3?["'']$'
+      # The full linter owns its process lifetime.
+      - pattern-not: subprocess.run([$PYTHON, "-m", "megalinter.run"], ...)
+    message: Launch Python helpers with sys.executable so they inherit the parent environment.
+    languages: [python]
+    severity: ERROR
+    paths:
+      include:
+        - /scripts/**
+    metadata:
+      category: correctness
+      technology: [python]
+
+  - id: coding-standards.python-subprocess-timeout
+    patterns:
+      - pattern-either:
+          - pattern: subprocess.$METHOD(..., timeout=None, ...)
+          - patterns:
+              - pattern: subprocess.$METHOD(...)
+              - pattern-not: subprocess.$METHOD(..., timeout=$TIMEOUT, ...)
+      - metavariable-regex:
+          metavariable: $METHOD
+          regex: ^(run|check_output|check_call|call)$
+      - pattern-not: subprocess.run([$PYTHON, "-m", "megalinter.run"], ...)
+    message: Give one-shot subprocesses an explicit timeout so the caller can recover.
+    languages: [python]
+    severity: ERROR
+    paths:
+      include:
+        - /scripts/**
+    metadata:
+      category: correctness
+      technology: [python]

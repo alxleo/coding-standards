@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -143,6 +144,7 @@ def _setup() -> None:
             ["git", "config", "--global", "--add", "safe.directory", str(workspace)],
             check=False,
             capture_output=True,
+            timeout=10,
         )
 
     # Git credential helper for GitHub API + git protocol.
@@ -161,6 +163,7 @@ def _setup() -> None:
             ["git", "config", "--global", "credential.helper", f"store --file={cred_path}"],
             check=False,
             capture_output=True,
+            timeout=10,
         )
 
     # Config resolution (zero-config by default).
@@ -236,8 +239,9 @@ def standards() -> None:
         manifest = Path(f.name)
     try:
         subprocess.run(
-            ["python3", str(SCRIPTS / "generate_repo_manifest.py"), str(workspace), str(manifest)],
+            [sys.executable, str(SCRIPTS / "generate_repo_manifest.py"), str(workspace), str(manifest)],
             check=True,
+            timeout=120,
         )
         subprocess.run(
             [
@@ -250,6 +254,7 @@ def standards() -> None:
                 "/opt/coding-standards/policies/repo-standards/",
             ],
             check=True,
+            timeout=60,
         )
     finally:
         manifest.unlink(missing_ok=True)
@@ -260,8 +265,9 @@ def recommend() -> None:
     """Show recommended checks for this repo (JSON output)."""
     workspace = _workspace()
     subprocess.run(
-        ["python3", str(SCRIPTS / "recommend.py"), str(workspace)],
+        [sys.executable, str(SCRIPTS / "recommend.py"), str(workspace)],
         check=True,
+        timeout=60,
     )
 
 
@@ -271,8 +277,9 @@ def recommend() -> None:
 def catalog(ctx: typer.Context) -> None:
     """Show full catalog of checks. Use --rules for per-tool rule details."""
     subprocess.run(
-        ["python3", str(SCRIPTS / "show_catalog.py"), *ctx.args],
+        [sys.executable, str(SCRIPTS / "show_catalog.py"), *ctx.args],
         check=True,
+        timeout=60,
     )
 
 
@@ -280,7 +287,7 @@ def catalog(ctx: typer.Context) -> None:
 def warnings() -> None:
     """Show warnings from last run (grouped by linter)."""
     os.chdir(_workspace())
-    subprocess.run(["python3", str(SCRIPTS / "show_warnings.py")], check=True)
+    subprocess.run([sys.executable, str(SCRIPTS / "show_warnings.py")], check=True, timeout=60)
 
 
 @app.command(name="show-config", context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
@@ -289,7 +296,7 @@ def show_config(ctx: typer.Context) -> None:
     os.chdir(_workspace())
     subprocess.run(
         [
-            "python3",
+            sys.executable,
             str(SCRIPTS / "show_config.py"),
             ".",
             "--mega-linter-yml",
@@ -297,6 +304,7 @@ def show_config(ctx: typer.Context) -> None:
             *ctx.args,
         ],
         check=True,
+        timeout=60,
     )
 
 
@@ -304,8 +312,8 @@ def show_config(ctx: typer.Context) -> None:
 def blast_radius(ctx: typer.Context) -> None:
     """Change impact analysis (blast radius, coupling, criticality)."""
     os.chdir(_workspace())
-    cmd = ["python3", str(SCRIPTS / "blast_radius.py"), *ctx.args]
-    subprocess.run(cmd, check=True)
+    cmd = [sys.executable, str(SCRIPTS / "blast_radius.py"), *ctx.args]
+    subprocess.run(cmd, check=True, timeout=120)
 
 
 if __name__ == "__main__":

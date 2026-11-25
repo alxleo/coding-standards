@@ -708,6 +708,7 @@ def _git_changed_files(root: Path) -> list[str]:
         text=True,
         check=False,
         cwd=root,
+        timeout=10,
     )
     changed = result.stdout.strip().splitlines()
     if not changed:
@@ -717,6 +718,7 @@ def _git_changed_files(root: Path) -> list[str]:
             text=True,
             check=False,
             cwd=root,
+            timeout=10,
         )
         changed = result.stdout.strip().splitlines()
     return changed
