@@ -7,6 +7,7 @@
 import argparse
 import concurrent.futures
 import fcntl
+import fnmatch
 import json
 import logging
 import os
@@ -18,6 +19,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import tomllib
 import urllib.parse
 from pathlib import Path
 from typing import NamedTuple
@@ -442,7 +444,60 @@ def selected_file(source, name, rules):
     return True
 
 
-def pr_linters(source, base, lock, keys):
+def python_dependency_sections(contents):
+    project = tomllib.loads(contents)
+    tools = project.get("tool", {})
+    return (
+        project.get("project"),
+        project.get("build-system"),
+        project.get("dependency-groups"),
+        tools.get("poetry"),
+        tools.get("uv"),
+        tools.get("pdm"),
+    )
+
+
+def python_dependencies_changed(source, merge_base, name):
+    manifest = source / name
+    if manifest.is_symlink() or not manifest.is_file():
+        return True
+    previous = command("git", "show", f"{merge_base}:{name}", cwd=source, check=False)
+    if previous.returncode:
+        return True
+    try:
+        return python_dependency_sections(previous.stdout) != python_dependency_sections(manifest.read_text())
+    except (OSError, tomllib.TOMLDecodeError, UnicodeError):
+        return True
+
+
+def trivy_pr_input(source, merge_base, files, lock, trivy_config):
+    metadata = json.loads(LOCK.with_name("trivy-selectors.json").read_text())
+    if metadata["images"] != lock["images"]["REPOSITORY_TRIVY"]:
+        message = "Regenerate the Trivy PR selectors for the locked image"
+        raise ValueError(message)
+    docker_names = set(metadata["docker"])
+    for name in files:
+        path = Path(name)
+        docker_parts = (path.name.lower().removeprefix("."), path.stem.lower(), path.suffix[1:].lower())
+        if path == trivy_config or docker_names.intersection(docker_parts):
+            return name
+        if path.name == "pyproject.toml" and not python_dependencies_changed(source, merge_base, name):
+            continue
+        if any(fnmatch.fnmatchcase(path.name, pattern) for pattern in metadata["files"]):
+            return name
+    return None
+
+
+def pr_linters(source, merge_base, lock, keys, trivy_config):
+    diff = command("git", "diff", "--no-renames", "--name-only", "-z", merge_base, "HEAD", cwd=source)
+    files = diff.stdout.split("\0")
+    files = [name for name in files if name]
+    if "REPOSITORY_TRIVY" in keys:
+        if name := trivy_pr_input(source, merge_base, files, lock, trivy_config):
+            LOGGER.info("Trivy PR selected by %r", name)
+        else:
+            LOGGER.info("Trivy PR skipped: no changed dependency, container or infrastructure inputs")
+            keys = [key for key in keys if key != "REPOSITORY_TRIVY"]
     # A consumer-supplied config can change descriptor filters or switch a linter to project mode.
     if (source / "stock.mega-linter.yml").is_file():
         return keys
@@ -451,8 +506,7 @@ def pr_linters(source, base, lock, keys):
     if metadata["version"] != lock["version"] or selectors.keys() != lock["images"].keys():
         message = "Regenerate stock file selectors for the locked MegaLinter release"
         raise ValueError(message)
-    files = command("git", "diff", "--name-only", "-z", f"{base}...HEAD", cwd=source).stdout.split("\0")
-    files = [name for name in files if name and (source / name).is_file() and not (source / name).is_symlink()]
+    files = [name for name in files if (source / name).is_file() and not (source / name).is_symlink()]
     return [
         key
         for key in keys
@@ -490,10 +544,10 @@ def scan(args):
         if not re.fullmatch("[0-9a-f]{40}", base):
             message = "Base must be a full commit SHA"
             raise ValueError(message)
-        command("git", "merge-base", base, "HEAD", cwd=source)
+        merge_base = command("git", "merge-base", base, "HEAD", cwd=source).stdout.strip()
         command("git", "update-ref", "refs/remotes/origin/stock-scan-base", base, cwd=source)
         LOGGER.info("Scanning changes against %s", base)
-        selected = pr_linters(source, base, image_lock, keys)
+        selected = pr_linters(source, merge_base, image_lock, keys, args.trivy_config)
         skipped = [key for key in keys if key not in selected]
         # The repository scans dominate the PR's critical path. Start both
         # before the shorter file checks fill the executor.
