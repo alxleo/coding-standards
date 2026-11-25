@@ -17,6 +17,9 @@ on:
       trivy-config:
         description: Optional repository-relative Trivy config for the per-linter runtime
         type: string
+      consumer-config:
+        description: Existing MegaLinter policy to preserve the consumer's blocking checks in the per-linter runtime
+        type: string
       cache-namespace:
         description: Optional isolated cache scope for a paired scan
         default: default
@@ -66,6 +69,7 @@ jobs:
           runtime: ${{ inputs.runtime || matrix.runtime }}
           source-ref: ${{ inputs.source-ref }}
           trivy-config: ${{ inputs.trivy-config }}
+          consumer-config: ${{ inputs.consumer-config }}
           cache-namespace: ${{ inputs.cache-namespace || 'default' }}
           apply-fixes: ${{ inputs.apply-fixes || 'none' }}
           advisory: ${{ inputs.runner == '' }}

@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = []
+# dependencies = ["pyyaml==6.0.3"]
 # ///
 """Run the pinned MegaLinter images on one checkout."""
 
@@ -12,12 +12,15 @@ import logging
 import os
 import platform
 import re
+import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.parse
 from pathlib import Path
+from typing import NamedTuple
 
 IMAGE_PREFIX = "coding-standards-stock-owned/"
 REGISTRY = "ghcr.io"
@@ -29,6 +32,17 @@ SOURCE = "/tmp/lint"  # noqa: S108 - reserved image workspace, mounted by Docker
 POLICY = "/tmp/policy"  # noqa: S108 - read-only mount next to workspace
 LOGGER = logging.getLogger(__name__)
 ARCH = {"aarch64": "arm64", "arm64": "arm64", "x86_64": "amd64"}.get(platform.machine())
+CURRENT_KEYS = {
+    "ACTION_ZIZMOR": "REPOSITORY_ZIZMOR",
+    "REPOSITORY_BETTERLEAKS": "REPOSITORY_BETTERLEAKS_GIT",
+    "REPOSITORY_TRIVY": "REPOSITORY_TRIVY_CUSTOM",
+}
+
+
+class ConsumerPolicy(NamedTuple):
+    blocking: set[str]
+    ruff: Path | None
+    semgrep: list[str]
 
 
 def command(*args, cwd=None, check=True):
@@ -155,18 +169,29 @@ def remove_stale(lock, cache):
                 shutil.rmtree(entry)
 
 
-def packs(directory):
+def packs(directory, consumer):
     names = ("security-audit", "trailofbits")
+    paths = []
     for name in names:
         path = directory / f"{name}.yaml"
-        if path.is_file():
-            continue
-        body = fetch("semgrep.dev", f"/c/p/{name}")
-        temporary = path.with_suffix(".partial")
-        temporary.write_text(body)
-        temporary.replace(path)
-        LOGGER.info("Semgrep pack %s downloaded bytes: %s", name, len(body))
-    return ",".join(("../policy/semgrep-rules", *(f"/stock-data/{name}.yaml" for name in names)))
+        if not path.is_file():
+            body = fetch("semgrep.dev", f"/c/p/{name}")
+            temporary = path.with_suffix(".partial")
+            temporary.write_text(body)
+            temporary.replace(path)
+            LOGGER.info("Semgrep pack %s downloaded bytes: %s", name, len(body))
+        if consumer:
+            # The existing image parses pre-normalized JSON. Cache that same format.
+            import yaml  # noqa: PLC0415 - only the opt-in uv entry point needs PyYAML
+
+            normalized = path.with_suffix(".json")
+            if not normalized.is_file():
+                temporary = normalized.with_suffix(".partial")
+                temporary.write_text(json.dumps(yaml.safe_load(path.read_text())))
+                temporary.replace(normalized)
+            path = normalized
+        paths.append(path)
+    return paths
 
 
 def fresh(path):
@@ -203,8 +228,64 @@ def trivy_setup(args, digest):
     return mount(directory, "/stock-data", writable=True), env
 
 
-def scan_one(key, digest, args):
-    source, reports, cache, base, advisory = args.source, args.reports, args.cache, args.base, args.advisory
+def checkout_file(source, selection):
+    path = source / selection
+    if selection.is_absolute() or not path.resolve().is_relative_to(source) or not path.is_file():
+        message = f"Expected a file inside the checkout: {selection}"
+        raise ValueError(message)
+    return path.resolve().relative_to(source)
+
+
+def consumer_policy(source, filename):
+    import yaml  # noqa: PLC0415 - only the opt-in uv entry point needs PyYAML
+
+    policy = yaml.safe_load((source / checkout_file(source, filename)).read_text())
+    # Consume only the declared policy fields. Never run the legacy PRE/POST commands.
+    enabled = set(policy["ENABLE_LINTERS"])
+    advisory = set(policy.get("DISABLE_ERRORS_LINTERS", ()))
+    arguments = policy.get("REPOSITORY_SEMGREP_ARGUMENTS", "")
+    if isinstance(arguments, str):
+        arguments = shlex.split(arguments)
+    arguments = iter(arguments)
+    semgrep = []
+    for argument in arguments:
+        if argument == "--baseline-commit":
+            next(arguments)
+        elif not argument.startswith("--baseline-commit="):
+            semgrep.append(argument)
+    ruff = None
+    if "PYTHON_RUFF" in enabled and (directory := policy.get("LINTER_RULES_PATH")):
+        ruff = checkout_file(source, Path(directory) / policy.get("PYTHON_RUFF_CONFIG_FILE", "ruff.toml"))
+    return ConsumerPolicy(enabled - advisory, ruff, ["--metrics=off", *semgrep])
+
+
+def semgrep_setup(args, digest, source, policy):
+    directory = args.cache / f"semgrep-{digest.removeprefix('sha256:')}"
+    if not directory.exists():
+        directory.mkdir()
+        (directory / ".stock-owned").touch()
+    options = mount(policy / "semgrep-rules", "/rules/custom")
+    rulesets = ["/rules/custom"]
+    for path in packs(directory, args.consumer is not None):
+        target = f"/rules/{path.name}"
+        rulesets.append(target)
+        options += mount(path, target)
+    env = {"SEMGREP_ENABLE_VERSION_CHECK": "0"}
+    if args.consumer:
+        env["REPOSITORY_SEMGREP_ARGUMENTS"] = shlex.join(args.consumer.semgrep)
+        if (source / ".semgrep").is_dir():
+            rulesets.append(f"{SOURCE}/.semgrep")
+    env["REPOSITORY_SEMGREP_RULESETS"] = ",".join(rulesets)
+    if args.base:
+        env["SEMGREP_BASELINE_COMMIT"] = args.base
+    return [*options, "--network", "none"], env
+
+
+def scan_one(key, digest, args, source):
+    reports, base, advisory = args.reports, args.base, args.advisory
+    if args.consumer:
+        blocking = args.consumer.blocking
+        advisory = advisory or (key not in blocking and CURRENT_KEYS.get(key) not in blocking)
     policy = LOCK.parent.parent.resolve()
     image_ref, image, registry_bytes, pull_seconds = image_for(key, digest)
     report_dir = reports / key.lower()
@@ -235,20 +316,16 @@ def scan_one(key, digest, args):
     }
     if key == "PYTHON_RUFF":
         env["RUFF_CACHE_DIR"] = "/tmp/ruff-cache"  # noqa: S108 - private to the lint container
+        if args.consumer and (ruff := args.consumer.ruff):
+            env.update(PYTHON_RUFF_RULES_PATH=f"{SOURCE}/{ruff.parent}", PYTHON_RUFF_CONFIG_FILE=ruff.name)
     if key == "REPOSITORY_TRIVY":
         data_mount, trivy_env = trivy_setup(args, digest)
         options += data_mount
         env.update(trivy_env)
     if key == "REPOSITORY_SEMGREP":
-        directory = cache / f"semgrep-{digest.removeprefix('sha256:')}"
-        if not directory.exists():
-            directory.mkdir()
-            (directory / ".stock-owned").touch()
-        env.update(REPOSITORY_SEMGREP_RULESETS=packs(directory), SEMGREP_ENABLE_VERSION_CHECK="0")
-        options += mount(directory, "/stock-data")
-        if base:
-            env["SEMGREP_BASELINE_COMMIT"] = base
-        options += ["--network", "none"]
+        data_mount, semgrep_env = semgrep_setup(args, digest, source, policy)
+        options += data_mount
+        env.update(semgrep_env)
     args = [image_ref]
     if key == "REPOSITORY_BETTERLEAKS" and base:
         # The pinned adapter adds a caret to the base and scans one extra commit.
@@ -383,6 +460,20 @@ def pr_linters(source, base, lock, keys):
     ]
 
 
+def scan_linter(key, digest, args):
+    if key != "REPOSITORY_SEMGREP" or not args.base:
+        return scan_one(key, digest, args, args.source)
+    # Semgrep can reset its checkout during the baseline scan. A local clone
+    # hard-links Git objects but gives it private refs, index and working files.
+    with tempfile.TemporaryDirectory(prefix="stock-semgrep-", dir=args.source.parent) as directory:
+        source = Path(directory)
+        head = command("git", "rev-parse", "HEAD", cwd=args.source).stdout.strip()
+        command("git", "clone", "--quiet", "--local", "--no-checkout", "--", str(args.source), str(source))
+        command("git", "checkout", "--quiet", "--detach", head, cwd=source)
+        command("git", "update-ref", "refs/remotes/origin/stock-scan-base", args.base, cwd=source)
+        return scan_one(key, digest, args, source)
+
+
 def scan(args):
     start = time.monotonic()
     source = args.source = args.source.resolve()
@@ -404,27 +495,18 @@ def scan(args):
         LOGGER.info("Scanning changes against %s", base)
         selected = pr_linters(source, base, image_lock, keys)
         skipped = [key for key in keys if key not in selected]
-        keys = selected
+        # The repository scans dominate the PR's critical path. Start both
+        # before the shorter file checks fill the executor.
+        keys = sorted(selected, key=lambda key: key not in ("REPOSITORY_SEMGREP", "REPOSITORY_TRIVY"))
         LOGGER.info("Selected %d linters; skipped %d without changed inputs", len(keys), len(skipped))
     cpus = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else (os.cpu_count() or 1)
     cpus = min(cpus, int(docker("info", "--format", "{{.NCPU}}").stdout))
     with (cache / ".lock").open("a") as lease:
         fcntl.flock(lease, fcntl.LOCK_EX)
         remove_stale(lock, cache)
-        results = []
-        if base and "REPOSITORY_SEMGREP" in keys:
-            # The pinned Semgrep resets a clean checkout while checking its baseline.
-            # Give it exclusive access to the checkout until it restores HEAD.
-            head = command("git", "rev-parse", "HEAD", cwd=source).stdout
-            keys = [key for key in keys if key != "REPOSITORY_SEMGREP"]
-            results.append(scan_one("REPOSITORY_SEMGREP", lock["REPOSITORY_SEMGREP"][ARCH], args))
-            if command("git", "rev-parse", "HEAD", cwd=source).stdout != head:
-                message = "Semgrep exited before restoring the checkout"
-                raise RuntimeError(message)
-            command("git", "diff", "--exit-code", "HEAD", cwd=source)
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
-            tasks = [executor.submit(scan_one, key, lock[key][ARCH], args) for key in keys]
-            results.extend(task.result() for task in tasks)
+            tasks = [executor.submit(scan_linter, key, lock[key][ARCH], args) for key in keys]
+            results = [task.result() for task in tasks]
         sizes = sum(path.stat().st_blocks * 512 for path in cache.rglob("*") if path.is_file())
     metrics = {
         "seconds": round(time.monotonic() - start, 2),
@@ -493,11 +575,15 @@ def main():
     parser.add_argument("--cache", type=Path)
     parser.add_argument("--base", default="")
     parser.add_argument("--trivy-config", type=Path, help="Repository-relative Trivy configuration")
+    parser.add_argument("--consumer-config", type=Path, help="Match an existing repository MegaLinter policy via uv")
     parser.add_argument("--persistent", action="store_true")
     parser.add_argument("--advisory", action="store_true")
     parser.add_argument("--linter", action="append", help="Run only this key, for smoke checks")
     parser.add_argument("--benchmark-image", help="Measure a GHCR image with the legacy scanner entry point")
     args = parser.parse_args()
+    args.consumer = None
+    if args.consumer_config:
+        args.consumer = consumer_policy(args.source.resolve(), args.consumer_config)
     if args.benchmark_image:
         sys.exit(benchmark_current(args))
     if args.reports is None or args.cache is None:

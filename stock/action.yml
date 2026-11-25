@@ -12,6 +12,8 @@ inputs:
     default: ""
   trivy-config:
     description: Optional repository-relative Trivy config for the per-linter runtime
+  consumer-config:
+    description: Existing MegaLinter policy to preserve the consumer's blocking checks in the per-linter runtime
     default: ""
   cache-namespace:
     description: Isolated cache scope for paired scans
@@ -72,7 +74,7 @@ runs:
       with:
         version: "2026.10.23"
         working_directory: policy/stock
-        install_args: ${{ inputs.runtime == 'per-linter' && 'conftest github:pmd/pmd java' || 'conftest github:pmd/pmd' }}
+        install_args: ${{ inputs.runtime == 'per-linter' && (inputs.consumer-config != '' && 'conftest github:pmd/pmd java uv' || 'conftest github:pmd/pmd java') || 'conftest github:pmd/pmd' }}
         cache: ${{ runner.environment != 'self-hosted' || inputs.ephemeral == 'true' }}
         cache_save: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
 
@@ -86,6 +88,7 @@ runs:
         STOCK_RUNTIME: ${{ inputs.runtime }}
         STOCK_BASE_SHA: ${{ inputs.base-sha }}
         STOCK_TRIVY_CONFIG: ${{ inputs.trivy-config }}
+        STOCK_CONSUMER_CONFIG: ${{ inputs.consumer-config }}
         STOCK_PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         STOCK_PERSISTENT: ${{ runner.environment == 'self-hosted' && inputs.ephemeral != 'true' }}
         STOCK_SMOKE: ${{ inputs.smoke }}
@@ -115,8 +118,17 @@ runs:
           if [[ "$STOCK_SMOKE" == true ]]; then
             options+=(--linter PYTHON_RUFF --linter ACTION_ZIZMOR --linter REPOSITORY_SEMGREP)
           fi
-          python3 ../policy/stock/containers.py --source "$PWD" --cache "$cache" --reports "$GITHUB_WORKSPACE/stock-reports" "${options[@]}"
+          launcher=(python3)
+          if [[ -n "$STOCK_CONSUMER_CONFIG" ]]; then
+            options+=(--consumer-config "$STOCK_CONSUMER_CONFIG")
+            launcher=(uv run --script)
+          fi
+          "${launcher[@]}" ../policy/stock/containers.py --source "$PWD" --cache "$cache" --reports "$GITHUB_WORKSPACE/stock-reports" "${options[@]}"
           exit
+        fi
+        if [[ -n "$STOCK_CONSUMER_CONFIG" ]]; then
+          echo 'consumer-config requires the per-linter runtime.'
+          exit 2
         fi
         if [[ -n "$STOCK_BASE_SHA" ]]; then
           [[ "$STOCK_BASE_SHA" =~ ^[0-9a-f]{40}$ ]]
