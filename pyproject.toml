@@ -19,8 +19,8 @@ test = [
 pythonpath = ["."]
 
 [tool.deptry]
-# manifest_schema: local module in scripts/, not an installable package
-known_first_party = ["manifest_schema", "blast_radius"]
+# Standalone scripts import local sibling modules.
+known_first_party = ["manifest_schema", "blast_radius", "show_catalog"]
 # pyyaml installs as 'yaml', pytest-randomly activates via entry point
 package_module_name_map = {pyyaml = "yaml"}
 per_rule_ignores = {DEP002 = ["pytest-randomly"]}

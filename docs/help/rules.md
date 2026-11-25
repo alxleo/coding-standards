@@ -1,6 +1,6 @@
 # Rule Catalog
 
-Structured rule data for every configurable tool in the image. Generated at build time from CLI introspection, YAML parsing, and upstream documentation.
+Structured rule data generated at build time from CLI introspection, YAML parsing, and upstream documentation.
 
 ## Quick reference
 
@@ -19,7 +19,6 @@ just cs-catalog-rules --tool ruff --format json   Combine filters
 | semgrep | ~30 | Custom rules from `semgrep-rules/*.yml` |
 | hadolint | ~70 | GitHub wiki (DL-prefixed Dockerfile rules) |
 | shellcheck | ~520 | shellcheck.net wiki sitemap |
-| dockle | 20 | CIS Docker Benchmark checkpoints |
 
 ## Severity normalization
 
@@ -53,7 +52,6 @@ just cs-catalog-rules --format json | jq '.. | objects | select(.summary? // "" 
 2. Parses `semgrep-rules/*.yml` (structured YAML)
 3. Shallow-clones the hadolint wiki (one `git clone`, parses markdown headings)
 4. Fetches shellcheck.net/wiki sitemap (one HTTP request, parses HTML)
-5. Uses hardcoded dockle checkpoints (stable, ~20 checks)
 
 Output: `/opt/coding-standards/rule-catalog.json` in the image.
 

@@ -41,6 +41,8 @@ def extract_semgrep_rules(root: Path) -> list[dict]:
     rules = []
     for f in sorted((root / "semgrep-rules").glob("*.yml")):
         data = yaml.safe_load(f.read_text())
+        if not isinstance(data, dict):
+            continue
         for rule in data.get("rules", []):
             msg = rule.get("message", "").strip().split("\n")[0].strip()
             rules.append(
