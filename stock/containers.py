@@ -355,7 +355,10 @@ def scan_semgrep_rules(digest, args):
     missing = set(targets).difference(findings.get("paths", {}).get("scanned", []))
     if missing:
         LOGGER.error("%s did not scan %d explicit targets: %s", key, len(missing), sorted(missing)[:20])
-    status = proc.returncode or int(not findings or bool(findings.get("errors") or missing))
+    errors = findings.get("errors", [])
+    status = proc.returncode
+    if status == 0 and (not findings or errors or missing):
+        status = 1
     LOGGER.info(
         "%s scanned %d/%d explicit targets and reported %d findings",
         key,
