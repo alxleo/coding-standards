@@ -280,10 +280,11 @@ def semgrep_setup(args, digest, source, policy):
     env["REPOSITORY_SEMGREP_RULESETS"] = ",".join(rulesets)
     if args.base:
         env["SEMGREP_BASELINE_COMMIT"] = args.base
-        # The baseline reset can recreate directories in the local clone.
-        # Keep them owned by the runner so it can remove the clone afterward.
-        options += ["--user", f"{os.getuid()}:{os.getgid()}"]
-        env["HOME"] = "/tmp"  # noqa: S108 - private to the lint container
+        if not args.rootless:
+            # A rootless daemon already maps container root to the runner.
+            # With a rootful daemon, match the runner to keep the clone removable.
+            options += ["--user", f"{os.getuid()}:{os.getgid()}"]
+            env["HOME"] = "/tmp"  # noqa: S108 - private to the lint container
     return [*options, "--network", "none"], env
 
 
@@ -646,7 +647,11 @@ def scan(args):
         keys = sorted(selected, key=lambda key: key not in ("REPOSITORY_SEMGREP", "REPOSITORY_TRIVY"))
         LOGGER.info("Selected %d linters; skipped %d without changed inputs", len(keys), len(skipped))
     cpus = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else (os.cpu_count() or 1)
-    cpus = min(cpus, int(docker("info", "--format", "{{.NCPU}}").stdout))
+    docker_info = docker("info", "--format", "{{.NCPU}}\n{{json .SecurityOptions}}")
+    daemon_cpus, security_options = docker_info.stdout.splitlines()
+    cpus = min(cpus, int(daemon_cpus))
+    args.rootless = "name=rootless" in (json.loads(security_options) or [])
+    LOGGER.info("Docker daemon: %s", "rootless" if args.rootless else "rootful")
     with (cache / ".lock").open("a") as lease:
         fcntl.flock(lease, fcntl.LOCK_EX)
         remove_stale(lock, cache)
