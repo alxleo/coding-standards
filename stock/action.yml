@@ -15,6 +15,12 @@ inputs:
   consumer-config:
     description: Existing MegaLinter policy to preserve the consumer's blocking checks in the per-linter runtime
     default: ""
+  semgrep-config:
+    description: Optional repository-relative Semgrep rule file for a separate full-tree scan, including on PRs
+    default: ""
+  semgrep-targets:
+    description: Optional newline-separated Git pathspecs for tracked files to pass as explicit Semgrep targets
+    default: ""
   cache-namespace:
     description: Isolated cache scope for paired scans
     default: default
@@ -89,6 +95,8 @@ runs:
         STOCK_BASE_SHA: ${{ inputs.base-sha }}
         STOCK_TRIVY_CONFIG: ${{ inputs.trivy-config }}
         STOCK_CONSUMER_CONFIG: ${{ inputs.consumer-config }}
+        STOCK_SEMGREP_CONFIG: ${{ inputs.semgrep-config }}
+        STOCK_SEMGREP_TARGETS: ${{ inputs.semgrep-targets }}
         STOCK_PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         STOCK_PERSISTENT: ${{ runner.environment == 'self-hosted' && inputs.ephemeral != 'true' }}
         STOCK_SMOKE: ${{ inputs.smoke }}
@@ -114,6 +122,8 @@ runs:
             options+=(--base "${STOCK_BASE_SHA:-$STOCK_PR_BASE_SHA}")
           fi
           if [[ -n "$STOCK_TRIVY_CONFIG" ]]; then options+=(--trivy-config "$STOCK_TRIVY_CONFIG"); fi
+          if [[ -n "$STOCK_SEMGREP_CONFIG" ]]; then options+=(--semgrep-config "$STOCK_SEMGREP_CONFIG"); fi
+          if [[ -n "$STOCK_SEMGREP_TARGETS" ]]; then options+=(--semgrep-targets "$STOCK_SEMGREP_TARGETS"); fi
           if [[ "$DISABLE_ERRORS" == true ]]; then options+=(--advisory); fi
           if [[ "$STOCK_SMOKE" == true ]]; then
             options+=(--linter PYTHON_RUFF --linter ACTION_ZIZMOR --linter REPOSITORY_SEMGREP)
@@ -128,6 +138,10 @@ runs:
         fi
         if [[ -n "$STOCK_CONSUMER_CONFIG" ]]; then
           echo 'consumer-config requires the per-linter runtime.'
+          exit 2
+        fi
+        if [[ -n "$STOCK_SEMGREP_CONFIG" || -n "$STOCK_SEMGREP_TARGETS" ]]; then
+          echo 'semgrep-config and semgrep-targets require the per-linter runtime.'
           exit 2
         fi
         if [[ -n "$STOCK_BASE_SHA" ]]; then

@@ -283,6 +283,96 @@ def semgrep_setup(args, digest, source, policy):
     return [*options, "--network", "none"], env
 
 
+def run_scanner(options, command_line):
+    return docker(
+        "run",
+        "--rm",
+        "--pull=never",
+        "--label",
+        "io.coding-standards.stock=true",
+        "--security-opt=no-new-privileges",
+        "--workdir",
+        SOURCE,
+        *options,
+        *command_line,
+        check=False,
+    )
+
+
+def scan_semgrep_rules(digest, args):
+    """Run the configured local rules with Semgrep's full-tree CLI."""
+    key = "REPOSITORY_SEMGREP_LOCAL"
+    reports = args.reports / key.lower()
+    reports.mkdir(parents=True, exist_ok=True)
+    report = reports / "findings.json"
+    report.unlink(missing_ok=True)
+    targets = []
+    if args.semgrep_targets:
+        inventory = command("git", "ls-files", "-z", "--", *args.semgrep_targets, cwd=args.source)
+        targets = inventory.stdout.rstrip("\0").split("\0") if inventory.stdout else []
+        if not targets:
+            message = "Semgrep target pathspecs matched no tracked files"
+            raise ValueError(message)
+
+    ref, image, registry_bytes, pull_seconds = image_for("REPOSITORY_SEMGREP", digest)
+    options = [
+        *mount(args.source, SOURCE),
+        *mount(reports, "/stock-reports", writable=True),
+        "--network",
+        "none",
+        "--entrypoint",
+        "semgrep",
+        "--env",
+        "GIT_CONFIG_COUNT=1",
+        "--env",
+        "GIT_CONFIG_KEY_0=safe.directory",
+        "--env",
+        f"GIT_CONFIG_VALUE_0={SOURCE}",
+    ]
+    command_line = [
+        ref,
+        "scan",
+        "--strict",
+        "--metrics=off",
+        "--disable-version-check",
+        *([] if args.advisory else ["--error"]),
+        "--config",
+        f"{SOURCE}/{args.semgrep_config}",
+        "--json-output=/stock-reports/findings.json",
+        "--",
+        ".",
+        *(f"./{path}" for path in targets),
+    ]
+    start = time.monotonic()
+    proc = run_scanner(options, command_line)
+    elapsed = round(time.monotonic() - start, 2)
+    (reports / "console.log").write_text(proc.stdout)
+    findings = json.loads(report.read_text()) if report.is_file() else {}
+    missing = set(targets).difference(findings.get("paths", {}).get("scanned", []))
+    if missing:
+        LOGGER.error("%s did not scan %d explicit targets: %s", key, len(missing), sorted(missing)[:20])
+    status = proc.returncode or int(not findings or bool(findings.get("errors") or missing))
+    LOGGER.info(
+        "%s scanned %d/%d explicit targets and reported %d findings",
+        key,
+        len(targets) - len(missing),
+        len(targets),
+        len(findings.get("results", [])),
+    )
+    if status:
+        LOGGER.info("%s:\n%s", key, proc.stdout[-12000:])
+    return {
+        "linter": key,
+        "seconds": elapsed,
+        "scanner_seconds": elapsed,
+        "exit": status,
+        "pull_seconds": pull_seconds,
+        "registry_layer_bytes": registry_bytes,
+        "image_id": image["Id"],
+        "image_bytes": image["Size"],
+    }
+
+
 def scan_one(key, digest, args, source):
     reports, base, advisory = args.reports, args.base, args.advisory
     if args.consumer:
@@ -352,19 +442,7 @@ def scan_one(key, digest, args, source):
         options += ["--env", f"{name}={value}"]
 
     start = time.monotonic()
-    proc = docker(
-        "run",
-        "--rm",
-        "--pull=never",
-        "--label",
-        "io.coding-standards.stock=true",
-        "--security-opt=no-new-privileges",
-        "--workdir",
-        SOURCE,
-        *options,
-        *args,
-        check=False,
-    )
+    proc = run_scanner(options, args)
     (report_dir / "console.log").write_text(proc.stdout)
     elapsed = round(time.monotonic() - start, 2)
     status = proc.returncode
@@ -514,7 +592,7 @@ def pr_linters(source, merge_base, lock, keys, trivy_config):
     ]
 
 
-def scan_linter(key, digest, args):
+def scan_shared(key, digest, args):
     if key != "REPOSITORY_SEMGREP" or not args.base:
         return scan_one(key, digest, args, args.source)
     # Semgrep can reset its checkout during the baseline scan. A local clone
@@ -526,6 +604,13 @@ def scan_linter(key, digest, args):
         command("git", "checkout", "--quiet", "--detach", head, cwd=source)
         command("git", "update-ref", "refs/remotes/origin/stock-scan-base", args.base, cwd=source)
         return scan_one(key, digest, args, source)
+
+
+def scan_linter(key, digest, args):
+    results = [scan_shared(key, digest, args)]
+    if key == "REPOSITORY_SEMGREP" and args.semgrep_config:
+        results.append(scan_semgrep_rules(digest, args))
+    return results
 
 
 def scan(args):
@@ -560,7 +645,7 @@ def scan(args):
         remove_stale(lock, cache)
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
             tasks = [executor.submit(scan_linter, key, lock[key][ARCH], args) for key in keys]
-            results = [task.result() for task in tasks]
+            results = [result for task in tasks for result in task.result()]
         sizes = sum(path.stat().st_blocks * 512 for path in cache.rglob("*") if path.is_file())
     metrics = {
         "seconds": round(time.monotonic() - start, 2),
@@ -630,6 +715,8 @@ def main():
     parser.add_argument("--base", default="")
     parser.add_argument("--trivy-config", type=Path, help="Repository-relative Trivy configuration")
     parser.add_argument("--consumer-config", type=Path, help="Match an existing repository MegaLinter policy via uv")
+    parser.add_argument("--semgrep-config", type=Path, help="Repository-relative Semgrep rules for a full-tree scan")
+    parser.add_argument("--semgrep-targets", default="", help="Newline-separated Git pathspecs for explicit targets")
     parser.add_argument("--persistent", action="store_true")
     parser.add_argument("--advisory", action="store_true")
     parser.add_argument("--linter", action="append", help="Run only this key, for smoke checks")
@@ -642,6 +729,11 @@ def main():
         sys.exit(benchmark_current(args))
     if args.reports is None or args.cache is None:
         parser.error("--reports and --cache are required for a per-linter scan")
+    args.semgrep_targets = [path.strip() for path in args.semgrep_targets.splitlines() if path.strip()]
+    if args.semgrep_targets and not args.semgrep_config:
+        parser.error("--semgrep-targets requires --semgrep-config")
+    if args.semgrep_config:
+        args.semgrep_config = checkout_file(args.source.resolve(), args.semgrep_config)
     if args.trivy_config:
         source = args.source.resolve()
         config = (source / args.trivy_config).resolve()
