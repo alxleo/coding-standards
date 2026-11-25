@@ -33,3 +33,18 @@ rules:
     metadata:
       category: maintainability
       technology: [python]
+
+  - id: coding-standards.catalog-no-isinstance
+    pattern-either:
+      - pattern: isinstance(...)
+      - pattern: builtins.isinstance(...)
+    message: Validate catalog input at the boundary and use the declared types.
+    languages: [python]
+    severity: WARNING
+    paths:
+      include:
+        - /scripts/show_catalog.py
+        - /scripts/generate_rule_catalog.py
+    metadata:
+      category: maintainability
+      technology: [python]

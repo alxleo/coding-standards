@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Generate rule-catalog.json — structured rule data for all configurable tools.
+"""Generate rule-catalog.json — structured rule data for supported tools.
 
-Extracts rule catalogs from five tools via CLI introspection, YAML parsing,
-wiki scraping, or hardcoded data. Generated at build time into the Docker
-image. Local generation is optional for inspection or debugging.
+Extracts rule catalogs via CLI introspection, YAML parsing, and wiki scraping.
+Generated at build time into the Docker image. Local generation is optional
+for inspection or debugging.
 
 Usage:
     python3 scripts/generate_rule_catalog.py [--output rule-catalog.json]
@@ -21,7 +21,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-import yaml
+from pydantic import BaseModel, TypeAdapter, ValidationError, field_validator
+from show_catalog import extract_semgrep_rules
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = _SCRIPT_DIR.parent
@@ -50,6 +51,30 @@ def _normalize_severity(severity: str) -> str:
 
 
 # ── Ruff ────────────────────────────────────────────────────────
+
+
+_RUFF_STATUS_FIELDS = TypeAdapter(dict[str, object])
+
+
+class _RuffRuleSpec(BaseModel):
+    code: str | None
+    summary: str = ""
+    linter: str | None = ""
+    fix_availability: str = "None"
+    status: str = "stable"
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def _parse_status(cls, value: object) -> object:
+        # Ruff versions emit a status string or a one-key status object.
+        try:
+            fields = _RUFF_STATUS_FIELDS.validate_python(value, strict=True)
+        except ValidationError:
+            return value
+        return next(iter(fields), "stable")
+
+
+_RUFF_RULES = TypeAdapter(list[_RuffRuleSpec])
 
 
 def extract_ruff() -> dict[str, Any]:
@@ -92,21 +117,17 @@ def extract_ruff() -> dict[str, Any]:
     ):
         pass
 
-    raw = json.loads(result.stdout)
     rules = []
-    for r in raw:
-        raw_status = r.get("status", "stable")
-        # ruff versions differ: string ("stable") or dict ({"Stable": {}})
-        status = (raw_status if isinstance(raw_status, str) else next(iter(raw_status), "stable")).lower()
-        if status in ("removed", "deprecated"):
+    for rule in _RUFF_RULES.validate_json(result.stdout, strict=True):
+        if rule.status.lower() in ("removed", "deprecated"):
             continue
         rules.append(
             {
-                "id": r["code"],
-                "summary": r.get("summary", ""),
-                "category": r.get("linter", ""),
+                "id": rule.code,
+                "summary": rule.summary,
+                "category": rule.linter,
                 "severity": "warning",  # ruff doesn't have severity — all selected rules are enforced
-                "fixable": r.get("fix_availability", "None") in ("Sometimes", "Always"),
+                "fixable": rule.fix_availability in ("Sometimes", "Always"),
             }
         )
     return {"version": version, "rule_count": len(rules), "rules": rules}
@@ -116,27 +137,16 @@ def extract_ruff() -> dict[str, Any]:
 
 
 def extract_semgrep(root: Path) -> dict[str, Any]:
-    """Parse custom semgrep rules from semgrep-rules/*.yml."""
-
-    rules_dir = root / "semgrep-rules"
-    if not rules_dir.is_dir():
-        return {"version": "custom", "rule_count": 0, "rules": []}
-
-    rules = []
-    for f in sorted(rules_dir.glob("*.yml")):
-        data = yaml.safe_load(f.read_text())
-        if not isinstance(data, dict):
-            continue
-        for r in data.get("rules", []):
-            msg = r.get("message", "").strip().split("\n")[0].strip()
-            rules.append(
-                {
-                    "id": r["id"],
-                    "summary": msg,
-                    "category": f.stem,
-                    "severity": _normalize_severity(r.get("severity", "WARNING")),
-                }
-            )
+    """Map custom Semgrep rules to the generated catalog fields."""
+    rules = [
+        {
+            "id": rule["id"],
+            "summary": rule["message"],
+            "category": Path(rule["file"]).stem,
+            "severity": _normalize_severity(rule["severity"]),
+        }
+        for rule in extract_semgrep_rules(root)
+    ]
     return {"version": "custom", "rule_count": len(rules), "rules": rules}
 
 
@@ -253,54 +263,6 @@ def extract_shellcheck(root: Path | None = None) -> dict[str, Any]:
     return {"version": version, "rule_count": len(rules), "rules": rules}
 
 
-# ── Dockle ──────────────────────────────────────────────────────
-
-_DOCKLE_CHECKS = [
-    ("CIS-DI-0001", "Create a user for the container", "warning"),
-    ("CIS-DI-0002", "Add a HEALTHCHECK instruction to the container image", "warning"),
-    ("CIS-DI-0003", "Keep Docker version up to date", "info"),
-    (
-        "CIS-DI-0004",
-        "Do not use update instructions alone in the Dockerfile",
-        "warning",
-    ),
-    ("CIS-DI-0005", "Enable Content trust for Docker", "info"),
-    ("CIS-DI-0006", "Add HEALTHCHECK instruction to the container image", "warning"),
-    (
-        "CIS-DI-0007",
-        "Do not use update instructions alone in the Dockerfile",
-        "warning",
-    ),
-    ("CIS-DI-0008", "Confirm safety of setuid/setgid files", "info"),
-    ("CIS-DI-0009", "Use COPY instead of ADD in Dockerfile", "warning"),
-    ("CIS-DI-0010", "Do not store secrets in ENVIRONMENT variables", "warning"),
-    ("CIS-DI-0011", "Install verified packages only", "info"),
-    ("DKL-DI-0001", "Avoid credential configuration in Dockerfile", "warning"),
-    ("DKL-DI-0002", "Avoid sudo command", "error"),
-    ("DKL-DI-0003", "Avoid sensitive directory mounting", "warning"),
-    ("DKL-DI-0004", "Avoid apt-get dist-upgrade", "warning"),
-    ("DKL-DI-0005", "Clear apt-get caches", "warning"),
-    ("DKL-DI-0006", "Avoid latest tag", "warning"),
-    ("DKL-LI-0001", "Avoid empty password", "error"),
-    ("DKL-LI-0002", "Avoid duplicate user/group", "error"),
-    ("DKL-LI-0003", "Only necessary files in image", "info"),
-]
-
-
-def extract_dockle() -> dict[str, Any]:
-    """Return hardcoded dockle checkpoints (stable, ~20 checks)."""
-    rules = [
-        {
-            "id": cid,
-            "summary": desc,
-            "category": "cis-docker" if cid.startswith("CIS") else "dockle",
-            "severity": _normalize_severity(sev),
-        }
-        for cid, desc, sev in _DOCKLE_CHECKS
-    ]
-    return {"version": "0.4.15", "rule_count": len(rules), "rules": rules}
-
-
 # ── Main ────────────────────────────────────────────────────────
 
 
@@ -313,7 +275,6 @@ def generate(root: Path) -> dict[str, Any]:
             "semgrep": extract_semgrep(root),
             "hadolint": extract_hadolint(root),
             "shellcheck": extract_shellcheck(root),
-            "dockle": extract_dockle(),
         },
     }
     total = sum(t["rule_count"] for t in catalog["tools"].values())
