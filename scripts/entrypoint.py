@@ -12,10 +12,12 @@ from __future__ import annotations
 
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import typer
 import yaml
@@ -24,6 +26,7 @@ SCRIPTS = Path("/opt/coding-standards/scripts")
 BAKED_CONFIG = Path("/opt/coding-standards/.mega-linter-default.yml")
 EXTENDS_URL = "https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml"
 REQUIRED_LOCAL_CONFIGS_KEY = "CODING_STANDARDS_REQUIRED_LOCAL_CONFIGS"
+SEMGREP_ARGUMENTS = "REPOSITORY_SEMGREP_ARGUMENTS"
 
 app = typer.Typer(
     name="coding-standards",
@@ -146,6 +149,28 @@ def _configure_git(*args: str) -> None:
         typer.echo("Warning: git config timed out", err=True)
 
 
+def _with_shared_semgrep_arguments(shared: list[str], local: str | list[str] | None) -> list[str]:
+    arguments = shlex.split(local) if isinstance(local, str) else (local or [])
+    if "--no-rewrite-rule-ids" in arguments:
+        # The bundled rule packs live directly under /rules.
+        shared = [arg.replace("--exclude-rule=rules.", "--exclude-rule=", 1) for arg in shared]
+    return [arg for arg in shared if arg not in arguments] + arguments
+
+
+def _inherit_semgrep_arguments(shared: list[str], overrides: dict[str, Any]) -> None:
+    if not shared:
+        return
+
+    # MegaLinter reads environment settings ahead of the resolved YAML.
+    if SEMGREP_ARGUMENTS in os.environ:
+        overrides.pop(SEMGREP_ARGUMENTS, None)
+        os.environ[SEMGREP_ARGUMENTS] = shlex.join(
+            _with_shared_semgrep_arguments(shared, os.environ[SEMGREP_ARGUMENTS])
+        )
+    elif SEMGREP_ARGUMENTS in overrides:
+        overrides[SEMGREP_ARGUMENTS] = _with_shared_semgrep_arguments(shared, overrides[SEMGREP_ARGUMENTS])
+
+
 def _setup() -> None:
     """Pre-flight: git safe.directory, config resolution, semgrep discovery."""
     workspace = _workspace()
@@ -170,11 +195,13 @@ def _setup() -> None:
 
     # Config resolution (zero-config by default).
     # MegaLinter resolves EXTENDS relative to workspace — absolute paths break.
-    # Strip EXTENDS, use baked config as MEGALINTER_CONFIG, inject consumer
-    # overrides as environment variables.
+    # Strip the shared EXTENDS and resolve consumer settings against the baked YAML.
     consumer_config = workspace / ".mega-linter.yml"
     if not consumer_config.exists():
         os.environ["MEGALINTER_CONFIG"] = str(BAKED_CONFIG)
+        if SEMGREP_ARGUMENTS in os.environ:
+            baked = yaml.safe_load(BAKED_CONFIG.read_text())
+            _inherit_semgrep_arguments(baked.get(SEMGREP_ARGUMENTS, []), {})
     elif EXTENDS_URL in consumer_config.read_text():
         content = consumer_config.read_text()
         content = re.sub(
@@ -183,9 +210,9 @@ def _setup() -> None:
             content,
         )
         # Write a merged config: baked defaults + consumer overrides (without EXTENDS).
-        # Can't use env vars for _ARGUMENTS (MegaLinter doesn't parse JSON arrays).
         baked = yaml.safe_load(BAKED_CONFIG.read_text())
         overrides = yaml.safe_load(content) if content.strip() else {}
+        _inherit_semgrep_arguments(baked.get(SEMGREP_ARGUMENTS, []), overrides)
         if overrides:
             consumer_rules_path = overrides.pop("LINTER_RULES_PATH", None)
             baked.update(overrides)
