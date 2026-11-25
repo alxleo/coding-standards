@@ -1,8 +1,9 @@
-"""Tests for entrypoint.py consumer rules-directory resolution."""
+"""Tests for entrypoint.py consumer config resolution."""
 
 from __future__ import annotations
 
 import os
+import shlex
 import subprocess
 from pathlib import Path
 from unittest.mock import patch
@@ -10,9 +11,12 @@ from unittest.mock import patch
 import pytest
 import yaml
 
+SEMGREP_ARGUMENTS = "REPOSITORY_SEMGREP_ARGUMENTS"
+SHARED_ARGUMENTS = ["--exclude=semgrep-rules", "--exclude-rule=rules.trailofbits.shared-rule"]
+
 
 @pytest.fixture
-def workspace(tmp_path):
+def workspace(tmp_path, monkeypatch):
     """Create a temp workspace with a baked config and consumer .mega-linter.yml."""
     # Baked config (minimal)
     baked = tmp_path / "baked.yml"
@@ -23,11 +27,17 @@ def workspace(tmp_path):
                 "LINTER_RULES_PATH": "/opt/coding-standards/configs",
                 "PYTHON_RUFF_CONFIG_FILE": "ruff.toml",
                 "REPOSITORY_TRIVY_CUSTOM_CONFIG_FILE": "trivy.yaml",
+                SEMGREP_ARGUMENTS: SHARED_ARGUMENTS,
             }
         )
     )
 
-    # Patch constants
+    monkeypatch.delenv("MEGALINTER_CONFIG", raising=False)
+    monkeypatch.delenv(SEMGREP_ARGUMENTS, raising=False)
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(tmp_path / "gitconfig"))
+    monkeypatch.setattr("scripts.entrypoint.tempfile.tempdir", tmp_path)
+
     with patch("scripts.entrypoint.BAKED_CONFIG", baked), patch("scripts.entrypoint._workspace", return_value=tmp_path):
         yield tmp_path
 
@@ -63,6 +73,71 @@ def test_setup_continues_after_git_config_timeout(
 
     assert os.environ["MEGALINTER_CONFIG"] == str(workspace / "baked.yml")
     assert "git config timed out" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "local", ["--jobs 2 --exclude='folder with spaces'", ["--jobs", "2", "--exclude=folder with spaces"]]
+)
+def test_shared_semgrep_exclusions_survive_yaml_arguments(workspace, local):
+    _write_consumer_config(workspace, {SEMGREP_ARGUMENTS: local})
+
+    _run_setup()
+
+    assert _read_merged_config()[SEMGREP_ARGUMENTS] == [
+        *SHARED_ARGUMENTS,
+        "--jobs",
+        "2",
+        "--exclude=folder with spaces",
+    ]
+
+
+@pytest.mark.parametrize("extends_baseline", [False, True])
+def test_shared_semgrep_exclusions_survive_environment_arguments(workspace, monkeypatch, extends_baseline):
+    if extends_baseline:
+        _write_consumer_config(workspace, {SEMGREP_ARGUMENTS: ["--jobs", "8"]})
+    monkeypatch.setenv(SEMGREP_ARGUMENTS, "--jobs 2 --exclude=semgrep-rules --exclude='folder with spaces'")
+
+    _run_setup()
+
+    assert shlex.split(os.environ[SEMGREP_ARGUMENTS]) == [
+        SHARED_ARGUMENTS[1],
+        "--jobs",
+        "2",
+        "--exclude=semgrep-rules",
+        "--exclude=folder with spaces",
+    ]
+
+
+def test_blank_semgrep_override_keeps_shared_exclusions(workspace, monkeypatch):
+    _write_consumer_config(workspace, {SEMGREP_ARGUMENTS: None})
+    monkeypatch.setenv(SEMGREP_ARGUMENTS, "")
+
+    _run_setup()
+
+    assert _read_merged_config()[SEMGREP_ARGUMENTS] == SHARED_ARGUMENTS
+    assert shlex.split(os.environ[SEMGREP_ARGUMENTS]) == SHARED_ARGUMENTS
+
+
+def test_shared_semgrep_exclusion_uses_original_id_when_rewriting_disabled(workspace):
+    _write_consumer_config(workspace, {SEMGREP_ARGUMENTS: ["--no-rewrite-rule-ids"]})
+
+    _run_setup()
+
+    assert _read_merged_config()[SEMGREP_ARGUMENTS] == [
+        "--exclude=semgrep-rules",
+        "--exclude-rule=trailofbits.shared-rule",
+        "--no-rewrite-rule-ids",
+    ]
+
+
+def test_standalone_semgrep_config_keeps_its_own_arguments(workspace, monkeypatch):
+    (workspace / ".mega-linter.yml").write_text(yaml.safe_dump({SEMGREP_ARGUMENTS: ["--jobs", "8"]}))
+    monkeypatch.setenv(SEMGREP_ARGUMENTS, "--jobs 2")
+
+    _run_setup()
+
+    assert "MEGALINTER_CONFIG" not in os.environ
+    assert os.environ[SEMGREP_ARGUMENTS] == "--jobs 2"
 
 
 class TestRulesDirectoryResolution:

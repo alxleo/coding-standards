@@ -97,18 +97,21 @@ MegaLinter-only config file.
 
 ### Suppress specific semgrep rules
 
-The baseline ships cached rulesets (security-audit, trailofbits) + custom rules. To suppress specific rules without touching the rulesets array (which breaks due to EXTENDS array merge):
+The baseline ships cached security-audit and Trail of Bits rules alongside
+the custom rules. If you extend the baseline, the image adds shared exclusions
+to your Semgrep arguments. Keep only repo-local settings and exclusions in
+`REPOSITORY_SEMGREP_ARGUMENTS`. The environment variable of the same name takes
+priority over repo-local YAML.
 
 ```yaml
 # .mega-linter.yml — suppress individual semgrep rules
 REPOSITORY_SEMGREP_ARGUMENTS: >-
-  --exclude-rule=coding-standards.python-silent-fallback-or
-  --exclude-rule=trailofbits.python.some-noisy-rule
+  --exclude-rule=rules.custom.coding-standards.python-silent-fallback-or
 ```
 
-Or inline in code: `# nosemgrep: coding-standards.python-silent-fallback-or`
+Or use `# nosemgrep: rules.custom.coding-standards.python-silent-fallback-or` inline.
 
-Custom rules from this image use the `coding-standards.` prefix. Third-party rules keep their original prefixes (e.g. `trailofbits.`).
+Use the full ID from the scan report with `--exclude-rule`.
 
 Do NOT override `REPOSITORY_SEMGREP_RULESETS` — it contains absolute image paths that break when merged with consumer values.
 

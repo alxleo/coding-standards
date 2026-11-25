@@ -3,11 +3,7 @@
 # localhost healthchecks, internal Compose DSNs). These replacements catch the
 # dangerous cases while allowing private/internal usage.
 #
-# Excluded upstream rule IDs (via REPOSITORY_SEMGREP_ARGUMENTS):
-#   trailofbits.yaml.docker-compose.port-all-interfaces.port-all-interfaces
-#   trailofbits.generic.curl-unencrypted-url.curl-unencrypted-url
-#   trailofbits.generic.wget-unencrypted-url.wget-unencrypted-url
-#   trailofbits.generic.postgres-insecure-sslmode.postgres-insecure-sslmode
+# The baseline lists the replaced upstream rules in .mega-linter-default.yml.
 
 rules:
   # ── Port exposure ──────────────────────────────────────────────
