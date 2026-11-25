@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -133,17 +134,25 @@ def _apply_consumer_rules_directory(merged: dict[str, object], overrides: dict[s
     _validate_required_local_configs(merged, required, workspace, rules_directory)
 
 
+def _configure_git(*args: str) -> None:
+    try:
+        subprocess.run(
+            ["git", "config", "--global", *args],
+            check=False,
+            capture_output=True,
+            timeout=10,
+        )
+    except subprocess.TimeoutExpired:
+        typer.echo("Warning: git config timed out", err=True)
+
+
 def _setup() -> None:
     """Pre-flight: git safe.directory, config resolution, semgrep discovery."""
     workspace = _workspace()
 
     # Git safe.directory
     if workspace.is_dir():
-        subprocess.run(
-            ["git", "config", "--global", "--add", "safe.directory", str(workspace)],
-            check=False,
-            capture_output=True,
-        )
+        _configure_git("--add", "safe.directory", str(workspace))
 
     # Git credential helper for GitHub API + git protocol.
     # Tools like zizmor use git-upload-pack (git protocol) to verify action
@@ -157,11 +166,7 @@ def _setup() -> None:
         fd = os.open(cred_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w") as f:
             f.write(f"https://x-access-token:{gh_token}@github.com\n")
-        subprocess.run(
-            ["git", "config", "--global", "credential.helper", f"store --file={cred_path}"],
-            check=False,
-            capture_output=True,
-        )
+        _configure_git("credential.helper", f"store --file={cred_path}")
 
     # Config resolution (zero-config by default).
     # MegaLinter resolves EXTENDS relative to workspace — absolute paths break.
@@ -201,6 +206,8 @@ def _setup() -> None:
 
 def _run_megalinter() -> None:
     """Run MegaLinter and exit with its return code."""
+    # The full lint run owns its process lifetime.
+    # nosemgrep: coding-standards.python-helper-interpreter, coding-standards.python-subprocess-timeout
     result = subprocess.run(["python3", "-m", "megalinter.run"], check=False)
     raise SystemExit(result.returncode)
 
@@ -236,8 +243,9 @@ def standards() -> None:
         manifest = Path(f.name)
     try:
         subprocess.run(
-            ["python3", str(SCRIPTS / "generate_repo_manifest.py"), str(workspace), str(manifest)],
+            [sys.executable, str(SCRIPTS / "generate_repo_manifest.py"), str(workspace), str(manifest)],
             check=True,
+            timeout=120,
         )
         subprocess.run(
             [
@@ -250,6 +258,7 @@ def standards() -> None:
                 "/opt/coding-standards/policies/repo-standards/",
             ],
             check=True,
+            timeout=60,
         )
     finally:
         manifest.unlink(missing_ok=True)
@@ -260,8 +269,9 @@ def recommend() -> None:
     """Show recommended checks for this repo (JSON output)."""
     workspace = _workspace()
     subprocess.run(
-        ["python3", str(SCRIPTS / "recommend.py"), str(workspace)],
+        [sys.executable, str(SCRIPTS / "recommend.py"), str(workspace)],
         check=True,
+        timeout=60,
     )
 
 
@@ -271,8 +281,9 @@ def recommend() -> None:
 def catalog(ctx: typer.Context) -> None:
     """Show full catalog of checks. Use --rules for per-tool rule details."""
     subprocess.run(
-        ["python3", str(SCRIPTS / "show_catalog.py"), *ctx.args],
+        [sys.executable, str(SCRIPTS / "show_catalog.py"), *ctx.args],
         check=True,
+        timeout=60,
     )
 
 
@@ -280,7 +291,7 @@ def catalog(ctx: typer.Context) -> None:
 def warnings() -> None:
     """Show warnings from last run (grouped by linter)."""
     os.chdir(_workspace())
-    subprocess.run(["python3", str(SCRIPTS / "show_warnings.py")], check=True)
+    subprocess.run([sys.executable, str(SCRIPTS / "show_warnings.py")], check=True, timeout=60)
 
 
 @app.command(name="show-config", context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
@@ -289,7 +300,7 @@ def show_config(ctx: typer.Context) -> None:
     os.chdir(_workspace())
     subprocess.run(
         [
-            "python3",
+            sys.executable,
             str(SCRIPTS / "show_config.py"),
             ".",
             "--mega-linter-yml",
@@ -297,6 +308,7 @@ def show_config(ctx: typer.Context) -> None:
             *ctx.args,
         ],
         check=True,
+        timeout=60,
     )
 
 
@@ -304,8 +316,8 @@ def show_config(ctx: typer.Context) -> None:
 def blast_radius(ctx: typer.Context) -> None:
     """Change impact analysis (blast radius, coupling, criticality)."""
     os.chdir(_workspace())
-    cmd = ["python3", str(SCRIPTS / "blast_radius.py"), *ctx.args]
-    subprocess.run(cmd, check=True)
+    cmd = [sys.executable, str(SCRIPTS / "blast_radius.py"), *ctx.args]
+    subprocess.run(cmd, check=True, timeout=120)
 
 
 if __name__ == "__main__":

@@ -11,6 +11,7 @@ import subprocess
 from collections import Counter
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -23,6 +24,13 @@ assert _spec is not None
 assert _spec.loader is not None
 br = module_from_spec(_spec)
 _spec.loader.exec_module(br)
+
+
+def test_megalinter_keeps_git_diff_timeout_advisory(capsys: pytest.CaptureFixture[str]) -> None:
+    with patch.object(br.subprocess, "run", side_effect=subprocess.TimeoutExpired("git diff", 10)):
+        br.megalinter()
+
+    assert "Change impact check skipped because git diff timed out" in capsys.readouterr().err
 
 
 # ── Helpers ──────────────────────────────────────────────────────────

@@ -29,12 +29,17 @@ BLAST_THRESHOLD = 10
 ENTROPY_THRESHOLD = 1.5
 
 # Get staged files
-result = subprocess.run(
-    ["git", "diff", "--cached", "--name-only", "--diff-filter=ACM"],
-    capture_output=True,
-    text=True,
-    check=False,
-)
+try:
+    result = subprocess.run(
+        ["git", "diff", "--cached", "--name-only", "--diff-filter=ACM"],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=10,
+    )
+except subprocess.TimeoutExpired:
+    print("⚠ Attention load check skipped because git diff timed out", file=sys.stderr)
+    sys.exit(0)
 staged = set(result.stdout.strip().splitlines())
 if not staged:
     sys.exit(0)

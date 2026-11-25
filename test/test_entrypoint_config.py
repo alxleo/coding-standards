@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
@@ -50,6 +51,18 @@ def _read_merged_config() -> dict:
     config_path = os.environ.get("MEGALINTER_CONFIG", "")
     assert config_path, "MEGALINTER_CONFIG not set after _setup()"
     return yaml.safe_load(Path(config_path).read_text())
+
+
+def test_setup_continues_after_git_config_timeout(
+    workspace: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.setenv("MEGALINTER_CONFIG", "")
+    with patch("scripts.entrypoint.subprocess.run", side_effect=subprocess.TimeoutExpired("git config", 10)):
+        _run_setup()
+
+    assert os.environ["MEGALINTER_CONFIG"] == str(workspace / "baked.yml")
+    assert "git config timed out" in capsys.readouterr().err
 
 
 class TestRulesDirectoryResolution:

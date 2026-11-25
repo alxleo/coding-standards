@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 from scripts.download_build_assets import download
 
@@ -44,3 +47,20 @@ class TestDownload:
             # Verify the output is valid JSON
             data = json.loads(dest.read_text())
             assert "rules" in data
+
+    def test_timed_out_download_keeps_existing_asset(self, tmp_path: Path) -> None:
+        dest = tmp_path / "rules.json"
+        dest.write_text('{"rules": []}')
+
+        def time_out(command: list[str], *, timeout: int, **_kwargs: object) -> None:
+            Path(command[command.index("-o") + 1]).write_text("partial download")
+            raise subprocess.TimeoutExpired(command, timeout)
+
+        with (
+            patch("subprocess.run", side_effect=time_out),
+            pytest.raises(subprocess.TimeoutExpired, match="timed out"),
+        ):
+            download("rules", "https://example.com/rules", dest, normalize="json")
+
+        assert dest.read_text() == '{"rules": []}'
+        assert list(tmp_path.iterdir()) == [dest]

@@ -16,6 +16,7 @@ import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import yaml
 
@@ -24,28 +25,26 @@ def download(name: str, url: str, dest: Path, normalize: str | None = None) -> s
     """Download a single asset. Returns status message."""
     dest.parent.mkdir(parents=True, exist_ok=True)
 
-    if normalize == "json":
-        tmp = dest.with_suffix(".tmp")
+    status = f"  {name} → {dest}"
+    with TemporaryDirectory(dir=dest.parent) as staging_dir:
+        staged = Path(staging_dir) / dest.name
+        flags = ["-fsSL", "--compressed"] if normalize == "json" else ["-fsSL"]
         subprocess.run(
-            ["curl", "-fsSL", "--compressed", url, "-o", str(tmp)],
+            ["curl", *flags, url, "-o", str(staged)],
             check=True,
             capture_output=True,
+            timeout=120,
         )
-        raw = tmp.read_text()
-        try:
-            data = json.loads(raw)
-        except json.JSONDecodeError:
-            data = yaml.safe_load(raw)
-        dest.write_text(json.dumps(data))
-        tmp.unlink(missing_ok=True)
-        rule_count = len(data.get("rules", []))
-        return f"  {name} → {dest} ({rule_count} rules)"
-    subprocess.run(
-        ["curl", "-fsSL", url, "-o", str(dest)],
-        check=True,
-        capture_output=True,
-    )
-    return f"  {name} → {dest}"
+        if normalize == "json":
+            raw = staged.read_text()
+            try:
+                data = json.loads(raw)
+            except json.JSONDecodeError:
+                data = yaml.safe_load(raw)
+            staged.write_text(json.dumps(data))
+            status = f"{status} ({len(data.get('rules', []))} rules)"
+        staged.replace(dest)
+    return status
 
 
 def main() -> None:
@@ -82,8 +81,8 @@ def main() -> None:
             for future in as_completed(futures):
                 try:
                     print(future.result())
-                except subprocess.CalledProcessError:
-                    print(f"  FAIL: {futures[future]}")
+                except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+                    print(f"  FAIL: {futures[future]} ({type(exc).__name__})")
                     failed += 1
 
         if failed:
