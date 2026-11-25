@@ -280,6 +280,10 @@ def semgrep_setup(args, digest, source, policy):
     env["REPOSITORY_SEMGREP_RULESETS"] = ",".join(rulesets)
     if args.base:
         env["SEMGREP_BASELINE_COMMIT"] = args.base
+        # The baseline reset can recreate directories in the local clone.
+        # Keep them owned by the runner so it can remove the clone afterward.
+        options += ["--user", f"{os.getuid()}:{os.getgid()}"]
+        env["HOME"] = "/tmp"  # noqa: S108 - private to the lint container
     return [*options, "--network", "none"], env
 
 
