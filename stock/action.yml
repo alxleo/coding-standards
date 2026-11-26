@@ -15,6 +15,9 @@ inputs:
   consumer-config:
     description: Existing MegaLinter policy to preserve the consumer's blocking checks in the per-linter runtime
     default: ""
+  pyright-project:
+    description: Optional repository-relative uv project to prepare from its lockfile before Pyright
+    default: ""
   semgrep-config:
     description: Optional repository-relative Semgrep rule file for a separate local-rule scan
     default: ""
@@ -84,7 +87,7 @@ runs:
       with:
         version: "2026.10.23"
         working_directory: policy/stock
-        install_args: ${{ inputs.runtime == 'per-linter' && (inputs.consumer-config != '' && 'conftest github:pmd/pmd java uv' || 'conftest github:pmd/pmd java') || 'conftest github:pmd/pmd' }}
+        install_args: ${{ inputs.runtime == 'per-linter' && ((inputs.consumer-config != '' || inputs.pyright-project != '') && 'conftest github:pmd/pmd java uv' || 'conftest github:pmd/pmd java') || 'conftest github:pmd/pmd' }}
         cache: ${{ runner.environment != 'self-hosted' || inputs.ephemeral == 'true' }}
         cache_save: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
 
@@ -99,6 +102,7 @@ runs:
         STOCK_BASE_SHA: ${{ inputs.base-sha }}
         STOCK_TRIVY_CONFIG: ${{ inputs.trivy-config }}
         STOCK_CONSUMER_CONFIG: ${{ inputs.consumer-config }}
+        STOCK_PYRIGHT_PROJECT: ${{ inputs.pyright-project }}
         STOCK_SEMGREP_CONFIG: ${{ inputs.semgrep-config }}
         STOCK_SEMGREP_PR_SCOPE: ${{ inputs.semgrep-pr-scope }}
         STOCK_SEMGREP_TARGETS: ${{ inputs.semgrep-targets }}
@@ -127,6 +131,7 @@ runs:
             options+=(--base "${STOCK_BASE_SHA:-$STOCK_PR_BASE_SHA}")
           fi
           if [[ -n "$STOCK_TRIVY_CONFIG" ]]; then options+=(--trivy-config "$STOCK_TRIVY_CONFIG"); fi
+          if [[ -n "$STOCK_PYRIGHT_PROJECT" ]]; then options+=(--pyright-project "$STOCK_PYRIGHT_PROJECT"); fi
           if [[ -n "$STOCK_SEMGREP_CONFIG" ]]; then
             options+=(--semgrep-config "$STOCK_SEMGREP_CONFIG" --semgrep-pr-scope "$STOCK_SEMGREP_PR_SCOPE")
           fi
@@ -143,8 +148,8 @@ runs:
           "${launcher[@]}" ../policy/stock/containers.py --source "$PWD" --cache "$cache" --reports "$GITHUB_WORKSPACE/stock-reports" "${options[@]}"
           exit
         fi
-        if [[ -n "$STOCK_CONSUMER_CONFIG" ]]; then
-          echo 'consumer-config requires the per-linter runtime.'
+        if [[ -n "$STOCK_CONSUMER_CONFIG" || -n "$STOCK_PYRIGHT_PROJECT" ]]; then
+          echo 'consumer-config and pyright-project require the per-linter runtime.'
           exit 2
         fi
         if [[ -n "$STOCK_SEMGREP_CONFIG" || -n "$STOCK_SEMGREP_TARGETS" ]]; then

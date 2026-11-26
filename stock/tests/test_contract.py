@@ -171,6 +171,68 @@ def test_stock_scanners(tmp_path):
     assert observed == EXPECTED["findings"], json.dumps(observed, indent=2)
 
 
+def test_stock_inherited_policy_and_pyright_project(tmp_path):
+    source = tmp_path / "source"
+    source.mkdir()
+    run("git", "init", "--quiet", cwd=source)
+    (source / ".gitignore").write_text(".venv/\n")
+    (source / ".mega-linter.yml").write_text(
+        "EXTENDS:\n"
+        "  - https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml\n"
+        "LINTER_RULES_PATH: rules\n"
+        "PYTHON_PYRIGHT_CONFIG_FILE: types.json\n"
+    )
+    rules = source / "rules"
+    rules.mkdir()
+    (rules / "types.json").write_text(
+        json.dumps(
+            {
+                "reportAssignmentType": "none",
+                "reportUndefinedVariable": "error",
+                "venvPath": "../project",
+                "venv": ".venv",
+            }
+        )
+    )
+    project = source / "project"
+    project.mkdir()
+    (project / "pyproject.toml").write_text(
+        '[project]\nname = "fixture"\nversion = "0"\nrequires-python = ">=3.11"\n\n[tool.uv]\npackage = false\n'
+    )
+    run("uv", "lock", "--offline", cwd=project)
+    (project / "check.py").write_text('value: int = "allowed"\n')
+    commit(source)
+    options = (
+        "uv",
+        "run",
+        "--script",
+        str(ROOT / "stock/containers.py"),
+        "--source",
+        str(source),
+        "--cache",
+        str(tmp_path / "cache"),
+        "--consumer-config",
+        ".mega-linter.yml",
+        "--pyright-project",
+        "project",
+        "--linter",
+        "PYTHON_PYRIGHT",
+    )
+    good = run(*options, "--reports", str(tmp_path / "good"), check=False)
+    assert good.returncode == 0, good.stderr[-10000:]
+    assert (project / ".venv/pyvenv.cfg").is_file()
+    (project / "check.py").write_text("value = missing\n")
+    commit(source)
+    reports = tmp_path / "bad"
+    bad = run(*options, "--reports", str(reports), check=False)
+    assert bad.returncode == 1, bad.stderr[-10000:]
+    report = json.loads((reports / "python_pyright/mega-linter-report.json").read_text())
+    (linter,) = report["active_linters"]
+    assert linter["final_config_file"] == "/tmp/lint/rules/types.json"
+    assert linter["number_errors"] == 1
+    assert "reportUndefinedVariable" in linter["stdout"]
+
+
 @pytest.mark.skipif(os.environ.get("STOCK_RENOVATE") != "true", reason="Run Renovate on the CI host with Node")
 def test_stock_renovate(tmp_path):
     route = tmp_path / ".github/workflows"

@@ -33,6 +33,7 @@ REPORT = "summary.md"
 ZIZMOR_NO_INPUTS = 3
 SCHEMA_MOUNT = Path("/opt/coding-standards/schemas")
 V8R_IGNORE = "/opt/coding-standards/configs/.v8rignore"
+LEGACY_EXTENDS = "https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml"
 SOURCE = "/tmp/lint"  # noqa: S108 - reserved image workspace, mounted by Docker
 POLICY = "/tmp/policy"  # noqa: S108 - read-only mount next to workspace
 LOGGER = logging.getLogger(__name__)
@@ -244,20 +245,27 @@ def checkout_file(source, selection):
 
 def consumer_configs(source, policy, enabled):
     defaults = {
+        "ACTION_ACTIONLINT": ("actionlint.yaml", "actionlint.yml"),
+        "ACTION_ZIZMOR": (".zizmor.yml", ".zizmor.yaml", "zizmor.yml", "zizmor.yaml"),
+        "PYTHON_PYRIGHT": ("pyrightconfig.json",),
         "PYTHON_RUFF": ("ruff.toml", ".ruff.toml"),
+        "REPOSITORY_BETTERLEAKS": (".gitleaks.toml",),
         "YAML_YAMLLINT": (".yamllint", ".yamllint.yml", ".yamllint.yaml"),
         "JSON_V8R": (".v8rrc.yml", ".v8rrc.yaml", ".v8rrc.json"),
         "YAML_V8R": (".v8rrc.yml", ".v8rrc.yaml", ".v8rrc.json"),
     }
     configs = {}
-    for key in enabled.intersection(defaults):
-        filename = policy.get(f"{key}_CONFIG_FILE")
+    for key, names in defaults.items():
+        legacy_key = CURRENT_KEYS.get(key, key)
+        if key not in enabled and legacy_key not in enabled:
+            continue
+        filename = policy.get(f"{key}_CONFIG_FILE", policy.get(f"{legacy_key}_CONFIG_FILE"))
         if filename == "LINTER_DEFAULT":
             configs[key] = None
             continue
         directory = Path(policy.get(f"{key}_RULES_PATH", policy.get("LINTER_RULES_PATH", ".")))
-        names = [Path(filename)] if filename is not None else list(map(Path, defaults[key]))
-        paths = [directory / name for name in names] + names
+        candidates = [Path(filename)] if filename is not None else list(map(Path, names))
+        paths = [directory / name for name in candidates] + candidates
         found = next((path for path in paths if (source / path).is_file()), None)
         if found is not None or filename is not None:
             configs[key] = checkout_file(source, found if found is not None else paths[0])
@@ -268,6 +276,16 @@ def consumer_policy(source, filename):
     import yaml  # noqa: PLC0415 - only the opt-in uv entry point needs PyYAML
 
     policy = yaml.safe_load((source / checkout_file(source, filename)).read_text())
+    if "ENABLE_LINTERS" not in policy:
+        extends = policy.get("EXTENDS")
+        if extends not in ([LEGACY_EXTENDS], LEGACY_EXTENDS):
+            message = "Set ENABLE_LINTERS or inherit the bundled coding-standards defaults"
+            raise ValueError(message)
+        # Use the defaults from this release. Resolving the old main URL would
+        # let linter activation drift independently of the caller's pinned release.
+        bundled = yaml.safe_load((LOCK.parent.parent / ".mega-linter-default.yml").read_text())
+        for key in ("ENABLE_LINTERS", "DISABLE_ERRORS_LINTERS"):
+            policy.setdefault(key, bundled[key])
     # Consume only the declared policy fields. Never run the legacy PRE/POST commands.
     enabled = set(policy["ENABLE_LINTERS"])
     advisory = set(policy.get("DISABLE_ERRORS_LINTERS", ()))
@@ -478,6 +496,25 @@ def scan_semgrep_rules(image_task, args):
     }
 
 
+def zizmor_arguments(consumer, advisory):
+    shared = f"{POLICY}/lint-configs/.zizmor.yml"
+    configs = consumer.configs if consumer else {}
+    config = configs.get("ACTION_ZIZMOR", shared)
+    if isinstance(config, Path):
+        config = f"{SOURCE}/{config}"
+    return [
+        "--offline",
+        "--quiet",
+        "--collect",
+        "workflows,actions",
+        "--strict-collection",
+        "--format=json-v1",
+        *(["--no-exit-codes"] if advisory else []),
+        *(["--config", config] if config else ["--no-config"]),
+        ".",
+    ]
+
+
 def scan_one(key, digest, args, source, image_task):
     reports, base, advisory = args.reports, args.base, args.advisory
     if args.consumer:
@@ -534,18 +571,7 @@ def scan_one(key, digest, args, source, image_task):
         )
     if key == "ACTION_ZIZMOR":
         options += ["--entrypoint", "zizmor", "--network", "none"]
-        command_line += [
-            "--offline",
-            "--quiet",
-            "--collect",
-            "workflows,actions",
-            "--strict-collection",
-            "--format=json-v1",
-            *(["--no-exit-codes"] if advisory else []),
-            "--config",
-            f"{POLICY}/lint-configs/.zizmor.yml",
-            ".",
-        ]
+        command_line += zizmor_arguments(args.consumer, advisory)
     for name, value in env.items():
         options += ["--env", f"{name}={value}"]
 
@@ -716,6 +742,16 @@ def scan_linter(key, digest, args, image_task=None):
         return scan_one(key, digest, args, source, image_task)
 
 
+def prepare_pyright_project(args, keys):
+    if args.pyright_project is None or "PYTHON_PYRIGHT" not in keys:
+        return
+    source = args.source
+    project = checkout_file(source, args.pyright_project / "pyproject.toml").parent
+    checkout_file(source, project / "uv.lock")
+    setup = command("uv", "sync", "--project", str(project), "--locked", "--no-install-project", cwd=source)
+    LOGGER.info("%s", setup.stdout.rstrip())
+
+
 def scan(args):
     start = args.started = time.monotonic()
     source = args.source = args.source.resolve()
@@ -746,6 +782,7 @@ def scan(args):
         # before the shorter file checks fill the executor.
         keys = sorted(selected, key=lambda key: key not in ("REPOSITORY_SEMGREP", "REPOSITORY_TRIVY"))
         LOGGER.info("Selected %d linters; skipped %d without changed inputs", len(keys), len(skipped))
+    prepare_pyright_project(args, keys)
     cpus = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else (os.cpu_count() or 1)
     docker_info = docker("info", "--format", "{{.NCPU}}\n{{json .SecurityOptions}}")
     daemon_cpus, security_options = docker_info.stdout.splitlines()
@@ -834,6 +871,7 @@ def main():
     parser.add_argument("--base", default="")
     parser.add_argument("--trivy-config", type=Path, help="Repository-relative Trivy configuration")
     parser.add_argument("--consumer-config", type=Path, help="Match an existing repository MegaLinter policy via uv")
+    parser.add_argument("--pyright-project", type=Path, help="Prepare a lockfile-backed uv project before Pyright")
     parser.add_argument("--semgrep-config", type=Path, help="Repository-relative Semgrep rules")
     parser.add_argument("--semgrep-pr-scope", choices=("auto", "full"), default="auto")
     parser.add_argument("--semgrep-targets", default="", help="Newline-separated Git pathspecs for explicit targets")
