@@ -1,0 +1,1 @@
+"""Stock MegaLinter workflow files."""

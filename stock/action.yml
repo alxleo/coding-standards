@@ -1,0 +1,215 @@
+name: Run stock lint
+description: Run the shared policy with MegaLinter, zizmor, Conftest and PMD CPD
+inputs:
+  runtime:
+    description: Execution runtime, image or per-linter
+    required: true
+  source-ref:
+    description: Optional fixed source ref
+    default: ""
+  base-sha:
+    description: Optional base commit SHA for a changed-files scan of the fixed source ref
+    default: ""
+  trivy-config:
+    description: Optional repository-relative Trivy config for the per-linter runtime
+  consumer-config:
+    description: Existing MegaLinter policy to preserve the consumer's blocking checks in the per-linter runtime
+    default: ""
+  semgrep-config:
+    description: Optional repository-relative Semgrep rule file for a separate local-rule scan
+    default: ""
+  semgrep-pr-scope:
+    description: Auto uses changed files plus explicit targets for eligible local rules. Full checks the whole tree.
+    default: auto
+  semgrep-targets:
+    description: Optional newline-separated Git pathspecs for tracked files to pass as explicit Semgrep targets
+    default: ""
+  cache-namespace:
+    description: Isolated cache scope for paired scans
+    default: default
+  apply-fixes:
+    description: MegaLinter APPLY_FIXES selection
+    default: none
+  advisory:
+    description: Report lint findings without blocking the smoke check
+    default: "false"
+  ephemeral:
+    description: Permit Actions cache on an ephemeral self-hosted runner
+    default: "false"
+  smoke:
+    description: Exercise representative per-linter entry points in hosted CI
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - name: Check out source
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 0
+        path: source
+        ref: ${{ inputs.source-ref }}
+        persist-credentials: false
+
+    - name: Prepare the scanner cache
+      id: cache-date
+      shell: bash
+      env:
+        RUNNER_NAME: ${{ runner.name }}
+        STOCK_RUNTIME: ${{ inputs.runtime }}
+        CACHE_NAMESPACE: ${{ inputs.cache-namespace }}
+      run: |
+        case "$STOCK_RUNTIME" in image|per-linter) ;; *) exit 2;; esac
+        [[ "$CACHE_NAMESPACE" =~ ^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$ ]]
+        printf 'Runner: %s (%s), runtime: %s\n' "$RUNNER_NAME" "$RUNNER_ARCH" "$STOCK_RUNTIME"
+        if [[ "$STOCK_RUNTIME" == image ]]; then
+          apk add --no-cache --upgrade tar zstd zstd-libs
+        fi
+        echo "date=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+
+    - name: Restore scanner databases
+      id: scanner-cache
+      if: ${{ runner.environment != 'self-hosted' || inputs.ephemeral == 'true' }}
+      uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: |
+          .stock-cache/trivy
+          .stock-cache/trivy-*
+          .stock-cache/semgrep-*
+          .stock-cache/schema-assets
+        key: stock-data-${{ inputs.runtime }}-${{ runner.arch }}-${{ inputs.cache-namespace }}-${{ hashFiles('policy/stock/Dockerfile.images', 'policy/stock/mega-linter.yml', 'policy/build-assets.yml') }}-${{ steps.cache-date.outputs.date }}
+        restore-keys: stock-data-${{ inputs.runtime }}-${{ runner.arch }}-${{ inputs.cache-namespace }}-${{ hashFiles('policy/stock/Dockerfile.images', 'policy/stock/mega-linter.yml', 'policy/build-assets.yml') }}-
+
+    - name: Install Conftest and PMD
+      uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
+      with:
+        version: "2026.10.23"
+        working_directory: policy/stock
+        install_args: ${{ inputs.runtime == 'per-linter' && (inputs.consumer-config != '' && 'conftest github:pmd/pmd java uv' || 'conftest github:pmd/pmd java') || 'conftest github:pmd/pmd' }}
+        cache: ${{ runner.environment != 'self-hosted' || inputs.ephemeral == 'true' }}
+        cache_save: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+
+    - name: Run stock MegaLinter
+      id: lint
+      shell: bash
+      working-directory: source
+      env:
+        APPLY_FIXES: ${{ inputs.apply-fixes }}
+        DISABLE_ERRORS: ${{ inputs.advisory }}
+        STOCK_RUNTIME: ${{ inputs.runtime }}
+        STOCK_BASE_SHA: ${{ inputs.base-sha }}
+        STOCK_TRIVY_CONFIG: ${{ inputs.trivy-config }}
+        STOCK_CONSUMER_CONFIG: ${{ inputs.consumer-config }}
+        STOCK_SEMGREP_CONFIG: ${{ inputs.semgrep-config }}
+        STOCK_SEMGREP_PR_SCOPE: ${{ inputs.semgrep-pr-scope }}
+        STOCK_SEMGREP_TARGETS: ${{ inputs.semgrep-targets }}
+        STOCK_PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        STOCK_PERSISTENT: ${{ runner.environment == 'self-hosted' && inputs.ephemeral != 'true' }}
+        STOCK_SMOKE: ${{ inputs.smoke }}
+        VALIDATE_ALL_CODEBASE: ${{ inputs.base-sha == '' && (github.event_name != 'pull_request' || inputs.source-ref != '') }}
+        REPOSITORY_BETTERLEAKS_PR_COMMITS_SCAN: "true"
+        REPOSITORY_BETTERLEAKS_PR_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+        REPOSITORY_BETTERLEAKS_PR_TARGET_SHA: ${{ github.event.pull_request.base.sha }}
+        MEGALINTER_CONFIG: stock.mega-linter.yml
+        EXTENDS: ../policy/stock/mega-linter.yml
+      run: |
+        if [[ "$STOCK_RUNTIME" == per-linter ]]; then
+          if [[ "$APPLY_FIXES" != none ]]; then
+            echo 'Use the image runtime to apply fixes to the shared checkout.'
+            exit 2
+          fi
+          cache="$GITHUB_WORKSPACE/.stock-cache"
+          options=()
+          if [[ "$STOCK_PERSISTENT" == true ]]; then
+            cache="${XDG_CACHE_HOME:-$HOME/.cache}/coding-standards/stock-containers"
+            options+=(--persistent)
+          fi
+          if [[ "$VALIDATE_ALL_CODEBASE" == false ]]; then
+            options+=(--base "${STOCK_BASE_SHA:-$STOCK_PR_BASE_SHA}")
+          fi
+          if [[ -n "$STOCK_TRIVY_CONFIG" ]]; then options+=(--trivy-config "$STOCK_TRIVY_CONFIG"); fi
+          if [[ -n "$STOCK_SEMGREP_CONFIG" ]]; then
+            options+=(--semgrep-config "$STOCK_SEMGREP_CONFIG" --semgrep-pr-scope "$STOCK_SEMGREP_PR_SCOPE")
+          fi
+          if [[ -n "$STOCK_SEMGREP_TARGETS" ]]; then options+=(--semgrep-targets "$STOCK_SEMGREP_TARGETS"); fi
+          if [[ "$DISABLE_ERRORS" == true ]]; then options+=(--advisory); fi
+          if [[ "$STOCK_SMOKE" == true ]]; then
+            options+=(--linter PYTHON_RUFF --linter ACTION_ZIZMOR --linter REPOSITORY_SEMGREP)
+          fi
+          launcher=(python3)
+          if [[ -n "$STOCK_CONSUMER_CONFIG" ]]; then
+            options+=(--consumer-config "$STOCK_CONSUMER_CONFIG")
+            launcher=(uv run --script)
+          fi
+          "${launcher[@]}" ../policy/stock/containers.py --source "$PWD" --cache "$cache" --reports "$GITHUB_WORKSPACE/stock-reports" "${options[@]}"
+          exit
+        fi
+        if [[ -n "$STOCK_CONSUMER_CONFIG" ]]; then
+          echo 'consumer-config requires the per-linter runtime.'
+          exit 2
+        fi
+        if [[ -n "$STOCK_SEMGREP_CONFIG" || -n "$STOCK_SEMGREP_TARGETS" ]]; then
+          echo 'semgrep-config and semgrep-targets require the per-linter runtime.'
+          exit 2
+        fi
+        if [[ -n "$STOCK_BASE_SHA" ]]; then
+          [[ "$STOCK_BASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          git cat-file -e "$STOCK_BASE_SHA^{commit}"
+          git update-ref refs/remotes/origin/stock-scan-base "$STOCK_BASE_SHA"
+          export DEFAULT_BRANCH=stock-scan-base
+          export REPOSITORY_BETTERLEAKS_PR_SOURCE_SHA="$(git rev-parse HEAD)"
+          export REPOSITORY_BETTERLEAKS_PR_TARGET_SHA="$STOCK_BASE_SHA"
+          printf 'Scanning changes against %s\n' "$STOCK_BASE_SHA"
+        fi
+        export TRIVY_CACHE_DIR="$GITHUB_WORKSPACE/.stock-cache/trivy"
+        export REPORT_OUTPUT_FOLDER="$GITHUB_WORKSPACE/stock-reports"
+        export DEFAULT_WORKSPACE="$PWD"
+        export GITHUB_WORKSPACE="$PWD"
+        /bin/bash /entrypoint.sh
+
+    - name: Audit workflows and composite actions with zizmor
+      if: ${{ inputs.runtime == 'image' && !cancelled() && (steps.lint.outcome == 'success' || steps.lint.outcome == 'failure') }}
+      continue-on-error: ${{ inputs.advisory == 'true' }}
+      uses: zizmorcore/zizmor-action@45d7276c9ca790aabd705e31ca99c6185c3e76dd # v0.8.1
+      env:
+        ZIZMOR_OFFLINE: "true"
+      with:
+        inputs: source
+        collect: workflows,actions
+        config: policy/lint-configs/.zizmor.yml
+        online-audits: "false"
+        advanced-security: "false"
+        fail-on-no-inputs: "false"
+
+    - name: Check Compose policy
+      if: ${{ !cancelled() && (steps.lint.outcome == 'success' || steps.lint.outcome == 'failure') }}
+      shell: bash
+      working-directory: source
+      run: >-
+        git ls-files -z -- ':(glob)**/compose*.yml' ':(glob)**/compose*.yaml'
+        ':(glob)**/docker-compose*.yml' ':(glob)**/docker-compose*.yaml' |
+        xargs -0 -r conftest test --parser yaml --all-namespaces
+        --policy ../policy/policies/compose --
+
+    - name: Report duplicate code with PMD CPD
+      if: ${{ !cancelled() && (steps.lint.outcome == 'success' || steps.lint.outcome == 'failure') }}
+      shell: bash
+      working-directory: source
+      run: >-
+        pmd cpd --language java --minimum-tokens 70 --dir .
+        --exclude .git --skip-duplicate-files --no-fail-on-violation
+
+    - name: Save scanner databases on the default branch
+      if: >-
+        !cancelled() && steps.lint.outcome != 'skipped' &&
+        (runner.environment != 'self-hosted' || inputs.ephemeral == 'true') &&
+        steps.scanner-cache.outputs.cache-hit != 'true' &&
+        (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+        github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+      uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: |
+          .stock-cache/trivy
+          .stock-cache/trivy-*
+          .stock-cache/semgrep-*
+          .stock-cache/schema-assets
+        key: ${{ steps.scanner-cache.outputs.cache-primary-key }}

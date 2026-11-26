@@ -1,0 +1,8 @@
+name: Bad composite action
+description: Static sample for the stock contract
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: false

@@ -1,0 +1,6 @@
+rules:
+  - id: fixture.local-marker
+    languages: [python]
+    severity: ERROR
+    message: Use the allowed marker.
+    pattern: marker = "blocked"

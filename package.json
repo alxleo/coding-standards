@@ -17,6 +17,10 @@
     "ignore": [
       "lint-configs/**"
     ],
+    "ignoreFiles": [
+      "stock/eslint.config.cjs",
+      "stock/eslint.typescript.config.cjs"
+    ],
     "ignoreDependencies": [
       "bats"
     ]

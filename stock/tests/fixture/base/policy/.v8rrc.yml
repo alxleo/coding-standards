@@ -1,0 +1,5 @@
+customCatalog:
+  schemas:
+    - name: Contract document
+      fileMatch: [contract-*.json]
+      location: ./policy/contract-schema.json

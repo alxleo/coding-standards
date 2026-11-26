@@ -1,0 +1,14 @@
+[tools]
+conftest = "0.71.1"
+uv = "0.13.7"
+java = "temurin-21.0.13.1+2.0.LTS"
+"github:pmd/pmd" = { version = "7.26.0", version_prefix = "pmd_releases/", asset_pattern = "pmd-dist-{{ version }}-bin.zip" }
+# Only the contract job installs the dependency-audit tools below.
+node = "24.22.2"
+"npm:renovate" = "44.263.5"
+
+[settings]
+lockfile_platforms = ["linux-arm64", "linux-x64", "linux-x64-musl"]
+
+[settings.npm]
+package_manager = "npm"

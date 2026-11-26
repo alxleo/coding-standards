@@ -1,0 +1,5 @@
+scan:
+  scanners: [misconfig]
+severity: [HIGH, CRITICAL]
+misconfiguration:
+  skip-check-update: true

@@ -1,0 +1,100 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/oxsecurity/megalinter/v10.2.0/megalinter/descriptors/schemas/megalinter-configuration.jsonschema.json
+ENABLE_LINTERS:
+  - ACTION_ACTIONLINT
+  - ANSIBLE_ANSIBLE_LINT
+  - BASH_SHELLCHECK
+  - BASH_SHFMT
+  - CSS_STYLELINT
+  - DOCKERFILE_HADOLINT
+  - EDITORCONFIG_EDITORCONFIG_CHECKER
+  - ENV_DOTENV_LINTER
+  - GO_GOLANGCI_LINT
+  - JAVASCRIPT_ES
+  - JAVASCRIPT_PRETTIER
+  - JSON_PRETTIER
+  - JSON_V8R
+  - JSX_ESLINT
+  - KUBERNETES_KUBECONFORM
+  - MARKDOWN_RUMDL
+  - PYTHON_PYRIGHT
+  - PYTHON_RUFF
+  - REPOSITORY_BETTERLEAKS
+  - REPOSITORY_GIT_DIFF
+  - REPOSITORY_LS_LINT
+  - REPOSITORY_SEMGREP
+  - REPOSITORY_TRIVY
+  - SPELL_CODESPELL
+  - SPELL_LYCHEE
+  - SQL_SQLFLUFF
+  - TERRAFORM_TFLINT
+  - TSX_ESLINT
+  - TYPESCRIPT_ES
+  - TYPESCRIPT_PRETTIER
+  - YAML_PRETTIER
+  - YAML_V8R
+  - YAML_YAMLLINT
+
+ENABLE_DISABLE_LINTERS_PRIORITY: DISABLE
+DISABLE_ERRORS_LINTERS:
+  - CSS_STYLELINT
+  - EDITORCONFIG_EDITORCONFIG_CHECKER
+  - ENV_DOTENV_LINTER
+  - GO_GOLANGCI_LINT
+  - JSON_V8R
+  - REPOSITORY_LS_LINT
+  - SPELL_CODESPELL
+  - SPELL_LYCHEE
+  - YAML_V8R
+FORMATTERS_DISABLE_ERRORS: true
+
+LINTER_RULES_PATH: ../policy/lint-configs
+BASH_SHELLCHECK_CONFIG_FILE: .shellcheckrc
+BASH_SHELLCHECK_FILTER_REGEX_EXCLUDE: 'semgrep-rules/.*\.sh'
+DOCKERFILE_HADOLINT_CONFIG_FILE: .hadolint.yaml
+JAVASCRIPT_DEFAULT_STYLE: prettier
+JAVASCRIPT_ES_CONFIG_FILE: eslint.config.cjs
+JAVASCRIPT_ES_RULES_PATH: ../policy/stock
+JAVASCRIPT_PRETTIER_CONFIG_FILE: .prettierrc
+JSON_PRETTIER_CONFIG_FILE: .prettierrc
+JSON_V8R_CONFIG_FILE: LINTER_DEFAULT
+JSX_ESLINT_RULES_PATH: ../policy/stock
+KUBERNETES_KUBECONFORM_ARGUMENTS: [--strict]
+MARKDOWN_DEFAULT_STYLE: rumdl
+MARKDOWN_RUMDL_RULES_PATH: ../policy/stock
+PYTHON_PYRIGHT_ARGUMENTS: [--level, error]
+PYTHON_RUFF_CONFIG_FILE: ruff.toml
+REPOSITORY_BETTERLEAKS_CONFIG_FILE: .gitleaks.toml
+REPOSITORY_TRIVY_CONFIG_FILE: trivy.yaml
+REPOSITORY_SEMGREP_TIMEOUT_SECONDS: 1080
+REPOSITORY_SEMGREP_RULESETS:
+  - ../policy/semgrep-rules
+  - p/security-audit
+  - p/trailofbits
+REPOSITORY_SEMGREP_ARGUMENTS:
+  - --metrics=off
+  - --exclude=semgrep-rules
+  - --exclude-rule=trailofbits.yaml.docker-compose.port-all-interfaces.port-all-interfaces
+  - --exclude-rule=trailofbits.generic.curl-unencrypted-url.curl-unencrypted-url
+  - --exclude-rule=trailofbits.generic.wget-unencrypted-url.wget-unencrypted-url
+  - --exclude-rule=trailofbits.generic.postgres-insecure-sslmode.postgres-insecure-sslmode
+SPELL_LYCHEE_CONFIG_FILE: .lychee.toml
+TERRAFORM_TFLINT_CONFIG_FILE: .tflint.hcl
+TSX_ESLINT_CONFIG_FILE: eslint.typescript.config.cjs
+TSX_ESLINT_RULES_PATH: ../policy/stock
+TYPESCRIPT_DEFAULT_STYLE: prettier
+TYPESCRIPT_ES_CONFIG_FILE: eslint.typescript.config.cjs
+TYPESCRIPT_ES_RULES_PATH: ../policy/stock
+TYPESCRIPT_PRETTIER_CONFIG_FILE: .prettierrc
+YAML_PRETTIER_CONFIG_FILE: .prettierrc
+YAML_V8R_CONFIG_FILE: LINTER_DEFAULT
+YAML_YAMLLINT_CONFIG_FILE: .yamllint
+
+FAIL_IF_MISSING_LINTER_IN_FLAVOR: true
+SHOW_ELAPSED_TIME: true
+IGNORE_GENERATED_FILES: true
+IGNORE_GITIGNORED_FILES: true
+GITHUB_STATUS_REPORTER: false
+GITHUB_COMMENT_REPORTER: false
+MARKDOWN_SUMMARY_REPORTER: true
+JSON_REPORTER: true
+JSON_REPORTER_OUTPUT_DETAIL: detailed

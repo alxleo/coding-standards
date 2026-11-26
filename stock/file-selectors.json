@@ -1,0 +1,134 @@
+{
+  "selectors": {
+    "ACTION_ACTIONLINT": {
+      "file_extensions": [".yml", ".yaml"],
+      "files_sub_directory": ".github/workflows"
+    },
+    "ACTION_ZIZMOR": {
+      "file_extensions": [".yml", ".yaml"],
+      "file_names_regex": ["\\.gitignore"],
+      "include": ["(^|/)(\\.github/workflows/[^/]+\\.ya?ml|action\\.ya?ml|\\.gitignore)$"]
+    },
+    "ANSIBLE_ANSIBLE_LINT": {
+      "file_extensions": [".yml", ".yaml"],
+      "file_names_not_ends_with": ["vault.yml", "vault.yaml", "galaxy.yml", "galaxy.yaml"]
+    },
+    "BASH_SHELLCHECK": {
+      "exclude": ["semgrep-rules/.*\\.sh"],
+      "file_contains_regex": ["^#!/usr/bin/env bash", "^#!/bin/bash", "^#!/bin/sh"],
+      "file_contains_regex_extensions": [""],
+      "file_extensions": [".sh", ".bash", ".dash", ".ksh"]
+    },
+    "BASH_SHFMT": {
+      "file_contains_regex": ["^#!/usr/bin/env bash", "^#!/bin/bash", "^#!/bin/sh"],
+      "file_contains_regex_extensions": [""],
+      "file_extensions": [".sh", ".bash", ".dash", ".ksh"]
+    },
+    "CSS_STYLELINT": {
+      "file_extensions": [".css", ".scss", ".saas"]
+    },
+    "DOCKERFILE_HADOLINT": {
+      "file_names_regex": ["Containerfile", "(.*\\.)?Dockerfile"]
+    },
+    "EDITORCONFIG_EDITORCONFIG_CHECKER": {
+      "file_extensions": ["*"]
+    },
+    "ENV_DOTENV_LINTER": {
+      "file_extensions": [".env"]
+    },
+    "GO_GOLANGCI_LINT": {
+      "file_extensions": [".go"]
+    },
+    "JAVASCRIPT_ES": {
+      "file_extensions": [".js", ".vue"]
+    },
+    "JAVASCRIPT_PRETTIER": {
+      "file_extensions": [".js"]
+    },
+    "JSON_PRETTIER": {
+      "file_extensions": [".json"]
+    },
+    "JSON_V8R": {
+      "file_extensions": [".json"]
+    },
+    "JSX_ESLINT": {
+      "file_extensions": [".jsx"]
+    },
+    "KUBERNETES_KUBECONFORM": {
+      "file_contains_regex": ["apiVersion:", "kustomize\\.config\\.k8s\\.io", "tekton"],
+      "file_extensions": [".yml", ".yaml", ".json"],
+      "files_sub_directory": "kubernetes"
+    },
+    "MARKDOWN_RUMDL": {
+      "file_extensions": [".md"]
+    },
+    "PYTHON_PYRIGHT": {
+      "file_extensions": [".py", ".pyi"]
+    },
+    "PYTHON_RUFF": {
+      "file_extensions": [".py", ".pyi", ".ipynb"]
+    },
+    "REPOSITORY_BETTERLEAKS": null,
+    "REPOSITORY_GIT_DIFF": null,
+    "REPOSITORY_LS_LINT": null,
+    "REPOSITORY_SEMGREP": null,
+    "REPOSITORY_TRIVY": null,
+    "SPELL_CODESPELL": {
+      "file_extensions": [
+        ".md",
+        ".mdx",
+        ".markdown",
+        ".html",
+        ".htm",
+        ".rst",
+        ".txt",
+        ".json",
+        ".jsonc",
+        ".json5",
+        ".yaml",
+        ".yml"
+      ]
+    },
+    "SPELL_LYCHEE": {
+      "file_extensions": [
+        ".md",
+        ".mdx",
+        ".markdown",
+        ".html",
+        ".htm",
+        ".rst",
+        ".txt",
+        ".json",
+        ".jsonc",
+        ".json5",
+        ".yaml",
+        ".yml"
+      ]
+    },
+    "SQL_SQLFLUFF": {
+      "file_extensions": [".sql"]
+    },
+    "TERRAFORM_TFLINT": {
+      "file_extensions": [".tf"]
+    },
+    "TSX_ESLINT": {
+      "file_extensions": [".tsx"]
+    },
+    "TYPESCRIPT_ES": {
+      "file_extensions": [".ts"]
+    },
+    "TYPESCRIPT_PRETTIER": {
+      "file_extensions": [".ts"]
+    },
+    "YAML_PRETTIER": {
+      "file_extensions": [".yml", ".yaml"]
+    },
+    "YAML_V8R": {
+      "file_extensions": [".yml", ".yaml"]
+    },
+    "YAML_YAMLLINT": {
+      "file_extensions": [".yml", ".yaml"]
+    }
+  },
+  "version": "v10.2.0"
+}
