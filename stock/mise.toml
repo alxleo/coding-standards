@@ -6,3 +6,6 @@ java = "temurin-21.0.13.1+2.0.LTS"
 # Only the contract job installs the dependency-audit tools below.
 node = "24.22.2"
 "npm:renovate" = "44.263.5"
+
+[settings.npm]
+package_manager = "npm"
