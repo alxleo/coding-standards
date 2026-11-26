@@ -10,7 +10,7 @@ import re
 import sys
 from pathlib import Path
 
-STOCK = Path(__file__).parent
+from image_pins import image_pins
 
 
 def rows(path):
@@ -64,8 +64,8 @@ def main():
     parser.add_argument("version", help="Trivy version reported by the pinned image")
     args = parser.parse_args()
     files, docker = patterns(args.source)
-    lock = json.loads((STOCK / "images.json").read_text())["images"]
-    result = {"version": args.version, "images": lock["REPOSITORY_TRIVY"], "files": files, "docker": docker}
+    lock = image_pins()["images"]
+    result = {"version": args.version, "image": lock["REPOSITORY_TRIVY"], "files": files, "docker": docker}
     sys.stdout.write(json.dumps(result, indent=2) + "\n")
 
 

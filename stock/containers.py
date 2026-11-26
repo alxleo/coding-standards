@@ -24,12 +24,15 @@ import urllib.parse
 from pathlib import Path
 from typing import NamedTuple
 
+from image_pins import LOCK, image_pins
+
 IMAGE_PREFIX = "coding-standards-stock-owned/"
 REGISTRY = "ghcr.io"
-LOCK = Path(__file__).with_name("images.json")
 DAY = 24 * 60 * 60
 REPORT = "summary.md"
 ZIZMOR_NO_INPUTS = 3
+SCHEMA_MOUNT = Path("/opt/coding-standards/schemas")
+V8R_IGNORE = "/opt/coding-standards/configs/.v8rignore"
 SOURCE = "/tmp/lint"  # noqa: S108 - reserved image workspace, mounted by Docker
 POLICY = "/tmp/policy"  # noqa: S108 - read-only mount next to workspace
 LOGGER = logging.getLogger(__name__)
@@ -43,7 +46,7 @@ CURRENT_KEYS = {
 
 class ConsumerPolicy(NamedTuple):
     blocking: set[str]
-    ruff: Path | None
+    configs: dict[str, Path | None]
     semgrep: list[str]
 
 
@@ -67,7 +70,7 @@ def require_image(ref):
     raise RuntimeError(message)
 
 
-def fetch(host, path, headers=None):
+def fetch(host, path, headers=None, *, follow_redirects=False):
     options = []
     for key, value in (headers or {}).items():
         options += ["--header", f"{key}: {value}"]
@@ -79,6 +82,7 @@ def fetch(host, path, headers=None):
         "--fail",
         "--proto",
         "=https",
+        *(["--location", "--proto-redir", "=https"] if follow_redirects else []),
         "--max-time",
         "60",
         *options,
@@ -155,16 +159,16 @@ def remove_stale(lock, cache):
     ).stdout.splitlines()
     for tag in tags:
         match = re.fullmatch(r"coding-standards-stock-owned/([a-z0-9_]+):([0-9a-f]{64})", tag)
-        if match and f"sha256:{match[2]}" not in lock.get(match[1].upper(), {}).values():
+        if match and f"sha256:{match[2]}" != lock.get(match[1].upper()):
             result = docker("image", "rm", tag, check=False)
             LOGGER.info("%s", result.stdout.rstrip())
     for kind, key in (("semgrep", "REPOSITORY_SEMGREP"), ("trivy", "REPOSITORY_TRIVY")):
-        current = {digest.removeprefix("sha256:") for digest in lock[key].values()}
+        current = lock[key].removeprefix("sha256:")
         for entry in cache.glob(f"{kind}-*"):
             suffix = entry.name.removeprefix(f"{kind}-")
             if (
                 re.fullmatch("[0-9a-f]{64}", suffix)
-                and suffix not in current
+                and suffix != current
                 and not entry.is_symlink()
                 and (entry / ".stock-owned").is_file()
             ):
@@ -238,6 +242,28 @@ def checkout_file(source, selection):
     return path.resolve().relative_to(source)
 
 
+def consumer_configs(source, policy, enabled):
+    defaults = {
+        "PYTHON_RUFF": ("ruff.toml", ".ruff.toml"),
+        "YAML_YAMLLINT": (".yamllint", ".yamllint.yml", ".yamllint.yaml"),
+        "JSON_V8R": (".v8rrc.yml", ".v8rrc.yaml", ".v8rrc.json"),
+        "YAML_V8R": (".v8rrc.yml", ".v8rrc.yaml", ".v8rrc.json"),
+    }
+    configs = {}
+    for key in enabled.intersection(defaults):
+        filename = policy.get(f"{key}_CONFIG_FILE")
+        if filename == "LINTER_DEFAULT":
+            configs[key] = None
+            continue
+        directory = Path(policy.get(f"{key}_RULES_PATH", policy.get("LINTER_RULES_PATH", ".")))
+        names = [Path(filename)] if filename is not None else list(map(Path, defaults[key]))
+        paths = [directory / name for name in names] + names
+        found = next((path for path in paths if (source / path).is_file()), None)
+        if found is not None or filename is not None:
+            configs[key] = checkout_file(source, found if found is not None else paths[0])
+    return configs
+
+
 def consumer_policy(source, filename):
     import yaml  # noqa: PLC0415 - only the opt-in uv entry point needs PyYAML
 
@@ -255,10 +281,44 @@ def consumer_policy(source, filename):
             next(arguments)
         elif not argument.startswith("--baseline-commit="):
             semgrep.append(argument)
-    ruff = None
-    if "PYTHON_RUFF" in enabled and (directory := policy.get("LINTER_RULES_PATH")):
-        ruff = checkout_file(source, Path(directory) / policy.get("PYTHON_RUFF_CONFIG_FILE", "ruff.toml"))
-    return ConsumerPolicy(enabled - advisory, ruff, ["--metrics=off", *semgrep])
+    return ConsumerPolicy(enabled - advisory, consumer_configs(source, policy, enabled), ["--metrics=off", *semgrep])
+
+
+def consumer_environment(consumer, key):
+    if not consumer or key not in consumer.configs:
+        return {}
+    config = consumer.configs[key]
+    env = {f"{key}_CONFIG_FILE": config.name if config else "LINTER_DEFAULT", "DISABLE_ERRORS_LINTERS": ""}
+    if config:
+        env[f"{key}_RULES_PATH"] = f"{SOURCE}/{config.parent}"
+    return env
+
+
+def legacy_v8r_mounts(source, config, cache, policy):
+    """Supply the bundled paths used by existing v8r catalogs."""
+    import yaml  # noqa: PLC0415 - the consumer policy uses the same optional dependency
+
+    content = (source / config).read_text()
+    options = []
+    if f"{SCHEMA_MOUNT}/" in content:
+        assets = yaml.safe_load((policy / "build-assets.yml").read_text())["schemas"]["items"]
+        directory = cache / "schema-assets"
+        for name, url in assets.items():
+            path = directory / f"{name}.json"
+            target = SCHEMA_MOUNT / path.name
+            if str(target) not in content:
+                continue
+            if not path.is_file():
+                directory.mkdir(exist_ok=True)
+                uri = urllib.parse.urlsplit(url)
+                with tempfile.TemporaryDirectory(dir=directory) as staging:
+                    staged = Path(staging) / path.name
+                    staged.write_text(fetch(uri.netloc, uri.path, follow_redirects=True))
+                    staged.replace(path)
+            options += mount(path, target)
+    if V8R_IGNORE in content:
+        options += mount(policy / "lint-configs/.v8rignore", V8R_IGNORE)
+    return options
 
 
 def semgrep_setup(args, digest, source, policy):
@@ -453,8 +513,9 @@ def scan_one(key, digest, args, source, image_task):
     }
     if key == "PYTHON_RUFF":
         env["RUFF_CACHE_DIR"] = "/tmp/ruff-cache"  # noqa: S108 - private to the lint container
-        if args.consumer and (ruff := args.consumer.ruff):
-            env.update(PYTHON_RUFF_RULES_PATH=f"{SOURCE}/{ruff.parent}", PYTHON_RUFF_CONFIG_FILE=ruff.name)
+    env.update(consumer_environment(args.consumer, key))
+    if key.endswith("_V8R") and args.consumer and (config := args.consumer.configs.get(key)):
+        options += legacy_v8r_mounts(source, config, args.cache, policy)
     if key == "REPOSITORY_TRIVY":
         data_mount, trivy_env = trivy_setup(args, digest)
         options += data_mount
@@ -475,10 +536,12 @@ def scan_one(key, digest, args, source, image_task):
         options += ["--entrypoint", "zizmor", "--network", "none"]
         command_line += [
             "--offline",
+            "--quiet",
             "--collect",
             "workflows,actions",
             "--strict-collection",
-            "--no-exit-codes" if advisory else "--format=plain",
+            "--format=json-v1",
+            *(["--no-exit-codes"] if advisory else []),
             "--config",
             f"{POLICY}/lint-configs/.zizmor.yml",
             ".",
@@ -596,7 +659,7 @@ def python_dependencies_changed(source, merge_base, name):
 
 def trivy_pr_input(source, merge_base, files, lock, trivy_config):
     metadata = json.loads(LOCK.with_name("trivy-selectors.json").read_text())
-    if metadata["images"] != lock["images"]["REPOSITORY_TRIVY"]:
+    if metadata["image"] != lock["images"]["REPOSITORY_TRIVY"]:
         message = "Regenerate the Trivy PR selectors for the locked image"
         raise ValueError(message)
     docker_names = set(metadata["docker"])
@@ -660,7 +723,7 @@ def scan(args):
     cache = args.cache = args.cache.resolve()
     reports.mkdir(parents=True, exist_ok=True)
     cache.mkdir(parents=True, exist_ok=True)
-    image_lock = json.loads(LOCK.read_text())
+    image_lock = image_pins()
     lock = image_lock["images"]
     keys = args.linter or list(lock)
     skipped = []
@@ -696,11 +759,11 @@ def scan(args):
             tasks = []
             semgrep_image = None
             if args.semgrep_config and "REPOSITORY_SEMGREP" in keys:
-                semgrep_image = executor.submit(image_for, "REPOSITORY_SEMGREP", lock["REPOSITORY_SEMGREP"][ARCH])
+                semgrep_image = executor.submit(image_for, "REPOSITORY_SEMGREP", lock["REPOSITORY_SEMGREP"])
                 tasks.append(executor.submit(scan_semgrep_rules, semgrep_image, args))
             for key in keys:
                 image_task = semgrep_image if key == "REPOSITORY_SEMGREP" else None
-                tasks.append(executor.submit(scan_linter, key, lock[key][ARCH], args, image_task))
+                tasks.append(executor.submit(scan_linter, key, lock[key], args, image_task))
             results = [task.result() for task in tasks]
         sizes = sum(path.stat().st_blocks * 512 for path in cache.rglob("*") if path.is_file())
     metrics = {

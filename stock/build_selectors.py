@@ -11,6 +11,7 @@ import tarfile
 from pathlib import Path
 
 import yaml
+from image_pins import image_pins
 
 STOCK = Path(__file__).parent
 FIELDS = (
@@ -52,9 +53,9 @@ def file_filters(category, key, rules, policy):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("archive", type=Path, help="Source archive at the release in stock/images.json")
+    parser.add_argument("archive", type=Path, help="Source archive at the release in stock/Dockerfile.images")
     args = parser.parse_args()
-    lock = json.loads((STOCK / "images.json").read_text())
+    lock = image_pins()
     policy = yaml.safe_load((STOCK / "mega-linter.yml").read_text())
     selectors = {}
     with tarfile.open(args.archive) as archive:

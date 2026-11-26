@@ -45,6 +45,8 @@ on:
   pull_request:
     paths:
       - .github/workflows/stock-lint.yml
+      - renovate.json
+      - build-assets.yml
       - stock/**
 
 permissions:
@@ -88,3 +90,31 @@ jobs:
           advisory: ${{ inputs.runner == '' }}
           ephemeral: ${{ inputs.ephemeral }}
           smoke: ${{ inputs.runner == '' }}
+  stock-contract:
+    if: github.event_name == 'pull_request' && inputs.runner == ''
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            tools: uv node npm:renovate
+          - runner: ubuntu-24.04-arm
+            tools: uv
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
+        with:
+          version: 2026.10.23
+          working_directory: stock
+          install_args: ${{ matrix.tools }}
+          cache: false
+      - name: Verify scanner and dependency contracts
+        env:
+          STOCK_RENOVATE: ${{ matrix.runner == 'ubuntu-24.04' }}
+          MISE_AUTO_INSTALL: 'false'
+        working-directory: stock
+        run: mise exec -- uv run --project .. --extra test python -m pytest tests/test_contract.py -q --durations=2

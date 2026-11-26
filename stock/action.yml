@@ -75,8 +75,9 @@ runs:
           .stock-cache/trivy
           .stock-cache/trivy-*
           .stock-cache/semgrep-*
-        key: stock-data-${{ inputs.runtime }}-${{ runner.arch }}-${{ inputs.cache-namespace }}-${{ hashFiles('policy/stock/images.json', 'policy/stock/mega-linter.yml') }}-${{ steps.cache-date.outputs.date }}
-        restore-keys: stock-data-${{ inputs.runtime }}-${{ runner.arch }}-${{ inputs.cache-namespace }}-${{ hashFiles('policy/stock/images.json', 'policy/stock/mega-linter.yml') }}-
+          .stock-cache/schema-assets
+        key: stock-data-${{ inputs.runtime }}-${{ runner.arch }}-${{ inputs.cache-namespace }}-${{ hashFiles('policy/stock/Dockerfile.images', 'policy/stock/mega-linter.yml', 'policy/build-assets.yml') }}-${{ steps.cache-date.outputs.date }}
+        restore-keys: stock-data-${{ inputs.runtime }}-${{ runner.arch }}-${{ inputs.cache-namespace }}-${{ hashFiles('policy/stock/Dockerfile.images', 'policy/stock/mega-linter.yml', 'policy/build-assets.yml') }}-
 
     - name: Install Conftest and PMD
       uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
@@ -210,4 +211,5 @@ runs:
           .stock-cache/trivy
           .stock-cache/trivy-*
           .stock-cache/semgrep-*
+          .stock-cache/schema-assets
         key: ${{ steps.scanner-cache.outputs.cache-primary-key }}
