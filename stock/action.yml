@@ -16,8 +16,11 @@ inputs:
     description: Existing MegaLinter policy to preserve the consumer's blocking checks in the per-linter runtime
     default: ""
   semgrep-config:
-    description: Optional repository-relative Semgrep rule file for a separate full-tree scan, including on PRs
+    description: Optional repository-relative Semgrep rule file for a separate local-rule scan
     default: ""
+  semgrep-pr-scope:
+    description: Auto uses changed files plus explicit targets for eligible local rules. Full checks the whole tree.
+    default: auto
   semgrep-targets:
     description: Optional newline-separated Git pathspecs for tracked files to pass as explicit Semgrep targets
     default: ""
@@ -96,6 +99,7 @@ runs:
         STOCK_TRIVY_CONFIG: ${{ inputs.trivy-config }}
         STOCK_CONSUMER_CONFIG: ${{ inputs.consumer-config }}
         STOCK_SEMGREP_CONFIG: ${{ inputs.semgrep-config }}
+        STOCK_SEMGREP_PR_SCOPE: ${{ inputs.semgrep-pr-scope }}
         STOCK_SEMGREP_TARGETS: ${{ inputs.semgrep-targets }}
         STOCK_PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         STOCK_PERSISTENT: ${{ runner.environment == 'self-hosted' && inputs.ephemeral != 'true' }}
@@ -122,7 +126,9 @@ runs:
             options+=(--base "${STOCK_BASE_SHA:-$STOCK_PR_BASE_SHA}")
           fi
           if [[ -n "$STOCK_TRIVY_CONFIG" ]]; then options+=(--trivy-config "$STOCK_TRIVY_CONFIG"); fi
-          if [[ -n "$STOCK_SEMGREP_CONFIG" ]]; then options+=(--semgrep-config "$STOCK_SEMGREP_CONFIG"); fi
+          if [[ -n "$STOCK_SEMGREP_CONFIG" ]]; then
+            options+=(--semgrep-config "$STOCK_SEMGREP_CONFIG" --semgrep-pr-scope "$STOCK_SEMGREP_PR_SCOPE")
+          fi
           if [[ -n "$STOCK_SEMGREP_TARGETS" ]]; then options+=(--semgrep-targets "$STOCK_SEMGREP_TARGETS"); fi
           if [[ "$DISABLE_ERRORS" == true ]]; then options+=(--advisory); fi
           if [[ "$STOCK_SMOKE" == true ]]; then

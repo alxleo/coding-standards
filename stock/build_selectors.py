@@ -24,7 +24,14 @@ FIELDS = (
 
 
 def file_filters(category, key, rules, policy):
-    if category == "REPOSITORY" or key == "ACTION_ZIZMOR" or rules.get("lint_all_files"):
+    if key == "ACTION_ZIZMOR":
+        # The pinned CLI's local workflows/actions collector also honors .gitignore.
+        return {
+            "file_extensions": [".yml", ".yaml"],
+            "file_names_regex": [r"\.gitignore"],
+            "include": [r"(^|/)(\.github/workflows/[^/]+\.ya?ml|action\.ya?ml|\.gitignore)$"],
+        }
+    if category == "REPOSITORY" or rules.get("lint_all_files"):
         return None
     filters = {field: rules[field] for field in FIELDS if rules.get(field)}
     if rules.get("lint_all_other_linters_files") and "file_extensions" not in filters:

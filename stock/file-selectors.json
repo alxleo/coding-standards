@@ -4,7 +4,11 @@
       "file_extensions": [".yml", ".yaml"],
       "files_sub_directory": ".github/workflows"
     },
-    "ACTION_ZIZMOR": null,
+    "ACTION_ZIZMOR": {
+      "file_extensions": [".yml", ".yaml"],
+      "file_names_regex": ["\\.gitignore"],
+      "include": ["(^|/)(\\.github/workflows/[^/]+\\.ya?ml|action\\.ya?ml|\\.gitignore)$"]
+    },
     "ANSIBLE_ANSIBLE_LINT": {
       "file_extensions": [".yml", ".yaml"],
       "file_names_not_ends_with": ["vault.yml", "vault.yaml", "galaxy.yml", "galaxy.yaml"]

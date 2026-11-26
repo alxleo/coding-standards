@@ -21,7 +21,11 @@ on:
         description: Existing MegaLinter policy to preserve the consumer's blocking checks in the per-linter runtime
         type: string
       semgrep-config:
-        description: Optional repository-relative Semgrep rule file for a separate full-tree scan, including on PRs
+        description: Optional repository-relative Semgrep rule file for a separate local-rule scan
+        type: string
+      semgrep-pr-scope:
+        description: Auto uses changed files plus explicit targets for eligible local rules. Full checks the whole tree.
+        default: auto
         type: string
       semgrep-targets:
         description: Optional newline-separated Git pathspecs for tracked files to pass as explicit Semgrep targets
@@ -77,6 +81,7 @@ jobs:
           trivy-config: ${{ inputs.trivy-config }}
           consumer-config: ${{ inputs.consumer-config }}
           semgrep-config: ${{ inputs.semgrep-config }}
+          semgrep-pr-scope: ${{ inputs.semgrep-pr-scope || 'auto' }}
           semgrep-targets: ${{ inputs.semgrep-targets }}
           cache-namespace: ${{ inputs.cache-namespace || 'default' }}
           apply-fixes: ${{ inputs.apply-fixes || 'none' }}

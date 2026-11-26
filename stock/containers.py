@@ -304,8 +304,29 @@ def run_scanner(options, command_line):
     )
 
 
-def scan_semgrep_rules(digest, args):
-    """Run the configured local rules with Semgrep's full-tree CLI."""
+def scoped_semgrep_paths(args):
+    if args.semgrep_pr_scope == "full" or not (args.base and args.consumer and args.semgrep_targets):
+        return None
+    scope_files = {".gitattributes", ".gitignore", ".gitmodules", ".semgrepignore"}
+    if any(path == args.semgrep_config or path.name in scope_files for path in map(Path, args.diff)):
+        return None
+    import yaml  # noqa: PLC0415 - the consumer policy uses the same optional dependency
+
+    config = yaml.safe_load((args.source / args.semgrep_config).read_text())
+    rules = config.get("rules", []) if isinstance(config, dict) else []
+    if not rules or any(
+        not isinstance(rule, dict)
+        or rule.get("mode", "search") != "search"
+        or rule.get("options", {}).get("interfile")
+        or {"project-depends-on", "r2c-internal-project-depends-on"}.intersection(rule)
+        for rule in rules
+    ):
+        return None
+    return args.changed_files
+
+
+def scan_semgrep_rules(image_task, args):
+    """Run the configured local rules with Semgrep's CLI."""
     key = "REPOSITORY_SEMGREP_LOCAL"
     reports = args.reports / key.lower()
     reports.mkdir(parents=True, exist_ok=True)
@@ -319,7 +340,19 @@ def scan_semgrep_rules(digest, args):
             message = "Semgrep target pathspecs matched no tracked files"
             raise ValueError(message)
 
-    ref, image, registry_bytes, pull_seconds = image_for("REPOSITORY_SEMGREP", digest)
+    paths = scoped_semgrep_paths(args)
+    include = []
+    if paths:
+        # Keep Semgrep's normal ignore rules for changed files. Only explicit
+        # targets should bypass its default test exclusions.
+        for path in (*paths, *targets):
+            pattern = re.sub(r"([\\*?\[\]])", r"\\\1", path)
+            include.append(f"--include=/{pattern}")
+        if sum(len(os.fsencode(option)) + 1 for option in include) > 32 * 1024:
+            include = []
+            paths = None
+    LOGGER.info("Semgrep local scope: %s", "changed files and explicit targets" if paths is not None else "full tree")
+    ref, image, _, _ = image_task.result()
     options = [
         *mount(args.source, SOURCE),
         *mount(reports, "/stock-reports", writable=True),
@@ -344,8 +377,9 @@ def scan_semgrep_rules(digest, args):
         "--config",
         f"{SOURCE}/{args.semgrep_config}",
         "--json-output=/stock-reports/findings.json",
+        *include,
         "--",
-        ".",
+        *(["."] if paths is None or paths else []),
         *(f"./{path}" for path in targets),
     ]
     start = time.monotonic()
@@ -353,7 +387,8 @@ def scan_semgrep_rules(digest, args):
     elapsed = round(time.monotonic() - start, 2)
     (reports / "console.log").write_text(proc.stdout)
     findings = json.loads(report.read_text()) if report.is_file() else {}
-    missing = set(targets).difference(findings.get("paths", {}).get("scanned", []))
+    scanned = findings.get("paths", {}).get("scanned", [])
+    missing = set(targets).difference(scanned)
     if missing:
         LOGGER.error("%s did not scan %d explicit targets: %s", key, len(missing), sorted(missing)[:20])
     errors = findings.get("errors", [])
@@ -361,8 +396,9 @@ def scan_semgrep_rules(digest, args):
     if status == 0 and (not findings or errors or missing):
         status = 1
     LOGGER.info(
-        "%s scanned %d/%d explicit targets and reported %d findings",
+        "%s scanned %d files, including %d/%d explicit targets, and reported %d findings",
         key,
+        len(scanned),
         len(targets) - len(missing),
         len(targets),
         len(findings.get("results", [])),
@@ -371,23 +407,24 @@ def scan_semgrep_rules(digest, args):
         LOGGER.info("%s:\n%s", key, proc.stdout[-12000:])
     return {
         "linter": key,
+        "started_seconds": round(start - args.started, 2),
         "seconds": elapsed,
         "scanner_seconds": elapsed,
         "exit": status,
-        "pull_seconds": pull_seconds,
-        "registry_layer_bytes": registry_bytes,
+        "pull_seconds": 0,
+        "registry_layer_bytes": 0,
         "image_id": image["Id"],
         "image_bytes": image["Size"],
     }
 
 
-def scan_one(key, digest, args, source):
+def scan_one(key, digest, args, source, image_task):
     reports, base, advisory = args.reports, args.base, args.advisory
     if args.consumer:
         blocking = args.consumer.blocking
         advisory = advisory or (key not in blocking and CURRENT_KEYS.get(key) not in blocking)
     policy = LOCK.parent.parent.resolve()
-    image_ref, image, registry_bytes, pull_seconds = image_for(key, digest)
+    image_ref, image, registry_bytes, pull_seconds = image_task.result() if image_task else image_for(key, digest)
     report_dir = reports / key.lower()
     report_dir.mkdir(parents=True, exist_ok=True)
     options = [
@@ -426,7 +463,7 @@ def scan_one(key, digest, args, source):
         data_mount, semgrep_env = semgrep_setup(args, digest, source, policy)
         options += data_mount
         env.update(semgrep_env)
-    args = [image_ref]
+    command_line = [image_ref]
     if key == "REPOSITORY_BETTERLEAKS" and base:
         # The pinned adapter adds a caret to the base and scans one extra commit.
         env.update(
@@ -436,7 +473,7 @@ def scan_one(key, digest, args, source):
         )
     if key == "ACTION_ZIZMOR":
         options += ["--entrypoint", "zizmor", "--network", "none"]
-        args += [
+        command_line += [
             "--offline",
             "--collect",
             "workflows,actions",
@@ -450,7 +487,7 @@ def scan_one(key, digest, args, source):
         options += ["--env", f"{name}={value}"]
 
     start = time.monotonic()
-    proc = run_scanner(options, args)
+    proc = run_scanner(options, command_line)
     (report_dir / "console.log").write_text(proc.stdout)
     elapsed = round(time.monotonic() - start, 2)
     status = proc.returncode
@@ -465,6 +502,7 @@ def scan_one(key, digest, args, source):
         scanner_seconds = round(sum(linter["elapsed_time_s"] for linter in scanned), 2)
     return {
         "linter": key,
+        "started_seconds": round(start - args.started, 2),
         "seconds": elapsed,
         "scanner_seconds": scanner_seconds,
         "exit": status,
@@ -574,12 +612,10 @@ def trivy_pr_input(source, merge_base, files, lock, trivy_config):
     return None
 
 
-def pr_linters(source, merge_base, lock, keys, trivy_config):
-    diff = command("git", "diff", "--no-renames", "--name-only", "-z", merge_base, "HEAD", cwd=source)
-    files = diff.stdout.split("\0")
-    files = [name for name in files if name]
+def pr_linters(args, merge_base, lock, keys):
+    source, files = args.source, args.diff
     if "REPOSITORY_TRIVY" in keys:
-        if name := trivy_pr_input(source, merge_base, files, lock, trivy_config):
+        if name := trivy_pr_input(source, merge_base, files, lock, args.trivy_config):
             LOGGER.info("Trivy PR selected by %r", name)
         else:
             LOGGER.info("Trivy PR skipped: no changed dependency, container or infrastructure inputs")
@@ -592,17 +628,20 @@ def pr_linters(source, merge_base, lock, keys, trivy_config):
     if metadata["version"] != lock["version"] or selectors.keys() != lock["images"].keys():
         message = "Regenerate stock file selectors for the locked MegaLinter release"
         raise ValueError(message)
-    files = [name for name in files if (source / name).is_file() and not (source / name).is_symlink()]
     return [
         key
         for key in keys
-        if selectors[key] is None or any(selected_file(source, name, selectors[key]) for name in files)
+        if selectors[key] is None
+        or any(
+            selected_file(source, name, selectors[key])
+            for name in (args.diff if key == "ACTION_ZIZMOR" else args.changed_files)
+        )
     ]
 
 
-def scan_shared(key, digest, args):
+def scan_linter(key, digest, args, image_task=None):
     if key != "REPOSITORY_SEMGREP" or not args.base:
-        return scan_one(key, digest, args, args.source)
+        return scan_one(key, digest, args, args.source, image_task)
     # Semgrep can reset its checkout during the baseline scan. A local clone
     # hard-links Git objects but gives it private refs, index and working files.
     with tempfile.TemporaryDirectory(prefix="stock-semgrep-", dir=args.source.parent) as directory:
@@ -611,18 +650,11 @@ def scan_shared(key, digest, args):
         command("git", "clone", "--quiet", "--local", "--no-checkout", "--", str(args.source), str(source))
         command("git", "checkout", "--quiet", "--detach", head, cwd=source)
         command("git", "update-ref", "refs/remotes/origin/stock-scan-base", args.base, cwd=source)
-        return scan_one(key, digest, args, source)
-
-
-def scan_linter(key, digest, args):
-    results = [scan_shared(key, digest, args)]
-    if key == "REPOSITORY_SEMGREP" and args.semgrep_config:
-        results.append(scan_semgrep_rules(digest, args))
-    return results
+        return scan_one(key, digest, args, source, image_task)
 
 
 def scan(args):
-    start = time.monotonic()
+    start = args.started = time.monotonic()
     source = args.source = args.source.resolve()
     reports = args.reports = args.reports.resolve()
     cache = args.cache = args.cache.resolve()
@@ -640,7 +672,12 @@ def scan(args):
         merge_base = command("git", "merge-base", base, "HEAD", cwd=source).stdout.strip()
         command("git", "update-ref", "refs/remotes/origin/stock-scan-base", base, cwd=source)
         LOGGER.info("Scanning changes against %s", base)
-        selected = pr_linters(source, merge_base, image_lock, keys, args.trivy_config)
+        diff = command("git", "diff", "--no-renames", "--name-only", "-z", merge_base, "HEAD", cwd=source)
+        args.diff = diff.stdout.rstrip("\0").split("\0") if diff.stdout else []
+        args.changed_files = [
+            name for name in args.diff if (source / name).is_file() and not (source / name).is_symlink()
+        ]
+        selected = pr_linters(args, merge_base, image_lock, keys)
         skipped = [key for key in keys if key not in selected]
         # The repository scans dominate the PR's critical path. Start both
         # before the shorter file checks fill the executor.
@@ -651,13 +688,20 @@ def scan(args):
     daemon_cpus, security_options = docker_info.stdout.splitlines()
     cpus = min(cpus, int(daemon_cpus))
     args.rootless = "name=rootless" in (json.loads(security_options) or [])
-    LOGGER.info("Docker daemon: %s", "rootless" if args.rootless else "rootful")
+    LOGGER.info("Docker daemon: %s (%d parallel container slots)", "rootless" if args.rootless else "rootful", cpus)
     with (cache / ".lock").open("a") as lease:
         fcntl.flock(lease, fcntl.LOCK_EX)
         remove_stale(lock, cache)
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
-            tasks = [executor.submit(scan_linter, key, lock[key][ARCH], args) for key in keys]
-            results = [result for task in tasks for result in task.result()]
+            tasks = []
+            semgrep_image = None
+            if args.semgrep_config and "REPOSITORY_SEMGREP" in keys:
+                semgrep_image = executor.submit(image_for, "REPOSITORY_SEMGREP", lock["REPOSITORY_SEMGREP"][ARCH])
+                tasks.append(executor.submit(scan_semgrep_rules, semgrep_image, args))
+            for key in keys:
+                image_task = semgrep_image if key == "REPOSITORY_SEMGREP" else None
+                tasks.append(executor.submit(scan_linter, key, lock[key][ARCH], args, image_task))
+            results = [task.result() for task in tasks]
         sizes = sum(path.stat().st_blocks * 512 for path in cache.rglob("*") if path.is_file())
     metrics = {
         "seconds": round(time.monotonic() - start, 2),
@@ -727,7 +771,8 @@ def main():
     parser.add_argument("--base", default="")
     parser.add_argument("--trivy-config", type=Path, help="Repository-relative Trivy configuration")
     parser.add_argument("--consumer-config", type=Path, help="Match an existing repository MegaLinter policy via uv")
-    parser.add_argument("--semgrep-config", type=Path, help="Repository-relative Semgrep rules for a full-tree scan")
+    parser.add_argument("--semgrep-config", type=Path, help="Repository-relative Semgrep rules")
+    parser.add_argument("--semgrep-pr-scope", choices=("auto", "full"), default="auto")
     parser.add_argument("--semgrep-targets", default="", help="Newline-separated Git pathspecs for explicit targets")
     parser.add_argument("--persistent", action="store_true")
     parser.add_argument("--advisory", action="store_true")
