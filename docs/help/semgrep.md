@@ -25,6 +25,10 @@ REPOSITORY_SEMGREP_ARGUMENTS:
   - --exclude-rule=rules.custom.coding-standards.rule-name
 ```
 
+The image keeps its shared exclusions when your config extends the baseline.
+Add only local arguments here. If you set the environment variable of the same
+name, it supplies the local arguments in place of the YAML value.
+
 ## Baked rule prefixes
 
 ```

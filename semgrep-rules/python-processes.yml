@@ -1,0 +1,52 @@
+rules:
+  - id: coding-standards.python-helper-interpreter
+    mode: taint
+    options:
+      taint_assume_safe_functions: true
+    pattern-sources:
+      - patterns:
+          - pattern: "[$PYTHON, ...]"
+          - metavariable-regex:
+              metavariable: $PYTHON
+              regex: '^["'']python(?:3(?:\.[0-9]+)?)?["'']$'
+          - pattern-not: '[$PYTHON, "--version"]'
+          - pattern-not: '[$PYTHON, "-V"]'
+        exact: true
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: subprocess.$METHOD($ARGV, ...)
+              - pattern: subprocess.$METHOD(..., args=$ARGV, ...)
+          - metavariable-regex:
+              metavariable: $METHOD
+              regex: ^(run|check_output|check_call|call)$
+          - focus-metavariable: $ARGV
+    message: Launch Python helpers with sys.executable so they inherit the parent environment.
+    languages: [python]
+    severity: ERROR
+    paths:
+      include:
+        - /scripts/**
+    metadata:
+      category: correctness
+      technology: [python]
+
+  - id: coding-standards.python-subprocess-timeout
+    patterns:
+      - pattern-either:
+          - pattern: subprocess.$METHOD(..., timeout=None, ...)
+          - patterns:
+              - pattern: subprocess.$METHOD(...)
+              - pattern-not: subprocess.$METHOD(..., timeout=$TIMEOUT, ...)
+      - metavariable-regex:
+          metavariable: $METHOD
+          regex: ^(run|check_output|check_call|call)$
+    message: Give one-shot subprocesses an explicit timeout so the caller can recover.
+    languages: [python]
+    severity: ERROR
+    paths:
+      include:
+        - /scripts/**
+    metadata:
+      category: correctness
+      technology: [python]
