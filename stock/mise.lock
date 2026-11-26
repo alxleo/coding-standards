@@ -19,6 +19,12 @@ url = "https://github.com/open-policy-agent/conftest/releases/download/v0.71.1/c
 url_api = "https://api.github.com/repos/open-policy-agent/conftest/releases/assets/614476638"
 provenance = "github-attestations"
 
+[tools.conftest."platforms.linux-x64-musl"]
+checksum = "sha256:c3f6b2a753bd56e377a1e51a95ae3e057f926f2e9139f7d5b5dfbbaf810f7985"
+url = "https://github.com/open-policy-agent/conftest/releases/download/v0.71.1/conftest_0.71.1_Linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/open-policy-agent/conftest/releases/assets/614476638"
+provenance = "github-attestations"
+
 [[tools."github:pmd/pmd"]]
 version = "7.26.0"
 backend = "github:pmd/pmd"
@@ -35,6 +41,12 @@ url_api = "https://api.github.com/repos/pmd/pmd/releases/assets/460968647"
 
 [tools."github:pmd/pmd"."platforms.linux-x64"]
 checksum = "sha256:9f55cb7ff0e9f9a66dd2f005eaa370e84c8a4cd971b134aa14a930c4a283ebc9"
+url = "https://github.com/pmd/pmd/releases/download/pmd_releases/7.26.0/pmd-dist-7.26.0-bin.zip"
+url_api = "https://api.github.com/repos/pmd/pmd/releases/assets/460968647"
+
+[tools."github:pmd/pmd"."platforms.linux-x64-musl"]
+checksum = "sha256:9f55cb7ff0e9f9a66dd2f005eaa370e84c8a4cd971b134aa14a930c4a283ebc9"
+checksum_source = "mise-versions"
 url = "https://github.com/pmd/pmd/releases/download/pmd_releases/7.26.0/pmd-dist-7.26.0-bin.zip"
 url_api = "https://api.github.com/repos/pmd/pmd/releases/assets/460968647"
 

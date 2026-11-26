@@ -115,6 +115,6 @@ jobs:
       - name: Verify scanner and dependency contracts
         env:
           STOCK_RENOVATE: ${{ matrix.runner == 'ubuntu-24.04' }}
-          MISE_AUTO_INSTALL: 'false'
+          MISE_AUTO_INSTALL: "false"
         working-directory: stock
         run: mise exec -- uv run --project .. --extra test python -m pytest tests/test_contract.py -q --durations=2

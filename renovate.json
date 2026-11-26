@@ -35,7 +35,10 @@
     {
       "customType": "regex",
       "description": "Update stock pins embedded in a workflow expression and schema URL",
-      "managerFilePatterns": ["/^\\.github\\/workflows\\/stock-lint\\.yml$/", "/^stock\\/mega-linter\\.yml$/"],
+      "managerFilePatterns": [
+        "/^\\.github\\/workflows\\/stock-lint\\.yml$/",
+        "/^stock\\/mega-linter\\.yml$/"
+      ],
       "matchStrings": [
         "(?<depName>ghcr\\.io/oxsecurity/megalinter-cupcake):(?<currentValue>v[0-9.]+)@(?<currentDigest>sha256:[0-9a-f]{64})",
         "raw\\.githubusercontent\\.com/(?<depName>oxsecurity/megalinter)/(?<currentValue>v[0-9.]+)/megalinter/descriptors/schemas/"
@@ -51,8 +54,15 @@
     },
     {
       "description": "Update all stock MegaLinter images for a release together",
-      "matchFileNames": ["stock/Dockerfile.images", "stock/mega-linter.yml", ".github/workflows/stock-lint.yml"],
-      "matchPackageNames": ["/^ghcr\\.io\\/oxsecurity\\/megalinter-(only-|cupcake$)/", "oxsecurity/megalinter"],
+      "matchFileNames": [
+        "stock/Dockerfile.images",
+        "stock/mega-linter.yml",
+        ".github/workflows/stock-lint.yml"
+      ],
+      "matchPackageNames": [
+        "/^ghcr\\.io\\/oxsecurity\\/megalinter-(only-|cupcake$)/",
+        "oxsecurity/megalinter"
+      ],
       "groupName": "Stock MegaLinter release",
       "separateMajorMinor": false,
       "separateMinorPatch": false

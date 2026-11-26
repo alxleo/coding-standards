@@ -7,5 +7,8 @@ java = "temurin-21.0.13.1+2.0.LTS"
 node = "24.22.2"
 "npm:renovate" = "44.263.5"
 
+[settings]
+lockfile_platforms = ["linux-arm64", "linux-x64", "linux-x64-musl"]
+
 [settings.npm]
 package_manager = "npm"
