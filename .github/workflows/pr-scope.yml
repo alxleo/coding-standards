@@ -1,0 +1,55 @@
+name: Pull request scope
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: Linux runner label for the scope check
+        default: ubuntu-latest
+        type: string
+      full-validation-paths:
+        description: Single-line JSON array of paths or glob patterns that require full validation
+        default: "[]"
+        type: string
+    outputs:
+      markdown-only:
+        description: True for a nonempty Markdown-only diff with no matches in full-validation-paths.
+        value: ${{ jobs.classify.outputs.markdown-only }}
+
+permissions:
+  contents: read
+
+jobs:
+  classify:
+    if: github.event_name == 'pull_request'
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 5
+    outputs:
+      markdown-only: >-
+        ${{ steps.changes.outputs.markdown == 'true' && steps.changes.outputs.other == 'false' &&
+            steps.changes.outputs.full_validation == 'false' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Identify the base of the tested merge
+        id: merge-base
+        shell: bash
+        env:
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          test "$(git rev-parse HEAD^2)" = "$PR_HEAD"
+          base="$(git rev-parse HEAD^1)"
+          echo "sha=$base" >> "$GITHUB_OUTPUT"
+      - name: Classify changed paths
+        id: changes
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          token: ""
+          base: ${{ steps.merge-base.outputs.sha }}
+          filters: |
+            markdown: '**/*.[mM][dD]'
+            other: '!**/*.[mM][dD]'
+            full_validation: ${{ inputs.full-validation-paths }}
