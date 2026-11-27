@@ -28,6 +28,7 @@ EXTENDS_URL = "https://raw.githubusercontent.com/alxleo/coding-standards/main/.m
 REQUIRED_LOCAL_CONFIGS_KEY = "CODING_STANDARDS_REQUIRED_LOCAL_CONFIGS"
 SEMGREP_ARGUMENTS = "REPOSITORY_SEMGREP_ARGUMENTS"
 RETIRED_LINTERS = ("REPOSITORY_TRIVY", "REPOSITORY_TRIVY_CUSTOM", "REPOSITORY_TRIVY_SBOM")
+LINTER_SELECTION_KEYS = ("DISABLE_LINTERS", "ENABLE_LINTERS", "ENABLE_DISABLE_LINTERS_PRIORITY")
 
 app = typer.Typer(
     name="coding-standards",
@@ -172,12 +173,12 @@ def _inherit_semgrep_arguments(shared: list[str], overrides: dict[str, Any]) -> 
         overrides[SEMGREP_ARGUMENTS] = _with_shared_semgrep_arguments(shared, overrides[SEMGREP_ARGUMENTS])
 
 
-def _file_disabled_linters(workspace: Path) -> str | list[str] | None:
+def _linter_selection(workspace: Path) -> dict[str, Any]:
     config_name = os.environ.get("MEGALINTER_CONFIG", ".mega-linter.yml")
     config_path = workspace / config_name
     values = (yaml.safe_load(config_path.read_text()) or {}) if config_path.is_file() else {}
     if "EXTENDS" not in values and "EXTENDS" not in os.environ and not config_name.startswith("https://"):
-        return values.get("DISABLE_LINTERS")
+        return {key: os.environ.get(key, values.get(key)) for key in LINTER_SELECTION_KEYS}
 
     # Delegate consumer-specific inheritance to the pinned MegaLinter loader.
     from megalinter import config as megalinter_config  # noqa: PLC0415
@@ -185,19 +186,26 @@ def _file_disabled_linters(workspace: Path) -> str | list[str] | None:
     policy = "coding-standards-scanner-policy"
     try:
         megalinter_config.init_config(policy, str(workspace))
-        return megalinter_config.get_list(policy, "DISABLE_LINTERS")
+        return {key: megalinter_config.get(policy, key) for key in LINTER_SELECTION_KEYS}
     finally:
         megalinter_config.delete(policy)
 
 
-def _apply_scanner_policy(workspace: Path) -> None:
-    configured = os.environ.get("DISABLE_LINTERS")
-    if configured is None:
-        configured = _file_disabled_linters(workspace)
+def _linter_list(configured: str | list[str] | None) -> list[str]:
     if isinstance(configured, str):
-        disabled = json.loads(configured) if configured.startswith("[") else configured.split(",")
-    else:
-        disabled = configured or []
+        if configured.startswith("["):
+            return json.loads(configured)
+        return configured.split(",") if configured else []
+    return configured or []
+
+
+def _apply_scanner_policy(workspace: Path) -> None:
+    selection = _linter_selection(workspace)
+    disabled = _linter_list(selection["DISABLE_LINTERS"])
+    # Preserve existing ENABLE winners before applying the mandatory exclusions.
+    if selection["ENABLE_DISABLE_LINTERS_PRIORITY"] != "DISABLE":
+        enabled = set(_linter_list(selection["ENABLE_LINTERS"]))
+        disabled = [linter for linter in disabled if linter not in enabled]
     rejected = [*RETIRED_LINTERS]
     if os.environ.get("GITHUB_EVENT_NAME", "").startswith("pull_request"):
         rejected.append("REPOSITORY_SEMGREP")
@@ -255,8 +263,6 @@ def _setup() -> None:
             yaml.dump(baked, f, default_flow_style=False)
             os.environ["MEGALINTER_CONFIG"] = f.name
 
-    _apply_scanner_policy(workspace)
-
     # Auto-discover consumer semgrep rules
     semgrep_dir = workspace / ".semgrep"
     if semgrep_dir.is_dir():
@@ -267,6 +273,7 @@ def _setup() -> None:
 
 def _run_megalinter() -> None:
     """Run MegaLinter and exit with its return code."""
+    _apply_scanner_policy(_workspace())
     # The full lint run owns its process lifetime.
     # nosemgrep: coding-standards.python-helper-interpreter, coding-standards.python-subprocess-timeout
     result = subprocess.run(["python3", "-m", "megalinter.run"], check=False)

@@ -64,6 +64,19 @@ def _run_setup():
     _setup()
 
 
+def _run_lint(linter=None):
+    from scripts.entrypoint import lint  # noqa: PLC0415
+
+    with (
+        patch("scripts.entrypoint.subprocess.run", return_value=SimpleNamespace(returncode=0)),
+        pytest.raises(
+            SystemExit,
+            match="0",
+        ),
+    ):
+        lint(linter)
+
+
 def _read_merged_config() -> dict:
     config_path = os.environ.get("MEGALINTER_CONFIG", "")
     assert config_path, "MEGALINTER_CONFIG not set after _setup()"
@@ -79,6 +92,7 @@ def test_consumer_enable_list_cannot_reactivate_trivy(workspace):
 
         _run_setup()
         merged = _read_merged_config()
+        _run_lint()
 
     assert set(merged["ENABLE_LINTERS"]) == {"REPOSITORY_TRIVY", "REPOSITORY_TRIVY_CUSTOM"}
     assert set(os.environ["DISABLE_LINTERS"].split(",")) == {
@@ -97,6 +111,7 @@ def test_legacy_consumer_scanner_policy(workspace, monkeypatch, event, environme
         {
             "ENABLE_LINTERS": ["REPOSITORY_TRIVY", "REPOSITORY_SEMGREP", "PYTHON_RUFF", "YAML_YAMLLINT"],
             "DISABLE_LINTERS": ["YAML_YAMLLINT"],
+            "ENABLE_DISABLE_LINTERS_PRIORITY": "DISABLE",
         },
     )
     monkeypatch.setenv("GITHUB_EVENT_NAME", event)
@@ -104,6 +119,7 @@ def test_legacy_consumer_scanner_policy(workspace, monkeypatch, event, environme
         monkeypatch.setenv("DISABLE_LINTERS", environment_override)
 
     _run_setup()
+    _run_lint()
 
     disabled = set(os.environ["DISABLE_LINTERS"].split(","))
     assert {"REPOSITORY_TRIVY", "REPOSITORY_TRIVY_CUSTOM", "REPOSITORY_TRIVY_SBOM"} <= disabled
@@ -111,6 +127,26 @@ def test_legacy_consumer_scanner_policy(workspace, monkeypatch, event, environme
     assert ("YAML_YAMLLINT" in disabled) == (environment_override is None)
     assert ("PYTHON_RUFF" in disabled) == (environment_override is not None)
     assert os.environ["ENABLE_DISABLE_LINTERS_PRIORITY"] == "DISABLE"
+
+
+@pytest.mark.parametrize("priority", ["ENABLE", "DISABLE"])
+@pytest.mark.parametrize("single_linter", [None, "PYTHON_RUFF"])
+def test_legacy_scanner_policy_preserves_consumer_priority(workspace, priority, single_linter):
+    _write_consumer_config(
+        workspace,
+        {
+            "ENABLE_LINTERS": ["REPOSITORY_TRIVY", "PYTHON_RUFF"] if single_linter is None else ["REPOSITORY_TRIVY"],
+            "DISABLE_LINTERS": ["PYTHON_RUFF"],
+            "ENABLE_DISABLE_LINTERS_PRIORITY": priority,
+        },
+    )
+
+    _run_setup()
+    _run_lint(single_linter)
+
+    disabled = set(os.environ["DISABLE_LINTERS"].split(","))
+    assert "REPOSITORY_TRIVY" in disabled
+    assert ("PYTHON_RUFF" in disabled) == (priority == "DISABLE")
 
 
 @pytest.mark.parametrize("shared_syntax", [None, "flow", "block"])
@@ -124,19 +160,20 @@ def test_legacy_scanner_policy_keeps_inherited_exclusions(workspace, monkeypatch
     }
     (workspace / ".mega-linter.yml").write_text(extends[shared_syntax] + "\n")
     loader = Mock()
-    loader.get_list.return_value = ["YAML_YAMLLINT"]
+    loader.get.side_effect = lambda _policy, key: ["YAML_YAMLLINT"] if key == "DISABLE_LINTERS" else None
     monkeypatch.setitem(sys.modules, "megalinter", SimpleNamespace(config=loader))
     monkeypatch.setenv("GITHUB_EVENT_NAME", "pull_request")
 
     with patch("scripts.entrypoint.BAKED_CONFIG", DEFAULT_CONFIG):
         _run_setup()
+        _run_lint()
 
     if shared_syntax is not None:
         merged = _read_merged_config()
         assert merged["EXTENDS"] == ["local-policy.yml"]
         assert "DISABLE_LINTERS" not in merged
     loader.init_config.assert_called_once_with("coding-standards-scanner-policy", str(workspace))
-    loader.get_list.assert_called_once_with("coding-standards-scanner-policy", "DISABLE_LINTERS")
+    loader.get.assert_any_call("coding-standards-scanner-policy", "DISABLE_LINTERS")
     assert {"YAML_YAMLLINT", "REPOSITORY_SEMGREP"} <= set(os.environ["DISABLE_LINTERS"].split(","))
 
 

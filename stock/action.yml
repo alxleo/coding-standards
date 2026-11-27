@@ -100,7 +100,6 @@ runs:
         STOCK_PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         STOCK_PERSISTENT: ${{ runner.environment == 'self-hosted' && inputs.ephemeral != 'true' }}
         STOCK_SMOKE: ${{ inputs.smoke }}
-        ENABLE_DISABLE_LINTERS_PRIORITY: DISABLE
         VALIDATE_ALL_CODEBASE: ${{ inputs.base-sha == '' && (github.event_name != 'pull_request' || inputs.source-ref != '') }}
         REPOSITORY_BETTERLEAKS_PR_COMMITS_SCAN: "true"
         REPOSITORY_BETTERLEAKS_PR_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
@@ -152,25 +151,24 @@ runs:
         if [[ "${GITHUB_EVENT_NAME:-}" == pull_request* ]]; then
           required_disables+=,REPOSITORY_SEMGREP
         fi
-        configured_disables="$(python3 - "$MEGALINTER_CONFIG" <<'PY'
-        import json
+        configured_disables="$(python3 - "$required_disables" <<'PY'
         import os
         import sys
-        from pathlib import Path
+        from contextlib import redirect_stdout
 
-        import yaml
+        from megalinter import config
 
-        config = Path(sys.argv[1])
-        disabled = os.environ.get("DISABLE_LINTERS")
-        if disabled is None and config.is_file():
-            values = yaml.safe_load(config.read_text()) or {}
-            disabled = values.get("DISABLE_LINTERS")
-        if isinstance(disabled, str):
-            disabled = json.loads(disabled) if disabled.startswith("[") else disabled.split(",")
-        print(",".join(disabled or []))
+        with redirect_stdout(sys.stderr):
+            config.init_config("stock-scanner-policy", os.getcwd())
+        disabled = config.get_list("stock-scanner-policy", "DISABLE_LINTERS", [])
+        if config.get("stock-scanner-policy", "ENABLE_DISABLE_LINTERS_PRIORITY") != "DISABLE":
+            enabled = set(config.get_list("stock-scanner-policy", "ENABLE_LINTERS", []))
+            disabled = [linter for linter in disabled if linter not in enabled]
+        print(",".join(dict.fromkeys([*disabled, *sys.argv[1].split(",")])))
         PY
         )"
-        export DISABLE_LINTERS="$required_disables${configured_disables:+,$configured_disables}"
+        export DISABLE_LINTERS="$configured_disables"
+        export ENABLE_DISABLE_LINTERS_PRIORITY=DISABLE
         if [[ -n "$STOCK_BASE_SHA" ]]; then
           [[ "$STOCK_BASE_SHA" =~ ^[0-9a-f]{40}$ ]]
           git cat-file -e "$STOCK_BASE_SHA^{commit}"
