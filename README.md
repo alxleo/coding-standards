@@ -28,6 +28,33 @@ just cs-recommend   # what checks to enable for this repo
 
 No `.mega-linter.yml` needed — the image auto-detects your stack.
 
+## Skip build and lint on Markdown-only pull requests
+
+Call [Pull request scope](.github/workflows/pr-scope.yml) from a job in an
+existing workflow. Pin `alxleo/coding-standards/.github/workflows/pr-scope.yml`
+to a reviewed commit and give the calling job `contents: read`. Add that job
+to `needs` for jobs whose validation is independent of Markdown content,
+such as a job that lints workflow YAML. Set the optional `runner` input to
+reuse an existing Linux runner label.
+Set `full-validation-paths` to a single-line JSON array of build inputs
+that end in `.md`, such as `'["README.md"]'` for a README declared in
+package metadata. Any change to a matching path runs full validation.
+
+```yaml
+needs: change-scope
+if: ${{ !cancelled() && needs.change-scope.outputs.markdown-only != 'true' }}
+```
+
+Keep the original workflow triggers and job names so GitHub still reports
+required checks. Skipped jobs satisfy required checks. The reusable workflow
+compares the tested merge commit to its first parent. A rename out of a
+non-Markdown path still runs validation. Empty diffs, non-PR events, and
+classification failures also leave validation enabled. Keep review and other
+merge-policy jobs independent of this output. Keep Markdown, text hygiene,
+and secret scanning checks active in both lanes. The default `cs-init`
+lint job combines these checks with other linters, so leave that job
+running on Markdown-only pull requests.
+
 ## What runs automatically
 
 | Your repo has | Image runs |
