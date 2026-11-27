@@ -7,6 +7,10 @@ on:
         description: Linux runner label for the scope check
         default: ubuntu-latest
         type: string
+      package-readme:
+        description: Optional repository-relative README required for package metadata
+        default: ""
+        type: string
     outputs:
       markdown-only:
         description: True when a pull request changes at least one file and all changed paths end in .md (case-insensitive).
@@ -21,7 +25,9 @@ jobs:
     runs-on: ${{ inputs.runner }}
     timeout-minutes: 5
     outputs:
-      markdown-only: ${{ steps.changes.outputs.markdown == 'true' && steps.changes.outputs.other == 'false' }}
+      markdown-only: >-
+        ${{ steps.changes.outputs.markdown == 'true' && steps.changes.outputs.other == 'false' &&
+            (inputs.package-readme == '' || steps.package-readme.outputs.valid == 'true') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -46,3 +52,15 @@ jobs:
           filters: |
             markdown: '**/*.[mM][dD]'
             other: '!**/*.[mM][dD]'
+      - name: Check package README
+        id: package-readme
+        if: inputs.package-readme != '' && steps.changes.outputs.markdown == 'true' && steps.changes.outputs.other == 'false'
+        shell: bash
+        env:
+          PACKAGE_README: ${{ inputs.package-readme }}
+        run: |
+          if [ -f "$PACKAGE_README" ] && iconv -f UTF-8 -t UTF-8 < "$PACKAGE_README" > /dev/null; then
+            echo "valid=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "The package README is missing or invalid. Running full validation."
+          fi

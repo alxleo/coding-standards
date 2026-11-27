@@ -35,6 +35,9 @@ existing workflow. Pin `alxleo/coding-standards/.github/workflows/pr-scope.yml`
 to a reviewed commit and give the calling job `contents: read`. Add that job
 to `needs` for each build or lint job you want to skip. Set the optional
 `runner` input to reuse an existing Linux runner label.
+Set `package-readme` to the path declared in your package metadata if the
+build requires a readable UTF-8 README. Removing or corrupting that file
+runs full validation even when all changed paths are Markdown.
 
 ```yaml
 needs: change-scope
