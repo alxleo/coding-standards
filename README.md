@@ -33,8 +33,9 @@ No `.mega-linter.yml` needed — the image auto-detects your stack.
 Call [Pull request scope](.github/workflows/pr-scope.yml) from a job in an
 existing workflow. Pin `alxleo/coding-standards/.github/workflows/pr-scope.yml`
 to a reviewed commit and give the calling job `contents: read`. Add that job
-to `needs` for each build or lint job you want to skip. Set the optional
-`runner` input to reuse an existing Linux runner label.
+to `needs` for jobs whose validation is independent of Markdown content,
+such as a job that lints workflow YAML. Set the optional `runner` input to
+reuse an existing Linux runner label.
 Set `package-readme` to the path declared in your package metadata if the
 build requires a readable UTF-8 README. Removing or corrupting that file
 runs full validation even when all changed paths are Markdown.
@@ -49,7 +50,10 @@ required checks. Skipped jobs satisfy required checks. The reusable workflow
 compares the tested merge commit to its first parent. A rename out of a
 non-Markdown path still runs validation. Empty diffs, non-PR events, and
 classification failures also leave validation enabled. Keep review and other
-merge-policy jobs independent of this output.
+merge-policy jobs independent of this output. Keep Markdown, text hygiene,
+and secret scanning checks active in both lanes. The default `cs-init`
+lint job combines these checks with other linters, so leave that job
+running on Markdown-only pull requests.
 
 ## What runs automatically
 
