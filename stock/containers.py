@@ -33,6 +33,7 @@ REPORT = "summary.md"
 ZIZMOR_NO_INPUTS = 3
 SCHEMA_MOUNT = Path("/opt/coding-standards/schemas")
 V8R_IGNORE = "/opt/coding-standards/configs/.v8rignore"
+LEGACY_EXTENDS = "https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml"
 SOURCE = "/tmp/lint"  # noqa: S108 - reserved image workspace, mounted by Docker
 POLICY = "/tmp/policy"  # noqa: S108 - read-only mount next to workspace
 LOGGER = logging.getLogger(__name__)
@@ -244,20 +245,27 @@ def checkout_file(source, selection):
 
 def consumer_configs(source, policy, enabled):
     defaults = {
+        "ACTION_ACTIONLINT": ("actionlint.yaml", "actionlint.yml"),
+        "ACTION_ZIZMOR": (".zizmor.yml", ".zizmor.yaml", "zizmor.yml", "zizmor.yaml"),
+        "PYTHON_PYRIGHT": ("pyrightconfig.json",),
         "PYTHON_RUFF": ("ruff.toml", ".ruff.toml"),
+        "REPOSITORY_BETTERLEAKS": (".gitleaks.toml",),
         "YAML_YAMLLINT": (".yamllint", ".yamllint.yml", ".yamllint.yaml"),
         "JSON_V8R": (".v8rrc.yml", ".v8rrc.yaml", ".v8rrc.json"),
         "YAML_V8R": (".v8rrc.yml", ".v8rrc.yaml", ".v8rrc.json"),
     }
     configs = {}
-    for key in enabled.intersection(defaults):
-        filename = policy.get(f"{key}_CONFIG_FILE")
+    for key, names in defaults.items():
+        legacy_key = CURRENT_KEYS.get(key, key)
+        if key not in enabled and legacy_key not in enabled:
+            continue
+        filename = policy.get(f"{key}_CONFIG_FILE", policy.get(f"{legacy_key}_CONFIG_FILE"))
         if filename == "LINTER_DEFAULT":
             configs[key] = None
             continue
         directory = Path(policy.get(f"{key}_RULES_PATH", policy.get("LINTER_RULES_PATH", ".")))
-        names = [Path(filename)] if filename is not None else list(map(Path, defaults[key]))
-        paths = [directory / name for name in names] + names
+        candidates = [Path(filename)] if filename is not None else list(map(Path, names))
+        paths = [directory / name for name in candidates] + candidates
         found = next((path for path in paths if (source / path).is_file()), None)
         if found is not None or filename is not None:
             configs[key] = checkout_file(source, found if found is not None else paths[0])
@@ -268,6 +276,16 @@ def consumer_policy(source, filename):
     import yaml  # noqa: PLC0415 - only the opt-in uv entry point needs PyYAML
 
     policy = yaml.safe_load((source / checkout_file(source, filename)).read_text())
+    if "ENABLE_LINTERS" not in policy:
+        extends = policy.get("EXTENDS")
+        if extends not in ([LEGACY_EXTENDS], LEGACY_EXTENDS):
+            message = "Set ENABLE_LINTERS or inherit the bundled coding-standards defaults"
+            raise ValueError(message)
+        # Use the defaults from this release. Resolving the old main URL would
+        # let linter activation drift independently of the caller's pinned release.
+        bundled = yaml.safe_load((LOCK.parent.parent / ".mega-linter-default.yml").read_text())
+        for key in ("ENABLE_LINTERS", "DISABLE_ERRORS_LINTERS"):
+            policy.setdefault(key, bundled[key])
     # Consume only the declared policy fields. Never run the legacy PRE/POST commands.
     enabled = set(policy["ENABLE_LINTERS"])
     advisory = set(policy.get("DISABLE_ERRORS_LINTERS", ()))
@@ -478,8 +496,75 @@ def scan_semgrep_rules(image_task, args):
     }
 
 
+def zizmor_arguments(consumer, advisory):
+    shared = f"{POLICY}/lint-configs/.zizmor.yml"
+    configs = consumer.configs if consumer else {}
+    config = configs.get("ACTION_ZIZMOR", shared)
+    if isinstance(config, Path):
+        config = f"{SOURCE}/{config}"
+    return [
+        "--offline",
+        "--quiet",
+        "--collect",
+        "workflows,actions",
+        "--strict-collection",
+        "--format=json-v1",
+        *(["--no-exit-codes"] if advisory else []),
+        *(["--config", config] if config else ["--no-config"]),
+        ".",
+    ]
+
+
+def run_tool(key, args, source, options, command_line):
+    if key != "PYTHON_PYRIGHT" or args.pyright_project is None:
+        return run_scanner(options, command_line)
+
+    with tempfile.TemporaryDirectory(prefix="stock-pyright-") as directory:
+        environment = Path(directory)
+        image = command_line[0]
+        owner = [] if args.rootless else ["--user", f"{os.getuid()}:{os.getgid()}"]
+        setup = run_scanner(
+            [
+                *mount(source, SOURCE),
+                *mount(environment, "/stock-env", writable=True),
+                *owner,
+                "--cap-drop=ALL",
+                "--env",
+                "UV_PROJECT_ENVIRONMENT=/stock-env/.venv",
+                "--entrypoint",
+                "uv",
+            ],
+            [
+                image,
+                "sync",
+                "--project",
+                str(args.pyright_project),
+                "--locked",
+                "--no-install-project",
+                "--no-cache",
+                "--link-mode",
+                "copy",
+            ],
+        )
+        LOGGER.info("%s", setup.stdout.rstrip())
+        setup.check_returncode()
+        return run_scanner(
+            [
+                *options,
+                *mount(environment, "/stock-env"),
+                "--env",
+                "PYTHON_PYRIGHT_ARGUMENTS=--level error --pythonpath /stock-env/.venv/bin/python",
+            ],
+            command_line,
+        )
+
+
+def scan_base(key, args):
+    return "" if key == "PYTHON_PYRIGHT" and args.pyright_full else args.base
+
+
 def scan_one(key, digest, args, source, image_task):
-    reports, base, advisory = args.reports, args.base, args.advisory
+    reports, base, advisory = args.reports, scan_base(key, args), args.advisory
     if args.consumer:
         blocking = args.consumer.blocking
         advisory = advisory or (key not in blocking and CURRENT_KEYS.get(key) not in blocking)
@@ -534,23 +619,12 @@ def scan_one(key, digest, args, source, image_task):
         )
     if key == "ACTION_ZIZMOR":
         options += ["--entrypoint", "zizmor", "--network", "none"]
-        command_line += [
-            "--offline",
-            "--quiet",
-            "--collect",
-            "workflows,actions",
-            "--strict-collection",
-            "--format=json-v1",
-            *(["--no-exit-codes"] if advisory else []),
-            "--config",
-            f"{POLICY}/lint-configs/.zizmor.yml",
-            ".",
-        ]
+        command_line += zizmor_arguments(args.consumer, advisory)
     for name, value in env.items():
         options += ["--env", f"{name}={value}"]
 
     start = time.monotonic()
-    proc = run_scanner(options, command_line)
+    proc = run_tool(key, args, source, options, command_line)
     (report_dir / "console.log").write_text(proc.stdout)
     elapsed = round(time.monotonic() - start, 2)
     status = proc.returncode
@@ -695,6 +769,7 @@ def pr_linters(args, merge_base, lock, keys):
         key
         for key in keys
         if selectors[key] is None
+        or (key == "PYTHON_PYRIGHT" and args.pyright_full)
         or any(
             selected_file(source, name, selectors[key])
             for name in (args.diff if key == "ACTION_ZIZMOR" else args.changed_files)
@@ -716,6 +791,15 @@ def scan_linter(key, digest, args, image_task=None):
         return scan_one(key, digest, args, source, image_task)
 
 
+def pyright_inputs_changed(args):
+    config = args.consumer.configs.get("PYTHON_PYRIGHT") if args.consumer else None
+    inputs = {Path("pyrightconfig.json"), args.consumer_config, config, Path("stock.mega-linter.yml")}
+    if args.pyright_project is not None:
+        inputs.update(args.pyright_project / name for name in ("pyproject.toml", "uv.lock", ".python-version"))
+        inputs.add(Path(".python-version"))
+    return not inputs.isdisjoint(map(Path, args.diff))
+
+
 def scan(args):
     start = args.started = time.monotonic()
     source = args.source = args.source.resolve()
@@ -727,6 +811,7 @@ def scan(args):
     lock = image_lock["images"]
     keys = args.linter or list(lock)
     skipped = []
+    args.pyright_full = False
     base = args.base
     if base:
         if not re.fullmatch("[0-9a-f]{40}", base):
@@ -740,6 +825,7 @@ def scan(args):
         args.changed_files = [
             name for name in args.diff if (source / name).is_file() and not (source / name).is_symlink()
         ]
+        args.pyright_full = pyright_inputs_changed(args)
         selected = pr_linters(args, merge_base, image_lock, keys)
         skipped = [key for key in keys if key not in selected]
         # The repository scans dominate the PR's critical path. Start both
@@ -834,6 +920,7 @@ def main():
     parser.add_argument("--base", default="")
     parser.add_argument("--trivy-config", type=Path, help="Repository-relative Trivy configuration")
     parser.add_argument("--consumer-config", type=Path, help="Match an existing repository MegaLinter policy via uv")
+    parser.add_argument("--pyright-project", type=Path, help="Prepare a lockfile-backed uv project before Pyright")
     parser.add_argument("--semgrep-config", type=Path, help="Repository-relative Semgrep rules")
     parser.add_argument("--semgrep-pr-scope", choices=("auto", "full"), default="auto")
     parser.add_argument("--semgrep-targets", default="", help="Newline-separated Git pathspecs for explicit targets")
@@ -860,6 +947,10 @@ def main():
         if args.trivy_config.is_absolute() or not config.is_relative_to(source) or not config.is_file():
             parser.error("--trivy-config must select a file inside the source checkout")
         args.trivy_config = config.relative_to(source)
+    if args.pyright_project is not None:
+        source = args.source.resolve()
+        args.pyright_project = checkout_file(source, args.pyright_project / "pyproject.toml").parent
+        checkout_file(source, args.pyright_project / "uv.lock")
     sys.exit(scan(args))
 
 

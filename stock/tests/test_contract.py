@@ -8,6 +8,7 @@ import shutil
 import subprocess
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
+from zipfile import ZipFile
 
 import pytest
 
@@ -169,6 +170,92 @@ def test_stock_scanners(tmp_path):
         assert all(exits[key] for key in {*LINTERS, "REPOSITORY_SEMGREP_LOCAL"} - {"REPOSITORY_SEMGREP"}), exits
         observed[mode] = findings(reports)
     assert observed == EXPECTED["findings"], json.dumps(observed, indent=2)
+
+
+def test_stock_inherited_policy_and_pyright_project(tmp_path):
+    source = tmp_path / "source"
+    source.mkdir()
+    run("git", "init", "--quiet", cwd=source)
+    (source / ".gitignore").write_text(".venv/\n")
+    (source / ".mega-linter.yml").write_text(
+        "EXTENDS:\n"
+        "  - https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml\n"
+        "LINTER_RULES_PATH: rules\n"
+        "PYTHON_PYRIGHT_CONFIG_FILE: types.json\n"
+    )
+    rules = source / "rules"
+    rules.mkdir()
+    (rules / "types.json").write_text(
+        json.dumps(
+            {
+                "reportAssignmentType": "none",
+                "reportMissingImports": "error",
+                "reportUndefinedVariable": "error",
+                "venvPath": "../project",
+                "venv": ".venv",
+            }
+        )
+    )
+    project = source / "project"
+    project.mkdir()
+    package = "fixture_dependency-1.0-py3-none-any.whl"
+    info = "fixture_dependency-1.0.dist-info"
+    with ZipFile(source / package, "w") as wheel:
+        wheel.writestr("fixture_dependency/__init__.py", "value: int = 1\n")
+        wheel.writestr(f"{info}/METADATA", "Metadata-Version: 2.1\nName: fixture-dependency\nVersion: 1.0\n")
+        wheel.writestr(f"{info}/WHEEL", "Wheel-Version: 1.0\nRoot-Is-Purelib: true\nTag: py3-none-any\n")
+        wheel.writestr(f"{info}/RECORD", "")
+    project_config = (
+        '[project]\nname = "fixture"\nversion = "{version}"\nrequires-python = ">=3.11"\n'
+        'dependencies = ["fixture-dependency"]\n\n[tool.uv]\npackage = false\n'
+        '[tool.uv.sources]\nfixture-dependency = {{ path = "../' + package + '" }}\n'
+    )
+    (project / "pyproject.toml").write_text(project_config.format(version="0"))
+    run("uv", "lock", "--offline", cwd=project)
+    (project / "check.py").write_text("from fixture_dependency import value\nallowed: str = value\n")
+    commit(source)
+    options = (
+        "uv",
+        "run",
+        "--script",
+        str(ROOT / "stock/containers.py"),
+        "--source",
+        str(source),
+        "--cache",
+        str(tmp_path / "cache"),
+        "--consumer-config",
+        ".mega-linter.yml",
+        "--pyright-project",
+        "project",
+        "--linter",
+        "PYTHON_PYRIGHT",
+    )
+    good = run(*options, "--reports", str(tmp_path / "good"), check=False)
+    assert good.returncode == 0, good.stderr[-10000:]
+    assert not (project / ".venv").exists()
+    (project / "check.py").write_text("value = missing\n")
+    base = commit(source)
+    (project / "pyproject.toml").write_text(project_config.format(version="1"))
+    run("uv", "lock", "--offline", cwd=project)
+    lock_change = commit(source)
+    reports = tmp_path / "changed-dependencies"
+    bad = run(*options, "--reports", str(reports), "--base", base, check=False)
+    assert bad.returncode == 1, bad.stderr[-10000:]
+    report = json.loads((reports / "python_pyright/mega-linter-report.json").read_text())
+    (linter,) = report["active_linters"]
+    assert linter["final_config_file"] == "/tmp/lint/rules/types.json"
+    assert linter["number_errors"] == 1
+    assert "reportUndefinedVariable" in linter["stdout"]
+
+    config = rules / "types.json"
+    contents = json.loads(config.read_text())
+    config.write_text(json.dumps({**contents, "reportUndefinedVariable": "none"}))
+    commit(source)
+    reports = tmp_path / "changed-policy"
+    fixed = run(*options, "--reports", str(reports), "--base", lock_change, check=False)
+    assert fixed.returncode == 0, fixed.stderr[-10000:]
+    assert (reports / "python_pyright/mega-linter-report.json").is_file()
+    assert not (project / ".venv").exists()
 
 
 @pytest.mark.skipif(os.environ.get("STOCK_RENOVATE") != "true", reason="Run Renovate on the CI host with Node")

@@ -20,6 +20,9 @@ on:
       consumer-config:
         description: Existing MegaLinter policy to preserve the consumer's blocking checks in the per-linter runtime
         type: string
+      pyright-project:
+        description: Optional repository-relative uv project to prepare from its lockfile before Pyright
+        type: string
       semgrep-config:
         description: Optional repository-relative Semgrep rule file for a separate local-rule scan
         type: string
@@ -82,6 +85,7 @@ jobs:
           source-ref: ${{ inputs.source-ref }}
           trivy-config: ${{ inputs.trivy-config }}
           consumer-config: ${{ inputs.consumer-config }}
+          pyright-project: ${{ inputs.pyright-project }}
           semgrep-config: ${{ inputs.semgrep-config }}
           semgrep-pr-scope: ${{ inputs.semgrep-pr-scope || 'auto' }}
           semgrep-targets: ${{ inputs.semgrep-targets }}
