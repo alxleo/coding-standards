@@ -1,6 +1,6 @@
 config:
   default: true
-  MD013: false # Line length — too noisy for docs
+  MD013: false # Markdown prose has no source line limit
   MD012: false # Multiple blank lines — low-value, auto-generated files trigger this
   MD031: false # Blanks around fences — too strict for templates
   MD032: false # Blanks around lists — high friction on mixed prose+list content

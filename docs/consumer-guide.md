@@ -71,14 +71,9 @@ LINTER_RULES_PATH: quality/lint
 ACTION_ACTIONLINT_CONFIG_FILE: actionlint.yaml
 ```
 
-With the coding-standards image, a workspace-relative `LINTER_RULES_PATH` is an
-overlay: matching files in that directory win, while missing files continue to
-use the configs baked into the image. Keep only `.mega-linter.yml` at the repo
-root and place linter-owned files such as `ruff.toml`, `.yamllint`,
-`.shellcheckrc`, and `.gitleaks.toml` in `quality/lint/`.
+With the coding-standards image, a workspace-relative `LINTER_RULES_PATH` is an overlay: matching files in that directory win, while missing files continue to use the configs baked into the image. Keep only `.mega-linter.yml` at the repo root and place linter-owned files such as `ruff.toml`, `.yamllint`, `.shellcheckrc`, and `.gitleaks.toml` in `quality/lint/`.
 
-Repositories that require particular overrides can make that contract fail
-closed by listing their MegaLinter config keys:
+Repositories that require particular overrides can make that contract fail closed by listing their MegaLinter config keys:
 
 ```yaml
 CODING_STANDARDS_REQUIRED_LOCAL_CONFIGS:
@@ -87,21 +82,13 @@ CODING_STANDARDS_REQUIRED_LOCAL_CONFIGS:
   - YAML_YAMLLINT_CONFIG_FILE
 ```
 
-The entrypoint removes this coding-standards-only setting before MegaLinter
-starts. It fails if any listed key does not resolve to an existing file below
-`LINTER_RULES_PATH`. Unlisted linters continue to use the baked baseline.
+The entrypoint removes this coding-standards-only setting before MegaLinter starts. It fails if any listed key does not resolve to an existing file below `LINTER_RULES_PATH`. Unlisted linters continue to use the baked baseline.
 
-`.editorconfig` is the deliberate exception. It is a repository-wide editor
-standard whose discovery protocol requires it in the directory tree, not a
-MegaLinter-only config file.
+`.editorconfig` is the deliberate exception. It is a repository-wide editor standard whose discovery protocol requires it in the directory tree, not a MegaLinter-only config file.
 
 ### Suppress specific semgrep rules
 
-The baseline ships cached security-audit and Trail of Bits rules alongside
-the custom rules. If you extend the baseline, the image adds shared exclusions
-to your Semgrep arguments. Keep only repo-local settings and exclusions in
-`REPOSITORY_SEMGREP_ARGUMENTS`. The environment variable of the same name takes
-priority over repo-local YAML.
+The baseline ships cached security-audit and Trail of Bits rules alongside the custom rules. If you extend the baseline, the image adds shared exclusions to your Semgrep arguments. Keep only repo-local settings and exclusions in `REPOSITORY_SEMGREP_ARGUMENTS`. The environment variable of the same name takes priority over repo-local YAML.
 
 ```yaml
 # .mega-linter.yml — suppress individual semgrep rules
@@ -249,8 +236,7 @@ POST_COMMANDS:
 
 ### 5. Linter config directory and filename overrides
 
-Set the shared directory once. Override `<LINTER>_CONFIG_FILE` only when a file
-uses a non-default name:
+Set the shared directory once. Override `<LINTER>_CONFIG_FILE` only when a file uses a non-default name:
 
 ```yaml
 LINTER_RULES_PATH: quality/lint
