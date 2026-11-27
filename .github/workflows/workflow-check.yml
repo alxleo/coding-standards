@@ -11,7 +11,8 @@ permissions:
 
 jobs:
   change-scope:
-    uses: ./.github/workflows/pr-scope.yml
+    # Local reusable workflows resolve at the caller commit. Actionlint 1.7.12 rejects $/ syntax.
+    uses: ./.github/workflows/pr-scope.yml # zizmor: ignore[self-repository]
 
   workflow-check:
     needs: change-scope
