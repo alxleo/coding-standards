@@ -36,9 +36,9 @@ to a reviewed commit and give the calling job `contents: read`. Add that job
 to `needs` for jobs whose validation is independent of Markdown content,
 such as a job that lints workflow YAML. Set the optional `runner` input to
 reuse an existing Linux runner label.
-Set `package-readme` to the path declared in your package metadata if the
-build requires a readable UTF-8 README. Removing or corrupting that file
-runs full validation even when all changed paths are Markdown.
+Set `full-validation-paths` to a single-line JSON array of build inputs
+that end in `.md`, such as `'["README.md"]'` for a README declared in
+package metadata. Any change to a matching path runs full validation.
 
 ```yaml
 needs: change-scope
