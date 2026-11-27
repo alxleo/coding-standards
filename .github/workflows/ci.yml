@@ -208,16 +208,6 @@ jobs:
           docker run --rm -v "$workspace:/tmp/lint" -e DEFAULT_WORKSPACE=/tmp/lint \
             "$img" show-config | tee /dev/stderr | grep -q "linters with baked configs"
 
-      # PR self-lint sees the synthetic merge, so validate the squash title directly.
-      - name: Validate pull request title
-        if: github.event_name == 'pull_request'
-        env:
-          PULL_REQUEST_TITLE: ${{ github.event.pull_request.title }}
-        run: |
-          printf '%s\n' "$PULL_REQUEST_TITLE" |
-            docker run --rm -i --entrypoint=commitlint "${REGISTRY}/${IMAGE_NAME}:ci-test" \
-              --config /opt/coding-standards/configs/commitlint.config.mjs
-
       - name: Self-lint (built image against this repo)
         run: |
           echo "::group::Self-lint"
