@@ -289,7 +289,7 @@ def main(ctx: typer.Context) -> None:
 
 
 @app.command()
-def lint(linter: str = typer.Argument(None, help="Linter name (e.g. ruff, PYTHON_RUFF)")) -> None:
+def lint(linter: str | None = typer.Argument(None, help="Linter name (e.g. ruff, PYTHON_RUFF)")) -> None:
     """Run full lint suite, or a single linter."""
     if linter:
         os.environ["ENABLE_LINTERS"] = linter.upper()

@@ -24,7 +24,7 @@ known_first_party = ["manifest_schema", "blast_radius", "image_pins", "container
 # pyyaml installs as 'yaml', pytest-randomly activates via entry point
 package_module_name_map = {pyyaml = "yaml"}
 # The image installs the pinned MegaLinter runtime directly in its Dockerfile.
-per_rule_ignores = {DEP001 = ["megalinter"], DEP002 = ["pytest-randomly"]}
+per_rule_ignores = {DEP001 = ["megalinter"], DEP002 = ["pytest-randomly"], DEP003 = ["megalinter"]}
 
 [tool.importlinter]
 root_packages = ["scripts"]
