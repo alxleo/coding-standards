@@ -152,20 +152,24 @@ runs:
         if [[ "${GITHUB_EVENT_NAME:-}" == pull_request* ]]; then
           required_disables+=,REPOSITORY_SEMGREP
         fi
-        configured_disables="${DISABLE_LINTERS-}"
-        if [[ ! -v DISABLE_LINTERS && -f "$MEGALINTER_CONFIG" ]]; then
-          configured_disables="$(python3 - "$MEGALINTER_CONFIG" <<'PY'
+        configured_disables="$(python3 - "$MEGALINTER_CONFIG" <<'PY'
+        import json
+        import os
         import sys
         from pathlib import Path
 
         import yaml
 
-        config = yaml.safe_load(Path(sys.argv[1]).read_text()) or {}
-        disabled = config.get("DISABLE_LINTERS") or []
-        print(disabled if isinstance(disabled, str) else ",".join(disabled))
+        config = Path(sys.argv[1])
+        disabled = os.environ.get("DISABLE_LINTERS")
+        if disabled is None and config.is_file():
+            values = yaml.safe_load(config.read_text()) or {}
+            disabled = values.get("DISABLE_LINTERS")
+        if isinstance(disabled, str):
+            disabled = json.loads(disabled) if disabled.startswith("[") else disabled.split(",")
+        print(",".join(disabled or []))
         PY
-          )"
-        fi
+        )"
         export DISABLE_LINTERS="$required_disables${configured_disables:+,$configured_disables}"
         if [[ -n "$STOCK_BASE_SHA" ]]; then
           [[ "$STOCK_BASE_SHA" =~ ^[0-9a-f]{40}$ ]]

@@ -333,12 +333,12 @@ def run_scanner(options, command_line):
 def semgrep_scope(args):
     if not args.is_pull_request:
         return None, None
+    if args.semgrep_pr_scope == "full":
+        return None, "full-tree scans are disabled on pull requests"
+    if not args.base:
+        return None, "pull-request base commit is unavailable"
     paths = args.changed_files
     reason = None
-    if args.semgrep_pr_scope == "full":
-        reason = "full-tree scans are disabled on pull requests"
-    elif not args.base:
-        reason = "pull-request base commit is unavailable"
     scope_files = {".gitattributes", ".gitignore", ".gitmodules", ".semgrepignore"}
     if not reason and any(path == args.semgrep_config or path.name in scope_files for path in map(Path, args.diff)):
         reason = "Semgrep rules or path-ignore files changed"

@@ -87,7 +87,7 @@ def test_consumer_enable_list_cannot_reactivate_trivy(workspace):
 
 
 @pytest.mark.parametrize("event", ["pull_request", "pull_request_target", "schedule"])
-@pytest.mark.parametrize("environment_override", [False, True])
+@pytest.mark.parametrize("environment_override", [None, "PYTHON_RUFF", '["PYTHON_RUFF"]'])
 def test_legacy_consumer_scanner_policy(workspace, monkeypatch, event, environment_override):
     _write_consumer_config(
         workspace,
@@ -97,16 +97,16 @@ def test_legacy_consumer_scanner_policy(workspace, monkeypatch, event, environme
         },
     )
     monkeypatch.setenv("GITHUB_EVENT_NAME", event)
-    if environment_override:
-        monkeypatch.setenv("DISABLE_LINTERS", "PYTHON_RUFF")
+    if environment_override is not None:
+        monkeypatch.setenv("DISABLE_LINTERS", environment_override)
 
     _run_setup()
 
     disabled = set(os.environ["DISABLE_LINTERS"].split(","))
     assert {"REPOSITORY_TRIVY", "REPOSITORY_TRIVY_CUSTOM", "REPOSITORY_TRIVY_SBOM"} <= disabled
     assert ("REPOSITORY_SEMGREP" in disabled) == event.startswith("pull_request")
-    assert ("YAML_YAMLLINT" in disabled) is not environment_override
-    assert ("PYTHON_RUFF" in disabled) is environment_override
+    assert ("YAML_YAMLLINT" in disabled) == (environment_override is None)
+    assert ("PYTHON_RUFF" in disabled) == (environment_override is not None)
     assert os.environ["ENABLE_DISABLE_LINTERS_PRIORITY"] == "DISABLE"
 
 

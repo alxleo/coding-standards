@@ -152,8 +152,6 @@ def test_pull_request_source_ref_without_base_skips_full_semgrep(tmp_path, monke
         semgrep_targets=[],
         semgrep_config=Path("policy/semgrep.yml"),
         source=tmp_path,
-        diff=[],
-        changed_files=[],
     )
     images = image_pins()["images"]
 

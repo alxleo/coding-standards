@@ -10,6 +10,7 @@ Usage:
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shlex
@@ -179,7 +180,10 @@ def _apply_scanner_policy(workspace: Path) -> None:
         if config_path.is_file():
             config = yaml.safe_load(config_path.read_text()) or {}
             configured = config.get("DISABLE_LINTERS")
-    disabled = configured.split(",") if isinstance(configured, str) else (configured or [])
+    if isinstance(configured, str):
+        disabled = json.loads(configured) if configured.startswith("[") else configured.split(",")
+    else:
+        disabled = configured or []
     rejected = [*RETIRED_LINTERS]
     if os.environ.get("GITHUB_EVENT_NAME", "").startswith("pull_request"):
         rejected.append("REPOSITORY_SEMGREP")
