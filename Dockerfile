@@ -75,7 +75,7 @@ RUN --mount=type=cache,target=/root/.npm \
   v8r@6.1.0 \
   stylelint@17.14.1 \
   htmlhint@1.9.2 \
-  @ls-lint/ls-lint@2.3.1 \
+  @ls-lint/ls-lint@2.3.2 \
   @commitlint/cli@21.2.1 \
   @commitlint/config-conventional@21.2.0 \
   dclint@3.1.0 \
