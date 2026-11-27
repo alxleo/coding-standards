@@ -15,7 +15,6 @@ class ManifestFiles(BaseModel):
     ruff: bool
     gitleaks: bool
     sops: bool
-    trivy: bool
     mega_linter: bool
     mega_linter_extends_url: str | None
     conftest_toml: bool
@@ -96,7 +95,6 @@ class ManifestSuppressions(BaseModel):
     type_ignore: int
     nosemgrep: int
     shellcheck_disable: int
-    trivyignore: int
     gitleaksignore: int
     total: int
 

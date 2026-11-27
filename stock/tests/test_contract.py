@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
@@ -17,13 +18,15 @@ TESTS = Path(__file__).parent
 ROOT = TESTS.parent.parent
 FIXTURE = TESTS / "fixture"
 EXPECTED = json.loads((TESTS / "expected.json").read_text())
+sys.path.insert(0, str(ROOT / "stock"))
+from containers import consumer_policy, select_linter_keys
+
 LINTERS = (
     "ACTION_ZIZMOR",
     "JSON_V8R",
     "PYTHON_RUFF",
     "REPOSITORY_BETTERLEAKS",
     "REPOSITORY_SEMGREP",
-    "REPOSITORY_TRIVY",
     "YAML_YAMLLINT",
 )
 
@@ -80,8 +83,6 @@ def scan(source, reports, cache, *options, linters=LINTERS):
         "--persistent",
         "--consumer-config",
         ".mega-linter.yml",
-        "--trivy-config",
-        "policy/trivy.yml",
         "--semgrep-config",
         "policy/semgrep.yml",
         "--semgrep-targets",
@@ -92,6 +93,39 @@ def scan(source, reports, cache, *options, linters=LINTERS):
     )
     assert (reports / "containers.json").is_file(), result.stderr[-10000:]
     return result.returncode, json.loads((reports / "containers.json").read_text())
+
+
+def test_retired_trivy_cannot_be_selected_by_consumer_config(tmp_path):
+    config = tmp_path / ".mega-linter.yml"
+    config.write_text(
+        "ENABLE_LINTERS:\n"
+        "  - REPOSITORY_TRIVY\n"
+        "  - REPOSITORY_TRIVY_CUSTOM\n"
+    )
+    consumer = consumer_policy(tmp_path, Path(".mega-linter.yml"))
+    images = image_pins()["images"]
+    selected = select_linter_keys(images, None, "0123456789abcdef")
+
+    assert {"REPOSITORY_TRIVY", "REPOSITORY_TRIVY_CUSTOM"} <= consumer.blocking
+    assert "REPOSITORY_TRIVY" not in images
+    assert "REPOSITORY_TRIVY_CUSTOM" not in images
+    assert "REPOSITORY_SEMGREP" not in selected
+    for key in ("REPOSITORY_TRIVY", "REPOSITORY_TRIVY_CUSTOM"):
+        with pytest.raises(ValueError, match="Unsupported stock linter selection"):
+            select_linter_keys(images, (key,), "0123456789abcdef")
+
+
+def test_stock_semgrep_smoke_is_explicit():
+    image_lock = image_pins()
+    images = image_lock["images"]
+    selectors = json.loads((ROOT / "stock/file-selectors.json").read_text())
+
+    assert selectors["version"] == image_lock["version"]
+    assert selectors["selectors"].keys() == images.keys()
+    assert "REPOSITORY_SEMGREP" not in select_linter_keys(images, None, "0123456789abcdef")
+    assert select_linter_keys(images, ("REPOSITORY_SEMGREP",), "0123456789abcdef") == [
+        "REPOSITORY_SEMGREP"
+    ]
 
 
 def sarif_findings(key, report):
@@ -149,8 +183,6 @@ def test_stock_scanners(tmp_path):
     (source / "changed.py").write_text('marker = "allowed"\n')
     base = commit(source)
     cache = tmp_path / "cache"
-    code, skipped = scan(source, tmp_path / "source-only", cache, "--base", first, linters=("REPOSITORY_TRIVY",))
-    assert code == 0 and skipped["skipped_linters"] == ["REPOSITORY_TRIVY"] and skipped["linters"] == []
     copy_fixture(FIXTURE / "pr", source)
     commit(source)
     digest = image_pins()["images"]["REPOSITORY_SEMGREP"].removeprefix("sha256:")

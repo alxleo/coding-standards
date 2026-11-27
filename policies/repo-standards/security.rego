@@ -16,17 +16,6 @@ warn contains msg if {
 }
 
 warn contains msg if {
-	input.directories.decrypted
-	not input.files.trivy
-	not helpers.acknowledged("trivy")
-	msg := concat("\n", [
-		"trivy.yaml not found",
-		"  .decrypted/ directory present — trivy scans the full filesystem.",
-		"  Fix: create trivy.yaml with scan.skip-dirs for decrypted paths",
-	])
-}
-
-warn contains msg if {
 	input.directories.secrets
 	not input.files.sops
 	not helpers.acknowledged("sops")

@@ -14,9 +14,6 @@ on:
       source-ref:
         description: Optional fixed source ref for a full scan
         type: string
-      trivy-config:
-        description: Optional repository-relative Trivy config for the per-linter runtime
-        type: string
       consumer-config:
         description: Existing MegaLinter policy to preserve the consumer's blocking checks in the per-linter runtime
         type: string
@@ -80,7 +77,6 @@ jobs:
         with:
           runtime: ${{ inputs.runtime || matrix.runtime }}
           source-ref: ${{ inputs.source-ref }}
-          trivy-config: ${{ inputs.trivy-config }}
           consumer-config: ${{ inputs.consumer-config }}
           semgrep-config: ${{ inputs.semgrep-config }}
           semgrep-pr-scope: ${{ inputs.semgrep-pr-scope || 'auto' }}

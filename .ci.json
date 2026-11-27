@@ -1,6 +1,5 @@
 {
   "test_commands": [
-    "trivy --version",
     "pmd --version",
     "caddy version",
     "just --version",

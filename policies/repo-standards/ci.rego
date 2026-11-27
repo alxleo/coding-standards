@@ -85,7 +85,7 @@ warn contains msg if {
 	not helpers.acknowledged("ci_schedule_separation")
 	msg := concat("\n", [
 		"CI workflow mixes schedule triggers with push/PR triggers",
-		"  Scheduled jobs (trivy, dependency updates) are operational.",
+		"  Scheduled image scans and dependency updates are operational.",
 		"  PR/push jobs are CI. Mixing them adds conditional complexity",
 		"  (if: github.event_name != 'schedule') that obscures the pipeline.",
 		"  Fix: separate into ci.yml (PR + push) and scheduled.yml (cron).",

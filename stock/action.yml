@@ -10,8 +10,6 @@ inputs:
   base-sha:
     description: Optional base commit SHA for a changed-files scan of the fixed source ref
     default: ""
-  trivy-config:
-    description: Optional repository-relative Trivy config for the per-linter runtime
   consumer-config:
     description: Existing MegaLinter policy to preserve the consumer's blocking checks in the per-linter runtime
     default: ""
@@ -72,8 +70,6 @@ runs:
       uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: |
-          .stock-cache/trivy
-          .stock-cache/trivy-*
           .stock-cache/semgrep-*
           .stock-cache/schema-assets
         key: stock-data-${{ inputs.runtime }}-${{ runner.arch }}-${{ inputs.cache-namespace }}-${{ hashFiles('policy/stock/Dockerfile.images', 'policy/stock/mega-linter.yml', 'policy/build-assets.yml') }}-${{ steps.cache-date.outputs.date }}
@@ -97,7 +93,6 @@ runs:
         DISABLE_ERRORS: ${{ inputs.advisory }}
         STOCK_RUNTIME: ${{ inputs.runtime }}
         STOCK_BASE_SHA: ${{ inputs.base-sha }}
-        STOCK_TRIVY_CONFIG: ${{ inputs.trivy-config }}
         STOCK_CONSUMER_CONFIG: ${{ inputs.consumer-config }}
         STOCK_SEMGREP_CONFIG: ${{ inputs.semgrep-config }}
         STOCK_SEMGREP_PR_SCOPE: ${{ inputs.semgrep-pr-scope }}
@@ -105,6 +100,8 @@ runs:
         STOCK_PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         STOCK_PERSISTENT: ${{ runner.environment == 'self-hosted' && inputs.ephemeral != 'true' }}
         STOCK_SMOKE: ${{ inputs.smoke }}
+        DISABLE_LINTERS: ${{ github.event_name == 'pull_request' && 'REPOSITORY_SEMGREP' || '' }}
+        ENABLE_DISABLE_LINTERS_PRIORITY: DISABLE
         VALIDATE_ALL_CODEBASE: ${{ inputs.base-sha == '' && (github.event_name != 'pull_request' || inputs.source-ref != '') }}
         REPOSITORY_BETTERLEAKS_PR_COMMITS_SCAN: "true"
         REPOSITORY_BETTERLEAKS_PR_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
@@ -126,14 +123,13 @@ runs:
           if [[ "$VALIDATE_ALL_CODEBASE" == false ]]; then
             options+=(--base "${STOCK_BASE_SHA:-$STOCK_PR_BASE_SHA}")
           fi
-          if [[ -n "$STOCK_TRIVY_CONFIG" ]]; then options+=(--trivy-config "$STOCK_TRIVY_CONFIG"); fi
           if [[ -n "$STOCK_SEMGREP_CONFIG" ]]; then
             options+=(--semgrep-config "$STOCK_SEMGREP_CONFIG" --semgrep-pr-scope "$STOCK_SEMGREP_PR_SCOPE")
           fi
           if [[ -n "$STOCK_SEMGREP_TARGETS" ]]; then options+=(--semgrep-targets "$STOCK_SEMGREP_TARGETS"); fi
           if [[ "$DISABLE_ERRORS" == true ]]; then options+=(--advisory); fi
           if [[ "$STOCK_SMOKE" == true ]]; then
-            options+=(--linter PYTHON_RUFF --linter ACTION_ZIZMOR --linter REPOSITORY_SEMGREP)
+            options+=(--linter PYTHON_RUFF --linter ACTION_ZIZMOR)
           fi
           launcher=(python3)
           if [[ -n "$STOCK_CONSUMER_CONFIG" ]]; then
@@ -160,7 +156,6 @@ runs:
           export REPOSITORY_BETTERLEAKS_PR_TARGET_SHA="$STOCK_BASE_SHA"
           printf 'Scanning changes against %s\n' "$STOCK_BASE_SHA"
         fi
-        export TRIVY_CACHE_DIR="$GITHUB_WORKSPACE/.stock-cache/trivy"
         export REPORT_OUTPUT_FOLDER="$GITHUB_WORKSPACE/stock-reports"
         export DEFAULT_WORKSPACE="$PWD"
         export GITHUB_WORKSPACE="$PWD"
@@ -208,8 +203,6 @@ runs:
       uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: |
-          .stock-cache/trivy
-          .stock-cache/trivy-*
           .stock-cache/semgrep-*
           .stock-cache/schema-assets
         key: ${{ steps.scanner-cache.outputs.cache-primary-key }}

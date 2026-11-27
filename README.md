@@ -35,7 +35,7 @@ No `.mega-linter.yml` needed — the image auto-detects your stack.
 | `*.py` | ruff, pyright, vulture, deptry, semgrep |
 | `*.js`/`*.ts`/`*.tsx` | eslint, prettier, typescript, knip, oxlint |
 | `*.sh` | shellcheck, shfmt |
-| `Dockerfile` | hadolint, trivy, dclint |
+| `Dockerfile` | hadolint, dclint |
 | `docker-compose.yml` | conftest (healthchecks, resource limits, security) |
 | `*.tf` | tflint |
 | `*.yml`/`*.yaml` | yamllint, prettier, v8r (schema validation) |
@@ -44,7 +44,7 @@ No `.mega-linter.yml` needed — the image auto-detects your stack.
 | `package.json` | npm-audit, license-checker, knip, publint |
 | `pyproject.toml` | deptry, import-linter |
 | `.github/workflows/` | actionlint, zizmor |
-| Any code | semgrep (security), gitleaks (secrets), trivy (vulnerabilities) |
+| Any code | semgrep (security), gitleaks (secrets) |
 | Any repo | repo-standards (tells you what's missing) |
 
 ## Add your own rules

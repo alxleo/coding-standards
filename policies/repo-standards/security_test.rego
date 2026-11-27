@@ -10,17 +10,12 @@ test_warn_missing_gitleaks if {
 }
 
 test_no_warn_gitleaks_no_secrets if {
-	result := security.warn with input as {"directories": {"secrets": false, "decrypted": false}, "files": {"gitleaks": false, "sops": false, "trivy": false, "gitignore_covers_decrypted": false}}
+	result := security.warn with input as {"directories": {"secrets": false, "decrypted": false}, "files": {"gitleaks": false, "sops": false, "gitignore_covers_decrypted": false}}
 	count(result) == 0
 }
 
-test_warn_missing_trivy if {
-	result := security.warn with input as {"directories": {"secrets": false, "decrypted": true}, "files": {"trivy": false, "gitleaks": true, "gitignore_covers_decrypted": true}}
-	any_contains(result, "trivy.yaml")
-}
-
 test_warn_gitignore_missing_decrypted if {
-	result := security.warn with input as {"directories": {"secrets": false, "decrypted": true}, "files": {"trivy": true, "gitleaks": true, "gitignore_covers_decrypted": false}}
+	result := security.warn with input as {"directories": {"secrets": false, "decrypted": true}, "files": {"gitleaks": true, "gitignore_covers_decrypted": false}}
 	any_contains(result, ".gitignore")
 }
 

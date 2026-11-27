@@ -70,7 +70,7 @@ Touch these files — the integrity hook validates completeness:
 - **Binary checksums: both architectures** — every `curl` download needs `_SHA256_amd64` and `_SHA256_arm64`. PMD is exempt (Java, arch-agnostic). Enforced by integrity hook.
 - **Semgrep rule IDs: `coding-standards.` prefix** — ensures predictable `--exclude-rule` for consumers.
 - **No workspace root pollution** — consumers keep linter configs in the directory named by `LINTER_RULES_PATH`. `.editorconfig` is the deliberate root exception because the EditorConfig specification requires directory-tree discovery.
-- **No runtime network calls** — the image is offline-first. Schemas, semgrep rules, trivy DB baked at build time. Tools that need network (zizmor pin verification) run with `--offline` in CI; online checks go in scheduled workflows. Token passthrough (env-file, git credential store) exists for opt-in online use.
+- **No runtime network calls** — the image is offline-first. Schemas and Semgrep rules are baked at build time. Tools that need network (zizmor pin verification) run with `--offline` in CI; online checks go in scheduled workflows. Token passthrough (env-file, git credential store) exists for opt-in online use.
 - **Consumer files are read-only** — never `sed -i` or modify mounted workspace files. Use temp copies.
 
 ## Repository layout

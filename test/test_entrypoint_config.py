@@ -13,6 +13,7 @@ import yaml
 
 SEMGREP_ARGUMENTS = "REPOSITORY_SEMGREP_ARGUMENTS"
 SHARED_ARGUMENTS = ["--exclude=semgrep-rules", "--exclude-rule=rules.trailofbits.shared-rule"]
+DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / ".mega-linter-default.yml"
 
 
 @pytest.fixture
@@ -26,7 +27,6 @@ def workspace(tmp_path, monkeypatch):
                 "ENABLE_LINTERS": "PYTHON_RUFF",
                 "LINTER_RULES_PATH": "/opt/coding-standards/configs",
                 "PYTHON_RUFF_CONFIG_FILE": "ruff.toml",
-                "REPOSITORY_TRIVY_CUSTOM_CONFIG_FILE": "trivy.yaml",
                 SEMGREP_ARGUMENTS: SHARED_ARGUMENTS,
             }
         )
@@ -35,6 +35,9 @@ def workspace(tmp_path, monkeypatch):
     monkeypatch.delenv("MEGALINTER_CONFIG", raising=False)
     monkeypatch.delenv(SEMGREP_ARGUMENTS, raising=False)
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.delenv("ENABLE_LINTERS", raising=False)
+    monkeypatch.delenv("DISABLE_LINTERS", raising=False)
+    monkeypatch.delenv("ENABLE_DISABLE_LINTERS_PRIORITY", raising=False)
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(tmp_path / "gitconfig"))
     monkeypatch.setattr("scripts.entrypoint.tempfile.tempdir", tmp_path)
 
@@ -61,6 +64,21 @@ def _read_merged_config() -> dict:
     config_path = os.environ.get("MEGALINTER_CONFIG", "")
     assert config_path, "MEGALINTER_CONFIG not set after _setup()"
     return yaml.safe_load(Path(config_path).read_text())
+
+
+def test_consumer_enable_list_cannot_reactivate_trivy(workspace):
+    with patch("scripts.entrypoint.BAKED_CONFIG", DEFAULT_CONFIG):
+        _write_consumer_config(
+            workspace,
+            {"ENABLE_LINTERS": ["REPOSITORY_TRIVY", "REPOSITORY_TRIVY_CUSTOM"]},
+        )
+
+        _run_setup()
+        merged = _read_merged_config()
+
+    assert set(merged["ENABLE_LINTERS"]) == {"REPOSITORY_TRIVY", "REPOSITORY_TRIVY_CUSTOM"}
+    assert set(merged["DISABLE_LINTERS"]) == {"REPOSITORY_TRIVY", "REPOSITORY_TRIVY_CUSTOM"}
+    assert merged["ENABLE_DISABLE_LINTERS_PRIORITY"] == "DISABLE"
 
 
 def test_setup_continues_after_git_config_timeout(
@@ -147,7 +165,6 @@ class TestRulesDirectoryResolution:
         rules.mkdir(parents=True)
         (rules / "ruff.toml").write_text("[lint]\nselect = ['E']\n")
         (rules / "actionlint.yaml").write_text("self-hosted-runner: {}\n")
-        (rules / "trivy.yaml").write_text("scan:\n  skip-dirs: [.decrypted]\n")
         _write_consumer_config(
             workspace,
             {
@@ -163,7 +180,6 @@ class TestRulesDirectoryResolution:
         assert merged["PYTHON_RUFF_CONFIG_FILE"] == "quality/lint/ruff.toml"
         assert "ACTION_ACTIONLINT_RULES_PATH" not in merged
         assert merged["ACTION_ACTIONLINT_CONFIG_FILE"] == "quality/lint/actionlint.yaml"
-        assert merged["REPOSITORY_TRIVY_CUSTOM_CONFIG_FILE"] == "quality/lint/trivy.yaml"
 
     def test_rules_directory_preserves_baked_fallback(self, workspace):
         """Linters without a consumer config retain the baked rules path."""

@@ -168,18 +168,6 @@ RUN set -eux && \
   echo "${BETTERLEAKS_SHA256}  /tmp/betterleaks.tar.gz" | sha256sum -c - && \
   tar -xzf /tmp/betterleaks.tar.gz -C /usr/local/bin betterleaks && \
   rm /tmp/betterleaks.tar.gz && \
-  # ── trivy (post-incident release; checksum-pinned) ──
-  # renovate: datasource=github-releases depName=aquasecurity/trivy
-  TRIVY_VERSION="0.72.0" && \
-  TRIVY_SHA256_amd64="bbb64b9695866ce4a7a8f5c9592002c5961cab378577fa3f8a040df362b9b2ea" && \
-  TRIVY_SHA256_arm64="2ca2c023109c2db6b2b77366b6717291452d4531167377d95c79547f0c8e3467" && \
-  TRIVY_SHA256=$([ "$TARGETARCH" = "arm64" ] && echo "$TRIVY_SHA256_arm64" || echo "$TRIVY_SHA256_amd64") && \
-  TRIVY_ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "ARM64" || echo "64bit") && \
-  curl -fsSL "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-${TRIVY_ARCH}.tar.gz" \
-    -o /tmp/trivy.tar.gz && \
-  echo "${TRIVY_SHA256}  /tmp/trivy.tar.gz" | sha256sum -c - && \
-  tar -xzf /tmp/trivy.tar.gz -C /usr/local/bin trivy && \
-  rm /tmp/trivy.tar.gz && \
   # ── tflint ──
   # renovate: datasource=github-releases depName=terraform-linters/tflint
   TFLINT_VERSION="0.64.0" && \
@@ -316,9 +304,6 @@ RUN set -eux && \
   echo "${CONFTEST_SHA256}  /tmp/conftest.tar.gz" | sha256sum -c - && \
   tar -xzf /tmp/conftest.tar.gz -C /usr/local/bin conftest && \
   rm /tmp/conftest.tar.gz
-
-# ── Trivy DB pre-cache (best effort; never masks binary install failures) ──
-RUN trivy --cache-dir /root/.cache/trivy fs --download-db-only --db-repository ghcr.io/aquasecurity/trivy-db:2 --no-progress 2>/dev/null || true
 
 # ── Build asset downloads (schemas + semgrep rules) ──────────
 COPY build-assets.yml scripts/download_build_assets.py /tmp/
