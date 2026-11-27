@@ -2,6 +2,8 @@
 
 Docker image: `python:3.13-alpine` + MegaLinter engine + linters. Multi-arch (amd64 + arm64). Zero-config for consumers.
 
+Follow the [Markdown writing convention](README.md#docs).
+
 ## How it works
 
 Image bakes: MegaLinter engine, linter binaries, configs, semgrep rules, conftest policies, help docs, templates.

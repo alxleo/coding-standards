@@ -87,5 +87,4 @@ Captured 2026-04-02. Basis for measuring optimization impact.
 
 Total lint time: **116.70s → 87.68s (25% reduction)**
 
-Key changes: v8r ignore patterns (-23s), lychee cache/timeout (-17s), trivy scanner trim (-4s).
-Remaining top bottlenecks: semgrep (23s), pyright (11s), pmd-cpd (6s).
+Key changes: v8r ignore patterns (-23s), lychee cache/timeout (-17s), trivy scanner trim (-4s). Remaining top bottlenecks: semgrep (23s), pyright (11s), pmd-cpd (6s).

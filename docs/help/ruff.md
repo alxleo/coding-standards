@@ -14,9 +14,7 @@ Select the shared config directory in `.mega-linter.yml`:
 LINTER_RULES_PATH: quality/lint
 ```
 
-The filename already matches the baseline default, so no Ruff-specific
-MegaLinter setting is required. This repository config replaces the baked Ruff
-baseline.
+The filename already matches the baseline default, so no Ruff-specific MegaLinter setting is required. This repository config replaces the baked Ruff baseline.
 
 ## Migration recipe
 

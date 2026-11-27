@@ -17,8 +17,7 @@ uvx ruff check --add-noqa .
 
 ## Step 3 — Shell (shellcheck)
 
-No auto-fix. Replace `[ ]` with `[[ ]]`, quote variables, etc.
-Add `# shellcheck disable=SC2086` for specific lines.
+No auto-fix. Replace `[ ]` with `[[ ]]`, quote variables, etc. Add `# shellcheck disable=SC2086` for specific lines.
 
 ## Step 4 — Review what's left
 
@@ -26,5 +25,4 @@ Add `# shellcheck disable=SC2086` for specific lines.
 just cs-lint 2>&1 | grep "❌"
 ```
 
-Each `# noqa` / `# shellcheck disable` is a visible TODO.
-Clean them up over time — the count is a health metric.
+Each `# noqa` / `# shellcheck disable` is a visible TODO. Clean them up over time — the count is a health metric.

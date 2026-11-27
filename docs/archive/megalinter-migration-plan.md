@@ -106,8 +106,7 @@ Replace the 400-line custom reusable workflow with a single Docker image that:
 
 ### Custom hooks (from current coding-standards)
 
-These run as MegaLinter plugins with `cli_lint_mode: project` or individual
-plugin descriptors, replacing BASH_EXEC for per-hook granularity:
+These run as MegaLinter plugins with `cli_lint_mode: project` or individual plugin descriptors, replacing BASH_EXEC for per-hook granularity:
 
 - forbid-bare-python
 - temp-file-needs-trap
@@ -119,32 +118,21 @@ plugin descriptors, replacing BASH_EXEC for per-hook granularity:
 
 ### Config distribution: baked default + optional EXTENDS override
 
-The image ships with a sensible `.mega-linter.yml` baked in. Consumer repos
-work out of the box with zero config. Consumers CAN override by placing their
-own `.mega-linter.yml` with `EXTENDS` pointing at a remote baseline, or by
-setting individual overrides.
+The image ships with a sensible `.mega-linter.yml` baked in. Consumer repos work out of the box with zero config. Consumers CAN override by placing their own `.mega-linter.yml` with `EXTENDS` pointing at a remote baseline, or by setting individual overrides.
 
 ### Blocking policy: two tiers (error / warn)
 
-**Tier 1 — BLOCKS the build (errors):**
-gitleaks, semgrep, trivy, pyright, tsc, ruff, shellcheck, eslint, hadolint,
-actionlint, commitlint, knip, dependency-cruiser, npm audit, license-checker,
-zizmor, caddy fmt, just --fmt
+**Tier 1 — BLOCKS the build (errors):** gitleaks, semgrep, trivy, pyright, tsc, ruff, shellcheck, eslint, hadolint, actionlint, commitlint, knip, dependency-cruiser, npm audit, license-checker, zizmor, caddy fmt, just --fmt
 
-**Tier 2 — WARNS but does not fail (DISABLE_ERRORS_LINTERS):**
-prettier (all variants), shfmt, markdownlint, yamllint, jscpd,
-editorconfig-checker, stylelint, lychee, v8r, dclint, sqlfluff, ansible-lint,
-kubeconform
+**Tier 2 — WARNS but does not fail (DISABLE_ERRORS_LINTERS):** prettier (all variants), shfmt, markdownlint, yamllint, jscpd, editorconfig-checker, stylelint, lychee, v8r, dclint, sqlfluff, ansible-lint, kubeconform
 
-Consumers can promote/demote via `ENABLE_ERRORS_LINTERS` /
-`DISABLE_ERRORS_LINTERS` in their `.mega-linter.yml`.
+Consumers can promote/demote via `ENABLE_ERRORS_LINTERS` / `DISABLE_ERRORS_LINTERS` in their `.mega-linter.yml`.
 
 ### Auto-fix: caller-controlled flag
 
 Default: `APPLY_FIXES=none` (check-only, report what's wrong).
 
-To auto-fix: pass `-e APPLY_FIXES=all` to the docker run command.
-This is an explicit, intentional action — no surprise file modifications.
+To auto-fix: pass `-e APPLY_FIXES=all` to the docker run command. This is an explicit, intentional action — no surprise file modifications.
 
 ```bash
 # Check only (default)
@@ -163,18 +151,15 @@ PRE_COMMANDS:
     continue_if_failed: true
 ```
 
-Runs once globally. Non-JS repos skip it (no package-lock.json).
-JS linters (knip, dependency-cruiser, tsc) benefit from installed deps.
+Runs once globally. Non-JS repos skip it (no package-lock.json). JS linters (knip, dependency-cruiser, tsc) benefit from installed deps.
 
 ### Parallel execution
 
-`PARALLEL: true` (default). Linters of the same language group run in
-parallel. No config needed.
+`PARALLEL: true` (default). Linters of the same language group run in parallel. No config needed.
 
 ### Linter activation: allowlist (ENABLE_LINTERS)
 
-Explicit list of 34 linters. New MegaLinter versions don't change what runs.
-Consumer repos that need a different set copy and amend the list.
+Explicit list of 34 linters. New MegaLinter versions don't change what runs. Consumer repos that need a different set copy and amend the list.
 
 ### Reporters
 
@@ -229,10 +214,8 @@ See `.mega-linter-default.yml` in this repo for the complete configuration.
 
 ### Image produces (capability)
 
-- `megalinter-reports/mega-linter-report.json` — structured per-linter results
-  (status, error count, warning count, per-file stdout, elapsed time)
-- `megalinter-reports/linters_logs/` — one text log per linter, filename
-  encodes pass/fail (e.g., `PYTHON_RUFF-SUCCESS.log`, `BASH_SHELLCHECK-ERROR.log`)
+- `megalinter-reports/mega-linter-report.json` — structured per-linter results (status, error count, warning count, per-file stdout, elapsed time)
+- `megalinter-reports/linters_logs/` — one text log per linter, filename encodes pass/fail (e.g., `PYTHON_RUFF-SUCCESS.log`, `BASH_SHELLCHECK-ERROR.log`)
 - stdout with `file:line:col: message` format — what agents read
 - Exit code 0/1 — universal gate
 
@@ -277,8 +260,7 @@ jobs:
             megalinter-reports/mega-linter-report.json
 ```
 
-Image auto-detects which linters apply based on files present. Zero config
-for standard repos.
+Image auto-detects which linters apply based on files present. Zero config for standard repos.
 
 ### Customization (existing repo)
 
@@ -337,23 +319,16 @@ YAML_YAMLLINT_CONFIG_FILE: .yamllint.yml
 The Docker image is the primary CI solution, but not the only tier:
 
 1. **MegaLinter image** (primary) — CI on Gitea/GitHub. Full coverage, structured output.
-2. **pre-commit** (lightweight) — for repos without CI, local hooks, or weaker-model
-   agent contexts where catching bad code early matters. Already works with
-   `pass_filenames: false` for project analyzers.
-3. **SonarQube CE** (follow-up) — deeper analysis: cross-file taint tracking, quality
-   gates, complexity metrics. Adds what MegaLinter can't do natively. Separate concern.
+2. **pre-commit** (lightweight) — for repos without CI, local hooks, or weaker-model agent contexts where catching bad code early matters. Already works with `pass_filenames: false` for project analyzers.
+3. **SonarQube CE** (follow-up) — deeper analysis: cross-file taint tracking, quality gates, complexity metrics. Adds what MegaLinter can't do natively. Separate concern.
 
 ## Multi-Arch Strategy
 
-Standard MegaLinter images are amd64-only. MegaLinter v9.4.0's Custom Flavor
-Builder supports multi-arch builds (`linux/amd64,linux/arm64`).
+Standard MegaLinter images are amd64-only. MegaLinter v9.4.0's Custom Flavor Builder supports multi-arch builds (`linux/amd64,linux/arm64`).
 
-All tools we use are arm64-compatible. The amd64-only holdouts in MegaLinter
-are niche tools we don't need (Salesforce, Azure, Clojure, LaTeX).
+All tools we use are arm64-compatible. The amd64-only holdouts in MegaLinter are niche tools we don't need (Salesforce, Azure, Clojure, LaTeX).
 
-**Approach:** Use Custom Flavor Builder to generate a multi-arch Dockerfile
-that includes only our linters + custom tools. Set
-`platform: "linux/amd64,linux/arm64"` in the build workflow.
+**Approach:** Use Custom Flavor Builder to generate a multi-arch Dockerfile that includes only our linters + custom tools. Set `platform: "linux/amd64,linux/arm64"` in the build workflow.
 
 - **linux/amd64** — Gitea runners, GitHub Actions
 - **linux/arm64** — local Mac development, arm64 runners
@@ -362,8 +337,7 @@ that includes only our linters + custom tools. Set
 
 **Pin everything by digest/SHA. Automate updates with Renovate.**
 
-The Trivy supply chain compromise (March 2026, v0.69.4-6 malicious) proved
-that semver tags are not trustworthy. SHA pinning is the only guarantee.
+The Trivy supply chain compromise (March 2026, v0.69.4-6 malicious) proved that semver tags are not trustworthy. SHA pinning is the only guarantee.
 
 ### What gets pinned
 

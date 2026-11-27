@@ -118,9 +118,7 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 
 - Most linters: `_CONFIG_FILE` pointing to baked config. MegaLinter auto-passes it via `cli_config_arg_name`.
 - Consumer repos override via `<LINTER>_CONFIG_FILE: myconfig.toml` — one line, works correctly.
-- MegaLinter v9.6 correctly wires ShellCheck through `--rcfile` and both v8r
-  descriptors through `V8R_CONFIG_FILE`; they now use `_CONFIG_FILE` like the
-  other linters.
+- MegaLinter v9.6 correctly wires ShellCheck through `--rcfile` and both v8r descriptors through `V8R_CONFIG_FILE`; they now use `_CONFIG_FILE` like the other linters.
 - Remaining discovery exceptions:
   - **shfmt**: reads `.editorconfig` from file's directory tree. Symlinked at repo root, copied to workspace via PRE_COMMANDS.
   - **editorconfig-checker**: built-in `-config` expects `.ecrc` (tool JSON config), not `.editorconfig`. Auto-discovers `.editorconfig` from workspace.
@@ -129,12 +127,8 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 ### Config distribution: baked + override
 
 - Image ships .mega-linter.yml + linter configs. Works offline.
-- The baked `LINTER_RULES_PATH` points inside the image
-  (`/opt/coding-standards/configs`).
-- A consumer sets `LINTER_RULES_PATH: quality/lint` once. The entrypoint selects
-  matching files with explicit workspace-relative `_CONFIG_FILE` values,
-  preserving baked fallbacks while avoiding MegaLinter v9.6's root-first search
-  order and absolute-path activation bug.
+- The baked `LINTER_RULES_PATH` points inside the image (`/opt/coding-standards/configs`).
+- A consumer sets `LINTER_RULES_PATH: quality/lint` once. The entrypoint selects matching files with explicit workspace-relative `_CONFIG_FILE` values, preserving baked fallbacks while avoiding MegaLinter v9.6's root-first search order and absolute-path activation bug.
 - No EXTENDS / CONFIG_PROPERTIES_TO_APPEND by default. Replace > merge (simpler).
 
 ### Reporters
@@ -158,12 +152,7 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 ### PRE_COMMANDS
 
 - git safe.directory + autocrlf fix (Docker UID mismatch).
-- Copy only `.editorconfig` and `.v8rignore` to the workspace for their native
-  discovery protocols. CLI-addressable configs use `_CONFIG_FILE` and the rules
-  directory instead. Since MegaLinter 10, a file in the rules directory also
-  satisfies `active_only_if_file_found`, so the bundled commitlint, ls-lint and
-  codespell configs switch those linters on for every consumer. commitlint lints
-  only the last commit (`--last`), which a shallow checkout still has.
+- Copy only `.editorconfig` and `.v8rignore` to the workspace for their native discovery protocols. CLI-addressable configs use `_CONFIG_FILE` and the rules directory instead. Since MegaLinter 10, a file in the rules directory also satisfies `active_only_if_file_found`, so the bundled commitlint, ls-lint and codespell configs switch those linters on for every consumer. commitlint lints only the last commit (`--last`), which a shallow checkout still has.
 - npm ci guard (runs only if package-lock.json exists).
 
 ### Self-lint: MEGALINTER_CONFIG override
@@ -197,11 +186,7 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 
 ### Performance optimizations applied
 
-- Repo manifest: change-impact metrics moved to the explicit `measure` / `blast-radius`
-  path. They are advisory and their filename-by-source scan dominated homelab's
-  blocking lint time before any linter started. Deprecated manifest keys remain
-  numeric zero sentinels for schema compatibility. Manifest checks share one Git-aware workspace
-  inventory instead of repeatedly walking excluded and generated directories.
+- Repo manifest: change-impact metrics moved to the explicit `measure` / `blast-radius` path. They are advisory and their filename-by-source scan dominated homelab's blocking lint time before any linter started. Deprecated manifest keys remain numeric zero sentinels for schema compatibility. Manifest checks share one Git-aware workspace inventory instead of repeatedly walking excluded and generated directories.
 - Semgrep: cached rulesets as JSON at build time (23.5s → 18.5s). Eliminates network fetch + YAML parsing (json.loads is 381x faster than ruamel.yaml). Rules refresh on image rebuild.
 - v8r ignore patterns: 28.5s → 5.7s (was validating files in node_modules/megalinter-reports)
 - Lychee cache + timeout: 19s → 1.8s (network timeout storms on transient 502s)
@@ -213,15 +198,12 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 
 ### Monorepo scoping
 
-FILTER_REGEX_INCLUDE/EXCLUDE only works for file-mode linters (shellcheck, ruff, yamllint).
-Project-mode linters (trivy, semgrep, gitleaks, conftest, knip, etc.) ignore it entirely.
-For monorepos like home-network: single MegaLinter run + tool-native scoping:
+FILTER_REGEX_INCLUDE/EXCLUDE only works for file-mode linters (shellcheck, ruff, yamllint). Project-mode linters (trivy, semgrep, gitleaks, conftest, knip, etc.) ignore it entirely. For monorepos like home-network: single MegaLinter run + tool-native scoping:
 
 - ruff: per-file-ignores in ruff.toml
 - ansible-lint: exclude_paths in .ansible-lint
 - tflint: auto-scoped via file presence (.tf)
-- hadolint: auto-scoped via file presence (Dockerfile)
-Matrix strategy (parallel per-directory runs) is possible but adds CI complexity.
+- hadolint: auto-scoped via file presence (Dockerfile) Matrix strategy (parallel per-directory runs) is possible but adds CI complexity.
 
 ### Graduated rollout for new rules
 

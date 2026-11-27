@@ -1,8 +1,6 @@
 # coding-standards
 
-Drop-in linting image. One Docker command — detects your stack, runs the right checks, tells you what to fix. Works offline, no accounts, no API calls.
-
-Native amd64 + arm64. Built on MegaLinter.
+A drop-in MegaLinter image for amd64 and arm64. Run one Docker command to detect your stack and report findings offline.
 
 ## Option 1: Just Docker (local, no CI)
 
@@ -30,30 +28,14 @@ No `.mega-linter.yml` needed — the image auto-detects your stack.
 
 ## Skip build and lint on Markdown-only pull requests
 
-Call [Pull request scope](.github/workflows/pr-scope.yml) from a job in an
-existing workflow. Pin `alxleo/coding-standards/.github/workflows/pr-scope.yml`
-to a reviewed commit and give the calling job `contents: read`. Add that job
-to `needs` for jobs whose validation is independent of Markdown content,
-such as a job that lints workflow YAML. Set the optional `runner` input to
-reuse an existing Linux runner label.
-Set `full-validation-paths` to a single-line JSON array of build inputs
-that end in `.md`, such as `'["README.md"]'` for a README declared in
-package metadata. Any change to a matching path runs full validation.
+Call [Pull request scope](.github/workflows/pr-scope.yml) from a job in an existing workflow. Pin `alxleo/coding-standards/.github/workflows/pr-scope.yml` to a reviewed commit and give the calling job `contents: read`. Add that job to `needs` for jobs whose validation is independent of Markdown content, such as a job that lints workflow YAML. Set the optional `runner` input to reuse an existing Linux runner label. Set `full-validation-paths` to a single-line JSON array of build inputs that end in `.md`, such as `'["README.md"]'` for a README declared in package metadata. Any change to a matching path runs full validation.
 
 ```yaml
 needs: change-scope
 if: ${{ !cancelled() && needs.change-scope.outputs.markdown-only != 'true' }}
 ```
 
-Keep the original workflow triggers and job names so GitHub still reports
-required checks. Skipped jobs satisfy required checks. The reusable workflow
-compares the tested merge commit to its first parent. A rename out of a
-non-Markdown path still runs validation. Empty diffs, non-PR events, and
-classification failures also leave validation enabled. Keep review and other
-merge-policy jobs independent of this output. Keep Markdown, text hygiene,
-and secret scanning checks active in both lanes. The default `cs-init`
-lint job combines these checks with other linters, so leave that job
-running on Markdown-only pull requests.
+Keep the original workflow triggers and job names so GitHub still reports required checks. Skipped jobs satisfy required checks. The reusable workflow compares the tested merge commit to its first parent. A rename out of a non-Markdown path still runs validation. Empty diffs, non-PR events, and classification failures also leave validation enabled. Keep review and other merge-policy jobs independent of this output. Keep Markdown, text hygiene, and secret scanning checks active in both lanes. The default `cs-init` lint job combines these checks with other linters, so leave that job running on Markdown-only pull requests.
 
 ## What runs automatically
 
@@ -62,6 +44,7 @@ running on Markdown-only pull requests.
 | `*.py` | ruff, pyright, vulture, deptry, semgrep |
 | `*.js`/`*.ts`/`*.tsx` | eslint, prettier, typescript, knip, oxlint |
 | `*.sh` | shellcheck, shfmt |
+| `*.md` | rumdl |
 | `Dockerfile` | hadolint, trivy, dclint |
 | `docker-compose.yml` | conftest (healthchecks, resource limits, security) |
 | `*.tf` | tflint |
@@ -94,6 +77,8 @@ just cs-help debug        Troubleshoot a failing linter
 ```
 
 ## Docs
+
+Use one source line per Markdown paragraph and keep docs short. Use a table or diagram when it makes the answer easier to scan. Markdown lint allows full-width prose, and Prettier preserves the existing wrapping.
 
 - `just cs-help <topic>` — progressive disclosure guides
 - `just cs-catalog` — full check inventory (rendered at runtime)
