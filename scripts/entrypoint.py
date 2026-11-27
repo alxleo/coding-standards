@@ -172,10 +172,10 @@ def _inherit_semgrep_arguments(shared: list[str], overrides: dict[str, Any]) -> 
         overrides[SEMGREP_ARGUMENTS] = _with_shared_semgrep_arguments(shared, overrides[SEMGREP_ARGUMENTS])
 
 
-def _apply_scanner_policy(workspace: Path, consumer_config: Path) -> None:
+def _apply_scanner_policy(workspace: Path) -> None:
     configured = os.environ.get("DISABLE_LINTERS")
     if configured is None:
-        config_path = workspace / (os.environ.get("MEGALINTER_CONFIG") or consumer_config)
+        config_path = workspace / os.environ.get("MEGALINTER_CONFIG", ".mega-linter.yml")
         if config_path.is_file():
             config = yaml.safe_load(config_path.read_text()) or {}
             configured = config.get("DISABLE_LINTERS")
@@ -239,7 +239,7 @@ def _setup() -> None:
             yaml.dump(baked, f, default_flow_style=False)
             os.environ["MEGALINTER_CONFIG"] = f.name
 
-    _apply_scanner_policy(workspace, consumer_config)
+    _apply_scanner_policy(workspace)
 
     # Auto-discover consumer semgrep rules
     semgrep_dir = workspace / ".semgrep"

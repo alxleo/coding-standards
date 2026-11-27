@@ -82,9 +82,7 @@ def scan(
     cache,
     *options,
     event="stock-contract",
-    consumer_config=True,
     semgrep_targets=True,
-    linters=LINTERS,
 ):
     scan_env = os.environ.copy()
     scan_env["GITHUB_EVENT_NAME"] = event
@@ -101,13 +99,11 @@ def scan(
         str(cache),
         "--persistent",
     ]
-    if consumer_config:
-        command += ["--consumer-config", ".mega-linter.yml"]
+    command += ["--consumer-config", ".mega-linter.yml"]
     command += ["--semgrep-config", "policy/semgrep.yml"]
     if semgrep_targets:
         command += ["--semgrep-targets", ":(glob)tests/**/*.py"]
-    if linters:
-        command += [option for key in linters for option in ("--linter", key)]
+    command += [option for key in LINTERS for option in ("--linter", key)]
     result = run(
         *command,
         *options,
@@ -293,9 +289,7 @@ def test_stock_scanners(tmp_path):
             cache,
             *options,
             event="pull_request" if mode == "pr" else "stock-contract",
-            consumer_config=mode != "pr",
             semgrep_targets=mode != "pr",
-            linters=None if mode == "pr" else LINTERS,
         )
         assert code == 1
         expected_linters = {*LINTERS, "REPOSITORY_SEMGREP_LOCAL"}
