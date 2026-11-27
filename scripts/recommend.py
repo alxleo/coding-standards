@@ -160,20 +160,6 @@ if not file_exists(".gitleaks.toml") and not file_exists(".gitleaksignore"):
         }
     )
 
-# Trivy ignore for known CVEs
-if has_files(["Dockerfile", "docker-compose*.yml"]) and not file_exists(".trivyignore"):
-    recommendations.append(
-        {
-            "tool": "trivy",
-            "reason": "Docker files detected but no .trivyignore",
-            "value": "Silence accepted CVEs so trivy only reports new vulnerabilities",
-            "setup": [
-                "# Create .trivyignore with accepted CVE IDs:",
-                "# CVE-2024-XXXXX  # accepted: no exposure in our usage",
-            ],
-        }
-    )
-
 # Dependency cruiser for JS/TS
 if has_files(["package.json"]) and not has_files([".dependency-cruiser.*"]):
     recommendations.append(

@@ -22,7 +22,6 @@ FROM ghcr.io/oxsecurity/megalinter-only-repository_betterleaks:v10.2.0@sha256:d3
 FROM ghcr.io/oxsecurity/megalinter-only-repository_git_diff:v10.2.0@sha256:8372e895ec2be63c8e38cc5d9bea7be7687488b799012823f0d47f084d8c63a3
 FROM ghcr.io/oxsecurity/megalinter-only-repository_ls_lint:v10.2.0@sha256:7e05e60de62dc11d2e8ab06015666f80fe033e96b47ed1cc01d26c8c1dec8289
 FROM ghcr.io/oxsecurity/megalinter-only-repository_semgrep:v10.2.0@sha256:3be8176eeb1c20c493f4504898350c7dd59b0dc7efc97131b55e650522ded7fe
-FROM ghcr.io/oxsecurity/megalinter-only-repository_trivy:v10.2.0@sha256:fc592ea4cdd301613ef39b7f062df6f1bcb5d8c6dbf965c43e9771201dd50c40
 FROM ghcr.io/oxsecurity/megalinter-only-spell_codespell:v10.2.0@sha256:b9fa43636552e075f22ce98bd3cdeba5a9b080015a1c8746161d94e87003a521
 FROM ghcr.io/oxsecurity/megalinter-only-spell_lychee:v10.2.0@sha256:50552abb8731c3edc31d64e3896f09bc29984b38e3570674a1da794f8366e451
 FROM ghcr.io/oxsecurity/megalinter-only-sql_sqlfluff:v10.2.0@sha256:450cb9936065e0cd459c3f6dd43822ccaea86137672f3a454deab9ea4793294b

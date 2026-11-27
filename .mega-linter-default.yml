@@ -41,8 +41,6 @@ ENABLE_LINTERS:
   - REPOSITORY_BETTERLEAKS_GIT
   # Security (SAST)
   - REPOSITORY_SEMGREP
-  # Security (vuln + IaC)
-  - REPOSITORY_TRIVY_CUSTOM
   # Structural policy (Conftest/OPA)
   - REPOSITORY_CONFTEST
   # Repo standards (setup validation via manifest)
@@ -147,7 +145,6 @@ BASH_SHELLCHECK_FILTER_REGEX_EXCLUDE: "semgrep-rules/.*\\.sh"
 # rumdl: custom plugin with cli_config_arg_name: --config. Clean _CONFIG_FILE.
 MARKDOWN_RUMDL_CONFIG_FILE: .markdownlint-cli2.yaml
 REPOSITORY_COMMITLINT_CONFIG_FILE: commitlint.config.mjs
-REPOSITORY_TRIVY_CUSTOM_CONFIG_FILE: trivy.yaml
 REPOSITORY_ZIZMOR_CONFIG_FILE: .zizmor.yml
 # Offline mode: no network calls at lint time. Pin verification runs in
 # scheduled workflows (with token). Static checks (injection, permissions,
@@ -325,7 +322,6 @@ POST_COMMANDS:
 PLUGINS:
   - "file:///mega-linter-plugin-custom/betterleaks-git.megalinter-descriptor.yml"
   - "file:///mega-linter-plugin-custom/commitlint.megalinter-descriptor.yml"
-  - "file:///mega-linter-plugin-custom/trivy.megalinter-descriptor.yml"
   - "file:///mega-linter-plugin-custom/dclint.megalinter-descriptor.yml"
   - "file:///mega-linter-plugin-custom/zizmor.megalinter-descriptor.yml"
   - "file:///mega-linter-plugin-custom/caddy-fmt.megalinter-descriptor.yml"

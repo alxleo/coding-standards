@@ -6,8 +6,6 @@
       ["PYTHON_RUFF", "bad.py", "F401"],
       ["REPOSITORY_BETTERLEAKS", "new-token.txt", "github-pat"],
       ["REPOSITORY_SEMGREP_LOCAL", "bad.py", "policy.fixture.local-marker"],
-      ["REPOSITORY_SEMGREP_LOCAL", "tests/test_marker.py", "policy.fixture.local-marker"],
-      ["REPOSITORY_TRIVY", "containers/bad/Dockerfile", "DS-0002"],
       ["YAML_YAMLLINT", "bad.yml", "key-duplicates"]
     ],
     "full": [
@@ -18,7 +16,6 @@
       ["REPOSITORY_BETTERLEAKS", "old-token.txt", "github-pat"],
       ["REPOSITORY_SEMGREP_LOCAL", "bad.py", "policy.fixture.local-marker"],
       ["REPOSITORY_SEMGREP_LOCAL", "tests/test_marker.py", "policy.fixture.local-marker"],
-      ["REPOSITORY_TRIVY", "containers/bad/Dockerfile", "DS-0002"],
       ["YAML_YAMLLINT", "bad.yml", "key-duplicates"]
     ]
   },
@@ -46,7 +43,6 @@
     ["dockerfile", "ghcr.io/oxsecurity/megalinter-only-repository_git_diff"],
     ["dockerfile", "ghcr.io/oxsecurity/megalinter-only-repository_ls_lint"],
     ["dockerfile", "ghcr.io/oxsecurity/megalinter-only-repository_semgrep"],
-    ["dockerfile", "ghcr.io/oxsecurity/megalinter-only-repository_trivy"],
     ["dockerfile", "ghcr.io/oxsecurity/megalinter-only-spell_codespell"],
     ["dockerfile", "ghcr.io/oxsecurity/megalinter-only-spell_lychee"],
     ["dockerfile", "ghcr.io/oxsecurity/megalinter-only-sql_sqlfluff"],

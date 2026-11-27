@@ -72,7 +72,6 @@
     "REPOSITORY_GIT_DIFF": null,
     "REPOSITORY_LS_LINT": null,
     "REPOSITORY_SEMGREP": null,
-    "REPOSITORY_TRIVY": null,
     "SPELL_CODESPELL": {
       "file_extensions": [
         ".md",

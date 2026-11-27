@@ -578,22 +578,7 @@ def _count_suppressions(root: Path, inventory: WorkspaceInventory) -> dict[str, 
             continue
         for name, pattern in patterns.items():
             counts[name] += len(re.findall(pattern, text))
-    # File-level suppressions
-    rules_root = linter_rules_root(root)
-    trivy_ignore = next(
-        (path for name in (".trivyignore", ".trivyignore.yaml") if (path := rules_root / name).is_file()), None
-    )
-    gitleaks_ignore = rules_root / ".gitleaksignore"
-    if trivy_ignore and trivy_ignore.suffix == ".yaml":
-        trivy_data = yaml.safe_load(trivy_ignore.read_text())
-        if isinstance(trivy_data, dict):
-            counts["trivyignore"] = sum(len(entries) for entries in trivy_data.values() if isinstance(entries, list))
-        elif isinstance(trivy_data, list):
-            counts["trivyignore"] = len(trivy_data)
-        else:
-            counts["trivyignore"] = 0
-    else:
-        counts["trivyignore"] = len(trivy_ignore.read_text().splitlines()) if trivy_ignore else 0
+    gitleaks_ignore = linter_rules_root(root) / ".gitleaksignore"
     counts["gitleaksignore"] = len(gitleaks_ignore.read_text().splitlines()) if gitleaks_ignore.is_file() else 0
     counts["total"] = sum(counts.values())
     return counts
@@ -611,7 +596,6 @@ def generate(root: Path) -> dict[str, Any]:
             "ruff": (rules_root / "ruff.toml").exists(),
             "gitleaks": (rules_root / ".gitleaks.toml").exists(),
             "sops": (root / ".sops.yaml").exists(),
-            "trivy": (rules_root / "trivy.yaml").exists(),
             "mega_linter": (root / ".mega-linter.yml").exists(),
             "mega_linter_extends_url": extract_extends_url(root),
             "conftest_toml": (rules_root / "conftest.toml").exists() or (root / "conftest.toml").exists(),

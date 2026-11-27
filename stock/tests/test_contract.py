@@ -6,7 +6,9 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
+from types import SimpleNamespace
 from urllib.parse import unquote, urlsplit
 
 import pytest
@@ -17,13 +19,22 @@ TESTS = Path(__file__).parent
 ROOT = TESTS.parent.parent
 FIXTURE = TESTS / "fixture"
 EXPECTED = json.loads((TESTS / "expected.json").read_text())
+sys.path.insert(0, str(ROOT / "stock"))
+from containers import (  # noqa: E402
+    consumer_policy,
+    is_pull_request_event,
+    select_linter_keys,
+    semgrep_scope,
+    summary,
+    tracked_semgrep_targets,
+)
+
 LINTERS = (
     "ACTION_ZIZMOR",
     "JSON_V8R",
     "PYTHON_RUFF",
     "REPOSITORY_BETTERLEAKS",
     "REPOSITORY_SEMGREP",
-    "REPOSITORY_TRIVY",
     "YAML_YAMLLINT",
 )
 
@@ -65,8 +76,17 @@ def commit(source):
     return run("git", "rev-parse", "HEAD", cwd=source).stdout.strip()
 
 
-def scan(source, reports, cache, *options, linters=LINTERS):
-    result = run(
+def scan(
+    source,
+    reports,
+    cache,
+    *options,
+    event="stock-contract",
+    semgrep_targets=True,
+):
+    scan_env = os.environ.copy()
+    scan_env["GITHUB_EVENT_NAME"] = event
+    command = [
         "uv",
         "run",
         "--script",
@@ -78,20 +98,122 @@ def scan(source, reports, cache, *options, linters=LINTERS):
         "--cache",
         str(cache),
         "--persistent",
-        "--consumer-config",
-        ".mega-linter.yml",
-        "--trivy-config",
-        "policy/trivy.yml",
-        "--semgrep-config",
-        "policy/semgrep.yml",
-        "--semgrep-targets",
-        ":(glob)tests/**/*.py",
-        *(option for key in linters for option in ("--linter", key)),
+    ]
+    command += ["--consumer-config", ".mega-linter.yml"]
+    command += ["--semgrep-config", "policy/semgrep.yml"]
+    if semgrep_targets:
+        command += ["--semgrep-targets", ":(glob)tests/**/*.py"]
+    command += [option for key in LINTERS for option in ("--linter", key)]
+    result = run(
+        *command,
         *options,
+        env=scan_env,
         check=False,
     )
     assert (reports / "containers.json").is_file(), result.stderr[-10000:]
     return result.returncode, json.loads((reports / "containers.json").read_text())
+
+
+def test_retired_trivy_cannot_be_selected_by_consumer_config(tmp_path):
+    config = tmp_path / ".mega-linter.yml"
+    config.write_text("ENABLE_LINTERS:\n  - REPOSITORY_TRIVY\n  - REPOSITORY_TRIVY_CUSTOM\n")
+    consumer = consumer_policy(tmp_path, Path(".mega-linter.yml"))
+    images = image_pins()["images"]
+    selected = select_linter_keys(images, None, is_pull_request=True)
+
+    assert {"REPOSITORY_TRIVY", "REPOSITORY_TRIVY_CUSTOM"} <= consumer.blocking
+    assert "REPOSITORY_TRIVY" not in images
+    assert "REPOSITORY_TRIVY_CUSTOM" not in images
+    assert "REPOSITORY_SEMGREP" not in selected
+    for key in ("REPOSITORY_TRIVY", "REPOSITORY_TRIVY_CUSTOM"):
+        with pytest.raises(ValueError, match="Unsupported stock linter selection"):
+            select_linter_keys(images, (key,), is_pull_request=True)
+
+
+def test_stock_semgrep_smoke_is_explicit():
+    image_lock = image_pins()
+    images = image_lock["images"]
+    selectors = json.loads((ROOT / "stock/file-selectors.json").read_text())
+
+    assert selectors["version"] == image_lock["version"]
+    assert selectors["selectors"].keys() == images.keys()
+    assert "REPOSITORY_SEMGREP" not in select_linter_keys(images, None, is_pull_request=True)
+    assert select_linter_keys(images, ("REPOSITORY_SEMGREP",), is_pull_request=False) == ["REPOSITORY_SEMGREP"]
+
+
+@pytest.mark.parametrize("event", ["pull_request", "pull_request_target"])
+def test_pull_request_source_ref_without_base_skips_full_semgrep(tmp_path, monkeypatch, event):
+    monkeypatch.setenv("GITHUB_EVENT_NAME", event)
+    args = SimpleNamespace(
+        is_pull_request=is_pull_request_event(),
+        base="",
+        semgrep_pr_scope="auto",
+        consumer=None,
+        semgrep_targets=[],
+        semgrep_config=Path("policy/semgrep.yml"),
+        source=tmp_path,
+    )
+    images = image_pins()["images"]
+
+    assert args.is_pull_request
+    assert "REPOSITORY_SEMGREP" not in select_linter_keys(images, None, is_pull_request=args.is_pull_request)
+    assert semgrep_scope(args) == (None, "pull-request base commit is unavailable")
+
+
+def local_rules_args(source, targets, changed_files):
+    config = source / "policy" / "semgrep.yml"
+    config.parent.mkdir(parents=True, exist_ok=True)
+    config.write_text("rules:\n  - id: local-rule\n    pattern: $X\n")
+    return SimpleNamespace(
+        is_pull_request=True,
+        base="0123456789abcdef",
+        semgrep_pr_scope="auto",
+        consumer=None,
+        semgrep_targets=targets,
+        semgrep_config=Path("policy/semgrep.yml"),
+        source=source,
+        diff=[],
+        changed_files=changed_files,
+    )
+
+
+def test_pull_request_runs_local_rules_when_paths_are_file_scoped(tmp_path):
+    args = local_rules_args(tmp_path, [], ["src/code.py"])
+
+    assert semgrep_scope(args) == (["src/code.py"], None)
+
+
+@pytest.mark.parametrize("changed_path", ["policy/semgrep.yml", ".semgrepignore"])
+def test_pull_request_reports_rules_or_ignore_changes_as_unscoped(tmp_path, changed_path):
+    args = local_rules_args(tmp_path, [], ["src/code.py"])
+    args.diff = [changed_path]
+
+    assert semgrep_scope(args) == (None, "Semgrep rules or path-ignore files changed")
+
+
+def test_pull_request_skips_local_rules_when_expanded_targets_exceed_limit(tmp_path, monkeypatch):
+    source = tmp_path / "source"
+    source.mkdir()
+    run("git", "init", "--quiet", cwd=source)
+    (source / "tests").mkdir()
+    prefix = "tests/long_target_name_used_to_exercise_semgrep_command_limits_"
+    for index in range(1100):
+        (source / f"{prefix}{index:04d}.py").touch()
+    run("git", "add", "--all", cwd=source)
+    targets = tracked_semgrep_targets(source, ["tests/"])
+    args = local_rules_args(source, targets, [])
+
+    assert len(targets) == 1100
+    paths, reason = semgrep_scope(args)
+    assert paths is None
+    assert reason == "file-scoped arguments exceed the command limit"
+
+    summary_path = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary_path))
+    summary([], tmp_path, [{"linter": "REPOSITORY_SEMGREP_LOCAL", "reason": reason}])
+    assert (
+        "REPOSITORY_SEMGREP_LOCAL | skipped: file-scoped arguments exceed the command limit" in summary_path.read_text()
+    )
 
 
 def sarif_findings(key, report):
@@ -145,28 +267,38 @@ def test_stock_scanners(tmp_path):
     source.mkdir()
     run("git", "init", "--quiet", cwd=source)
     copy_fixture(FIXTURE / "base", source)
-    first = commit(source)
+    commit(source)
     (source / "changed.py").write_text('marker = "allowed"\n')
     base = commit(source)
     cache = tmp_path / "cache"
-    code, skipped = scan(source, tmp_path / "source-only", cache, "--base", first, linters=("REPOSITORY_TRIVY",))
-    assert code == 0 and skipped["skipped_linters"] == ["REPOSITORY_TRIVY"] and skipped["linters"] == []
     copy_fixture(FIXTURE / "pr", source)
     commit(source)
     digest = image_pins()["images"]["REPOSITORY_SEMGREP"].removeprefix("sha256:")
     rules = cache / f"semgrep-{digest}"
-    rules.mkdir()
+    rules.mkdir(parents=True)
     for name in ("security-audit", "trailofbits"):
         (rules / f"{name}.yaml").write_text("rules: []\n")
     observed = {}
     for mode, options in (("pr", ("--base", base)), ("full", ())):
         reports = tmp_path / mode
-        code, metrics = scan(source, reports, cache, *options)
+        code, metrics = scan(
+            source,
+            reports,
+            cache,
+            *options,
+            event="pull_request" if mode == "pr" else "stock-contract",
+            semgrep_targets=mode != "pr",
+        )
         assert code == 1
-        assert {row["linter"] for row in metrics["linters"]} == {*LINTERS, "REPOSITORY_SEMGREP_LOCAL"}
+        expected_linters = {*LINTERS, "REPOSITORY_SEMGREP_LOCAL"}
+        if mode == "pr":
+            expected_linters.remove("REPOSITORY_SEMGREP")
+        assert {row["linter"] for row in metrics["linters"]} == expected_linters
         exits = {row["linter"]: row["exit"] for row in metrics["linters"]}
-        assert exits["REPOSITORY_SEMGREP"] == 0, exits
-        assert all(exits[key] for key in {*LINTERS, "REPOSITORY_SEMGREP_LOCAL"} - {"REPOSITORY_SEMGREP"}), exits
+        if mode == "full":
+            assert exits["REPOSITORY_SEMGREP"] == 0, exits
+        assert all(exits[key] for key in expected_linters - {"REPOSITORY_SEMGREP"}), exits
+        assert metrics["skipped_scans"] == []
         observed[mode] = findings(reports)
     assert observed == EXPECTED["findings"], json.dumps(observed, indent=2)
 

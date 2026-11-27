@@ -217,6 +217,7 @@ jobs:
             -v "${{ github.workspace }}:/tmp/lint" \
             -e DEFAULT_WORKSPACE=/tmp/lint \
             -e MEGALINTER_CONFIG=/opt/coding-standards/.mega-linter-default.yml \
+            -e GITHUB_EVENT_NAME \
             "$img"
 
       # The report goes to the job summary, never to artifact storage: that is

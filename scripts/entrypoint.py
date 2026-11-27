@@ -10,8 +10,8 @@ Usage:
 
 from __future__ import annotations
 
+import json
 import os
-import re
 import shlex
 import subprocess
 import sys
@@ -27,6 +27,8 @@ BAKED_CONFIG = Path("/opt/coding-standards/.mega-linter-default.yml")
 EXTENDS_URL = "https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml"
 REQUIRED_LOCAL_CONFIGS_KEY = "CODING_STANDARDS_REQUIRED_LOCAL_CONFIGS"
 SEMGREP_ARGUMENTS = "REPOSITORY_SEMGREP_ARGUMENTS"
+RETIRED_LINTERS = ("REPOSITORY_TRIVY", "REPOSITORY_TRIVY_CUSTOM", "REPOSITORY_TRIVY_SBOM")
+LINTER_SELECTION_KEYS = ("DISABLE_LINTERS", "ENABLE_LINTERS", "ENABLE_DISABLE_LINTERS_PRIORITY")
 
 app = typer.Typer(
     name="coding-standards",
@@ -171,6 +173,46 @@ def _inherit_semgrep_arguments(shared: list[str], overrides: dict[str, Any]) -> 
         overrides[SEMGREP_ARGUMENTS] = _with_shared_semgrep_arguments(shared, overrides[SEMGREP_ARGUMENTS])
 
 
+def _linter_selection(workspace: Path) -> dict[str, Any]:
+    config_name = os.environ.get("MEGALINTER_CONFIG", ".mega-linter.yml")
+    config_path = workspace / config_name
+    values = (yaml.safe_load(config_path.read_text()) or {}) if config_path.is_file() else {}
+    if "EXTENDS" not in values and "EXTENDS" not in os.environ and not config_name.startswith("https://"):
+        return {key: os.environ.get(key, values.get(key)) for key in LINTER_SELECTION_KEYS}
+
+    # Delegate consumer-specific inheritance to the pinned MegaLinter loader.
+    from megalinter import config as megalinter_config  # noqa: PLC0415
+
+    policy = "coding-standards-scanner-policy"
+    try:
+        megalinter_config.init_config(policy, str(workspace))
+        return {key: megalinter_config.get(policy, key) for key in LINTER_SELECTION_KEYS}
+    finally:
+        megalinter_config.delete(policy)
+
+
+def _linter_list(configured: str | list[str] | None) -> list[str]:
+    if isinstance(configured, str):
+        if configured.startswith("["):
+            return json.loads(configured)
+        return configured.split(",") if configured else []
+    return configured or []
+
+
+def _apply_scanner_policy(workspace: Path) -> None:
+    selection = _linter_selection(workspace)
+    disabled = _linter_list(selection["DISABLE_LINTERS"])
+    # Preserve existing ENABLE winners before applying the mandatory exclusions.
+    if selection["ENABLE_DISABLE_LINTERS_PRIORITY"] != "DISABLE":
+        enabled = set(_linter_list(selection["ENABLE_LINTERS"]))
+        disabled = [linter for linter in disabled if linter not in enabled]
+    rejected = [*RETIRED_LINTERS]
+    if os.environ.get("GITHUB_EVENT_NAME", "").startswith("pull_request"):
+        rejected.append("REPOSITORY_SEMGREP")
+    os.environ["DISABLE_LINTERS"] = ",".join(dict.fromkeys([*disabled, *rejected]))
+    os.environ["ENABLE_DISABLE_LINTERS_PRIORITY"] = "DISABLE"
+
+
 def _setup() -> None:
     """Pre-flight: git safe.directory, config resolution, semgrep discovery."""
     workspace = _workspace()
@@ -194,8 +236,7 @@ def _setup() -> None:
         _configure_git("credential.helper", f"store --file={cred_path}")
 
     # Config resolution (zero-config by default).
-    # MegaLinter resolves EXTENDS relative to workspace — absolute paths break.
-    # Strip the shared EXTENDS and resolve consumer settings against the baked YAML.
+    # Use the baked shared config and leave consumer-specific EXTENDS intact.
     consumer_config = workspace / ".mega-linter.yml"
     if not consumer_config.exists():
         os.environ["MEGALINTER_CONFIG"] = str(BAKED_CONFIG)
@@ -203,15 +244,14 @@ def _setup() -> None:
             baked = yaml.safe_load(BAKED_CONFIG.read_text())
             _inherit_semgrep_arguments(baked.get(SEMGREP_ARGUMENTS, []), {})
     elif EXTENDS_URL in consumer_config.read_text():
-        content = consumer_config.read_text()
-        content = re.sub(
-            r"EXTENDS:\s*\n\s*-\s*" + re.escape(EXTENDS_URL) + r"\s*\n?",
-            "",
-            content,
-        )
-        # Write a merged config: baked defaults + consumer overrides (without EXTENDS).
+        overrides = yaml.safe_load(consumer_config.read_text()) or {}
+        extends = overrides.pop("EXTENDS", [])
+        if isinstance(extends, str):
+            extends = extends.split(",")
+        consumer_policies = [source for source in extends if source != EXTENDS_URL]
+        if consumer_policies:
+            overrides["EXTENDS"] = consumer_policies
         baked = yaml.safe_load(BAKED_CONFIG.read_text())
-        overrides = yaml.safe_load(content) if content.strip() else {}
         _inherit_semgrep_arguments(baked.get(SEMGREP_ARGUMENTS, []), overrides)
         if overrides:
             consumer_rules_path = overrides.pop("LINTER_RULES_PATH", None)
@@ -233,6 +273,7 @@ def _setup() -> None:
 
 def _run_megalinter() -> None:
     """Run MegaLinter and exit with its return code."""
+    _apply_scanner_policy(_workspace())
     # The full lint run owns its process lifetime.
     # nosemgrep: coding-standards.python-helper-interpreter, coding-standards.python-subprocess-timeout
     result = subprocess.run(["python3", "-m", "megalinter.run"], check=False)
@@ -248,7 +289,7 @@ def main(ctx: typer.Context) -> None:
 
 
 @app.command()
-def lint(linter: str = typer.Argument(None, help="Linter name (e.g. ruff, PYTHON_RUFF)")) -> None:
+def lint(linter: str | None = typer.Argument(None, help="Linter name (e.g. ruff, PYTHON_RUFF)")) -> None:
     """Run full lint suite, or a single linter."""
     if linter:
         os.environ["ENABLE_LINTERS"] = linter.upper()

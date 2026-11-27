@@ -10,8 +10,6 @@ inputs:
   base-sha:
     description: Optional base commit SHA for a changed-files scan of the fixed source ref
     default: ""
-  trivy-config:
-    description: Optional repository-relative Trivy config for the per-linter runtime
   consumer-config:
     description: Existing MegaLinter policy to preserve the consumer's blocking checks in the per-linter runtime
     default: ""
@@ -72,8 +70,6 @@ runs:
       uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: |
-          .stock-cache/trivy
-          .stock-cache/trivy-*
           .stock-cache/semgrep-*
           .stock-cache/schema-assets
         key: stock-data-${{ inputs.runtime }}-${{ runner.arch }}-${{ inputs.cache-namespace }}-${{ hashFiles('policy/stock/Dockerfile.images', 'policy/stock/mega-linter.yml', 'policy/build-assets.yml') }}-${{ steps.cache-date.outputs.date }}
@@ -84,7 +80,7 @@ runs:
       with:
         version: "2026.10.23"
         working_directory: policy/stock
-        install_args: ${{ inputs.runtime == 'per-linter' && (inputs.consumer-config != '' && 'conftest github:pmd/pmd java uv' || 'conftest github:pmd/pmd java') || 'conftest github:pmd/pmd' }}
+        install_args: ${{ inputs.runtime == 'per-linter' && ((inputs.consumer-config != '' || inputs.semgrep-config != '') && 'conftest github:pmd/pmd java uv' || 'conftest github:pmd/pmd java') || 'conftest github:pmd/pmd' }}
         cache: ${{ runner.environment != 'self-hosted' || inputs.ephemeral == 'true' }}
         cache_save: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
 
@@ -97,7 +93,6 @@ runs:
         DISABLE_ERRORS: ${{ inputs.advisory }}
         STOCK_RUNTIME: ${{ inputs.runtime }}
         STOCK_BASE_SHA: ${{ inputs.base-sha }}
-        STOCK_TRIVY_CONFIG: ${{ inputs.trivy-config }}
         STOCK_CONSUMER_CONFIG: ${{ inputs.consumer-config }}
         STOCK_SEMGREP_CONFIG: ${{ inputs.semgrep-config }}
         STOCK_SEMGREP_PR_SCOPE: ${{ inputs.semgrep-pr-scope }}
@@ -126,18 +121,19 @@ runs:
           if [[ "$VALIDATE_ALL_CODEBASE" == false ]]; then
             options+=(--base "${STOCK_BASE_SHA:-$STOCK_PR_BASE_SHA}")
           fi
-          if [[ -n "$STOCK_TRIVY_CONFIG" ]]; then options+=(--trivy-config "$STOCK_TRIVY_CONFIG"); fi
           if [[ -n "$STOCK_SEMGREP_CONFIG" ]]; then
             options+=(--semgrep-config "$STOCK_SEMGREP_CONFIG" --semgrep-pr-scope "$STOCK_SEMGREP_PR_SCOPE")
           fi
           if [[ -n "$STOCK_SEMGREP_TARGETS" ]]; then options+=(--semgrep-targets "$STOCK_SEMGREP_TARGETS"); fi
           if [[ "$DISABLE_ERRORS" == true ]]; then options+=(--advisory); fi
           if [[ "$STOCK_SMOKE" == true ]]; then
-            options+=(--linter PYTHON_RUFF --linter ACTION_ZIZMOR --linter REPOSITORY_SEMGREP)
+            options+=(--linter PYTHON_RUFF --linter ACTION_ZIZMOR)
           fi
           launcher=(python3)
           if [[ -n "$STOCK_CONSUMER_CONFIG" ]]; then
             options+=(--consumer-config "$STOCK_CONSUMER_CONFIG")
+          fi
+          if [[ -n "$STOCK_CONSUMER_CONFIG" || -n "$STOCK_SEMGREP_CONFIG" ]]; then
             launcher=(uv run --script)
           fi
           "${launcher[@]}" ../policy/stock/containers.py --source "$PWD" --cache "$cache" --reports "$GITHUB_WORKSPACE/stock-reports" "${options[@]}"
@@ -151,6 +147,28 @@ runs:
           echo 'semgrep-config and semgrep-targets require the per-linter runtime.'
           exit 2
         fi
+        required_disables=REPOSITORY_TRIVY,REPOSITORY_TRIVY_SBOM
+        if [[ "${GITHUB_EVENT_NAME:-}" == pull_request* ]]; then
+          required_disables+=,REPOSITORY_SEMGREP
+        fi
+        configured_disables="$(python3 - "$required_disables" <<'PY'
+        import os
+        import sys
+        from contextlib import redirect_stdout
+
+        from megalinter import config
+
+        with redirect_stdout(sys.stderr):
+            config.init_config("stock-scanner-policy", os.getcwd())
+        disabled = config.get_list("stock-scanner-policy", "DISABLE_LINTERS", [])
+        if config.get("stock-scanner-policy", "ENABLE_DISABLE_LINTERS_PRIORITY") != "DISABLE":
+            enabled = set(config.get_list("stock-scanner-policy", "ENABLE_LINTERS", []))
+            disabled = [linter for linter in disabled if linter not in enabled]
+        print(",".join(dict.fromkeys([*disabled, *sys.argv[1].split(",")])))
+        PY
+        )"
+        export DISABLE_LINTERS="$configured_disables"
+        export ENABLE_DISABLE_LINTERS_PRIORITY=DISABLE
         if [[ -n "$STOCK_BASE_SHA" ]]; then
           [[ "$STOCK_BASE_SHA" =~ ^[0-9a-f]{40}$ ]]
           git cat-file -e "$STOCK_BASE_SHA^{commit}"
@@ -160,7 +178,6 @@ runs:
           export REPOSITORY_BETTERLEAKS_PR_TARGET_SHA="$STOCK_BASE_SHA"
           printf 'Scanning changes against %s\n' "$STOCK_BASE_SHA"
         fi
-        export TRIVY_CACHE_DIR="$GITHUB_WORKSPACE/.stock-cache/trivy"
         export REPORT_OUTPUT_FOLDER="$GITHUB_WORKSPACE/stock-reports"
         export DEFAULT_WORKSPACE="$PWD"
         export GITHUB_WORKSPACE="$PWD"
@@ -208,8 +225,6 @@ runs:
       uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: |
-          .stock-cache/trivy
-          .stock-cache/trivy-*
           .stock-cache/semgrep-*
           .stock-cache/schema-assets
         key: ${{ steps.scanner-cache.outputs.cache-primary-key }}

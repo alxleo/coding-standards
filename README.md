@@ -62,7 +62,7 @@ running on Markdown-only pull requests.
 | `*.py` | ruff, pyright, vulture, deptry, semgrep |
 | `*.js`/`*.ts`/`*.tsx` | eslint, prettier, typescript, knip, oxlint |
 | `*.sh` | shellcheck, shfmt |
-| `Dockerfile` | hadolint, trivy, dclint |
+| `Dockerfile` | hadolint, dclint |
 | `docker-compose.yml` | conftest (healthchecks, resource limits, security) |
 | `*.tf` | tflint |
 | `*.yml`/`*.yaml` | yamllint, prettier, v8r (schema validation) |
@@ -71,15 +71,14 @@ running on Markdown-only pull requests.
 | `package.json` | npm-audit, license-checker, knip, publint |
 | `pyproject.toml` | deptry, import-linter |
 | `.github/workflows/` | actionlint, zizmor |
-| Any code | semgrep (security), gitleaks (secrets), trivy (vulnerabilities) |
+| Repository-wide | Betterleaks (secrets), plus full Semgrep on scheduled and other non-PR runs |
 | Any repo | repo-standards (tells you what's missing) |
 
 ## Add your own rules
 
-Drop a directory — runs alongside baked rules, zero config:
-
-- **`.semgrep/`** — custom pattern-matching rules
-- **`policy/`** + `conftest.toml` — custom structural validation policies
+- **`.semgrep/`** adds custom rules to a full Semgrep run in the coding-standards image.
+- For a PR check with local Semgrep rules, use the stock per-linter workflow with `semgrep-config`. It checks eligible changed files and reports when it skips the scan.
+- **`policy/`** plus `conftest.toml` adds custom structural validation policies.
 
 ## Customize
 

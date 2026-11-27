@@ -4,7 +4,7 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 
 ## Architecture
 
-- **No runtime network calls** — the CI image is offline-first. All schemas, semgrep rules, trivy DB, and linter configs are baked at build time. Network-dependent checks (zizmor pin verification, trivy CVE scanning) run in scheduled workflows, not CI. This gives deterministic results, eliminates latency from external services, and works in air-gapped environments. Token passthrough (env-file, git credential store) exists for consumers who opt into online checks, but the default path needs no token.
+- **No runtime network calls** — the CI image is offline-first. Schemas, Semgrep rules, and linter configs are baked at build time. Network-dependent checks (zizmor pin verification, trivy CVE scanning) run in scheduled workflows, not CI. This gives deterministic results, eliminates latency from external services, and works in air-gapped environments. Token passthrough (env-file, git credential store) exists for consumers who opt into online checks, but the default path needs no token.
 - **MegaLinter cupcake base** — covers 18/34 tools. No larger flavor fills gaps.
 - **Custom Docker image** — FROM cupcake + 16 custom tools as plugins/installs.
 - **Multi-arch** via Custom Flavor Builder — amd64 (Gitea/GHA) + arm64 (Mac). All our tools are arm64-compatible.
@@ -21,12 +21,9 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 - **pyright standard mode**: catches hallucinated APIs, wrong args, type bugs. Works without deps for stdlib + typeshed (~600 packages). reportMissingImports: warning.
 - ty (Astral): 15% conformance. Revisit H2 2026.
 
-### Security: trivy + semgrep only
+### Security scanning
 
-- checkov/kics: IaC overlap with trivy. Noisy, slow.
-- grype: vuln overlap with trivy.
-- syft: no SBOM consumer.
-- Trivy is checksum-pinned to a post-incident release. MegaLinter re-enabled Trivy after the upstream incident was resolved.
+The legacy image includes Semgrep. Its PR self-lint skips the whole-repository Semgrep pass. The published image vulnerability scan runs independently on a schedule.
 
 ### Secrets: Betterleaks with full Git history
 
@@ -139,7 +136,7 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 
 ### Reporters
 
-- TAP: OFF. Breaks project-mode linters (trivy, commitlint, knip).
+- TAP: OFF. Breaks project-mode linters (commitlint, knip).
 - JSON: ON (detailed). Our reporting script reads this.
 - GitHub Status/Comment: OFF. We post statuses ourselves (Gitea compat).
 - Markdown Summary: ON. GitHub step summary, harmless no-op on Gitea.
@@ -214,7 +211,7 @@ Decisions made 2026-03-29. Revisit if assumptions change.
 ### Monorepo scoping
 
 FILTER_REGEX_INCLUDE/EXCLUDE only works for file-mode linters (shellcheck, ruff, yamllint).
-Project-mode linters (trivy, semgrep, gitleaks, conftest, knip, etc.) ignore it entirely.
+Project-mode linters (Semgrep, Gitleaks, Conftest, Knip, etc.) ignore it entirely.
 For monorepos like home-network: single MegaLinter run + tool-native scoping:
 
 - ruff: per-file-ignores in ruff.toml

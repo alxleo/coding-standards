@@ -7,7 +7,6 @@
 import argparse
 import concurrent.futures
 import fcntl
-import fnmatch
 import json
 import logging
 import os
@@ -19,7 +18,6 @@ import subprocess
 import sys
 import tempfile
 import time
-import tomllib
 import urllib.parse
 from pathlib import Path
 from typing import NamedTuple
@@ -28,7 +26,6 @@ from image_pins import LOCK, image_pins
 
 IMAGE_PREFIX = "coding-standards-stock-owned/"
 REGISTRY = "ghcr.io"
-DAY = 24 * 60 * 60
 REPORT = "summary.md"
 ZIZMOR_NO_INPUTS = 3
 SCHEMA_MOUNT = Path("/opt/coding-standards/schemas")
@@ -40,7 +37,6 @@ ARCH = {"aarch64": "arm64", "arm64": "arm64", "x86_64": "amd64"}.get(platform.ma
 CURRENT_KEYS = {
     "ACTION_ZIZMOR": "REPOSITORY_ZIZMOR",
     "REPOSITORY_BETTERLEAKS": "REPOSITORY_BETTERLEAKS_GIT",
-    "REPOSITORY_TRIVY": "REPOSITORY_TRIVY_CUSTOM",
 }
 
 
@@ -162,7 +158,7 @@ def remove_stale(lock, cache):
         if match and f"sha256:{match[2]}" != lock.get(match[1].upper()):
             result = docker("image", "rm", tag, check=False)
             LOGGER.info("%s", result.stdout.rstrip())
-    for kind, key in (("semgrep", "REPOSITORY_SEMGREP"), ("trivy", "REPOSITORY_TRIVY")):
+    for kind, key in (("semgrep", "REPOSITORY_SEMGREP"),):
         current = lock[key].removeprefix("sha256:")
         for entry in cache.glob(f"{kind}-*"):
             suffix = entry.name.removeprefix(f"{kind}-")
@@ -200,38 +196,8 @@ def packs(directory, consumer):
     return paths
 
 
-def fresh(path):
-    return path.is_file() and time.time() - path.stat().st_mtime < DAY
-
-
-def trivy_environment(directory):
-    environment = {"TRIVY_CACHE_DIR": "/stock-data", "TRIVY_SKIP_VERSION_CHECK": "true"}
-    for location, option in (
-        ("db/metadata.json", "DB"),
-        ("java-db/metadata.json", "JAVA_DB"),
-        ("policy/metadata.json", "CHECK"),
-    ):
-        if fresh(directory / location):
-            environment[f"TRIVY_SKIP_{option}_UPDATE"] = "true"
-    return environment
-
-
 def mount(path, target, *, writable=False):
     return ["--mount", f"type=bind,src={path},dst={target}" + ("" if writable else ",readonly")]
-
-
-def trivy_setup(args, digest):
-    directory = args.cache / f"trivy-{digest.removeprefix('sha256:')}"
-    if not directory.exists():
-        directory.mkdir()
-        (directory / ".stock-owned").touch()
-    env = trivy_environment(directory)
-    if args.trivy_config:
-        env.update(
-            REPOSITORY_TRIVY_RULES_PATH=f"{SOURCE}/{args.trivy_config.parent}",
-            REPOSITORY_TRIVY_CONFIG_FILE=args.trivy_config.name,
-        )
-    return mount(directory, "/stock-data", writable=True), env
 
 
 def checkout_file(source, selection):
@@ -364,53 +330,69 @@ def run_scanner(options, command_line):
     )
 
 
-def scoped_semgrep_paths(args):
-    if args.semgrep_pr_scope == "full" or not (args.base and args.consumer and args.semgrep_targets):
-        return None
+def semgrep_scope(args):
+    if not args.is_pull_request:
+        return None, None
+    if args.semgrep_pr_scope == "full":
+        return None, "full-tree scans are disabled on pull requests"
+    if not args.base:
+        return None, "pull-request base commit is unavailable"
+    paths = args.changed_files
+    reason = None
     scope_files = {".gitattributes", ".gitignore", ".gitmodules", ".semgrepignore"}
-    if any(path == args.semgrep_config or path.name in scope_files for path in map(Path, args.diff)):
-        return None
-    import yaml  # noqa: PLC0415 - the consumer policy uses the same optional dependency
+    if not reason and any(path == args.semgrep_config or path.name in scope_files for path in map(Path, args.diff)):
+        reason = "Semgrep rules or path-ignore files changed"
+    if not reason:
+        import yaml  # noqa: PLC0415 - the consumer policy uses the same optional dependency
 
-    config = yaml.safe_load((args.source / args.semgrep_config).read_text())
-    rules = config.get("rules", []) if isinstance(config, dict) else []
-    if not rules or any(
-        not isinstance(rule, dict)
-        or rule.get("mode", "search") != "search"
-        or rule.get("options", {}).get("interfile")
-        or {"project-depends-on", "r2c-internal-project-depends-on"}.intersection(rule)
-        for rule in rules
-    ):
-        return None
-    return args.changed_files
+        config = yaml.safe_load((args.source / args.semgrep_config).read_text())
+        rules = config.get("rules", []) if isinstance(config, dict) else []
+        if not rules or any(
+            not isinstance(rule, dict)
+            or rule.get("mode", "search") != "search"
+            or rule.get("options", {}).get("interfile")
+            or {"project-depends-on", "r2c-internal-project-depends-on"}.intersection(rule)
+            for rule in rules
+        ):
+            reason = "Semgrep rules require project-wide analysis"
+    if not reason and not paths and not args.semgrep_targets:
+        reason = "no changed files or explicit targets to scan"
+    if not reason:
+        includes = semgrep_include_arguments(paths, args.semgrep_targets)
+        target_args = [f"./{path}" for path in args.semgrep_targets]
+        if sum(len(os.fsencode(option)) + 1 for option in (*includes, *target_args)) > 32 * 1024:
+            reason = "file-scoped arguments exceed the command limit"
+    return (None, reason) if reason else (paths, None)
 
 
-def scan_semgrep_rules(image_task, args):
+def semgrep_include_arguments(paths, targets):
+    include = []
+    for path in (*paths, *targets):
+        pattern = re.sub(r"([\\*?\[\]])", r"\\\1", path)
+        include.append(f"--include=/{pattern}")
+    return include
+
+
+def tracked_semgrep_targets(source, pathspecs):
+    if not pathspecs:
+        return []
+    inventory = command("git", "ls-files", "-z", "--", *pathspecs, cwd=source)
+    targets = inventory.stdout.rstrip("\0").split("\0") if inventory.stdout else []
+    if not targets:
+        message = "Semgrep target pathspecs matched no tracked files"
+        raise ValueError(message)
+    return targets
+
+
+def scan_semgrep_rules(image_task, args, paths):
     """Run the configured local rules with Semgrep's CLI."""
     key = "REPOSITORY_SEMGREP_LOCAL"
     reports = args.reports / key.lower()
     reports.mkdir(parents=True, exist_ok=True)
     report = reports / "findings.json"
     report.unlink(missing_ok=True)
-    targets = []
-    if args.semgrep_targets:
-        inventory = command("git", "ls-files", "-z", "--", *args.semgrep_targets, cwd=args.source)
-        targets = inventory.stdout.rstrip("\0").split("\0") if inventory.stdout else []
-        if not targets:
-            message = "Semgrep target pathspecs matched no tracked files"
-            raise ValueError(message)
-
-    paths = scoped_semgrep_paths(args)
-    include = []
-    if paths:
-        # Keep Semgrep's normal ignore rules for changed files. Only explicit
-        # targets should bypass its default test exclusions.
-        for path in (*paths, *targets):
-            pattern = re.sub(r"([\\*?\[\]])", r"\\\1", path)
-            include.append(f"--include=/{pattern}")
-        if sum(len(os.fsencode(option)) + 1 for option in include) > 32 * 1024:
-            include = []
-            paths = None
+    targets = args.semgrep_targets
+    include = semgrep_include_arguments(paths, targets) if paths else []
     LOGGER.info("Semgrep local scope: %s", "changed files and explicit targets" if paths is not None else "full tree")
     ref, image, _, _ = image_task.result()
     options = [
@@ -516,10 +498,6 @@ def scan_one(key, digest, args, source, image_task):
     env.update(consumer_environment(args.consumer, key))
     if key.endswith("_V8R") and args.consumer and (config := args.consumer.configs.get(key)):
         options += legacy_v8r_mounts(source, config, args.cache, policy)
-    if key == "REPOSITORY_TRIVY":
-        data_mount, trivy_env = trivy_setup(args, digest)
-        options += data_mount
-        env.update(trivy_env)
     if key == "REPOSITORY_SEMGREP":
         data_mount, semgrep_env = semgrep_setup(args, digest, source, policy)
         options += data_mount
@@ -576,11 +554,12 @@ def scan_one(key, digest, args, source, image_task):
     }
 
 
-def summary(results, reports):
+def summary(results, reports, skipped_scans):
     text = ["### Stock lint", "", "| Linter | Result | Seconds |", "| --- | --- | ---: |"]
     for item in results:
         key = item["linter"]
         text.append(f"| {key} | {'exit ' + str(item['exit']) if item['exit'] else 'ok'} | {item['seconds']} |")
+    text.extend(f"| {item['linter']} | skipped: {item['reason']} | — |" for item in skipped_scans)
     for item in results:
         report = reports / item["linter"].lower() / REPORT
         if report.is_file():
@@ -631,58 +610,8 @@ def selected_file(source, name, rules):
     return True
 
 
-def python_dependency_sections(contents):
-    project = tomllib.loads(contents)
-    tools = project.get("tool", {})
-    return (
-        project.get("project"),
-        project.get("build-system"),
-        project.get("dependency-groups"),
-        tools.get("poetry"),
-        tools.get("uv"),
-        tools.get("pdm"),
-    )
-
-
-def python_dependencies_changed(source, merge_base, name):
-    manifest = source / name
-    if manifest.is_symlink() or not manifest.is_file():
-        return True
-    previous = command("git", "show", f"{merge_base}:{name}", cwd=source, check=False)
-    if previous.returncode:
-        return True
-    try:
-        return python_dependency_sections(previous.stdout) != python_dependency_sections(manifest.read_text())
-    except (OSError, tomllib.TOMLDecodeError, UnicodeError):
-        return True
-
-
-def trivy_pr_input(source, merge_base, files, lock, trivy_config):
-    metadata = json.loads(LOCK.with_name("trivy-selectors.json").read_text())
-    if metadata["image"] != lock["images"]["REPOSITORY_TRIVY"]:
-        message = "Regenerate the Trivy PR selectors for the locked image"
-        raise ValueError(message)
-    docker_names = set(metadata["docker"])
-    for name in files:
-        path = Path(name)
-        docker_parts = (path.name.lower().removeprefix("."), path.stem.lower(), path.suffix[1:].lower())
-        if path == trivy_config or docker_names.intersection(docker_parts):
-            return name
-        if path.name == "pyproject.toml" and not python_dependencies_changed(source, merge_base, name):
-            continue
-        if any(fnmatch.fnmatchcase(path.name, pattern) for pattern in metadata["files"]):
-            return name
-    return None
-
-
-def pr_linters(args, merge_base, lock, keys):
-    source, files = args.source, args.diff
-    if "REPOSITORY_TRIVY" in keys:
-        if name := trivy_pr_input(source, merge_base, files, lock, args.trivy_config):
-            LOGGER.info("Trivy PR selected by %r", name)
-        else:
-            LOGGER.info("Trivy PR skipped: no changed dependency, container or infrastructure inputs")
-            keys = [key for key in keys if key != "REPOSITORY_TRIVY"]
+def pr_linters(args, lock, keys):
+    source = args.source
     # A consumer-supplied config can change descriptor filters or switch a linter to project mode.
     if (source / "stock.mega-linter.yml").is_file():
         return keys
@@ -700,6 +629,36 @@ def pr_linters(args, merge_base, lock, keys):
             for name in (args.diff if key == "ACTION_ZIZMOR" else args.changed_files)
         )
     ]
+
+
+def select_linter_keys(lock, requested, is_pull_request):
+    if requested:
+        unknown = sorted(set(requested).difference(lock))
+        if unknown:
+            message = f"Unsupported stock linter selection: {', '.join(unknown)}"
+            raise ValueError(message)
+        return [key for key in requested if not (is_pull_request and key == "REPOSITORY_SEMGREP")]
+    return [key for key in lock if not (is_pull_request and key == "REPOSITORY_SEMGREP")]
+
+
+def is_pull_request_event():
+    return os.environ.get("GITHUB_EVENT_NAME", "").startswith("pull_request")
+
+
+def schedule_semgrep(executor, args, lock, keys):
+    if args.semgrep_config:
+        args.semgrep_targets = tracked_semgrep_targets(args.source, args.semgrep_targets)
+    paths, skip_reason = semgrep_scope(args) if args.semgrep_config else (None, None)
+    run_local = bool(args.semgrep_config) and skip_reason is None
+    skipped = []
+    if skip_reason:
+        LOGGER.info("Skipping local Semgrep: %s", skip_reason)
+        skipped.append({"linter": "REPOSITORY_SEMGREP_LOCAL", "reason": skip_reason})
+    image_task = None
+    if "REPOSITORY_SEMGREP" in keys or run_local:
+        image_task = executor.submit(image_for, "REPOSITORY_SEMGREP", lock["REPOSITORY_SEMGREP"])
+    tasks = [executor.submit(scan_semgrep_rules, image_task, args, paths)] if run_local else []
+    return image_task, tasks, skipped
 
 
 def scan_linter(key, digest, args, image_task=None):
@@ -725,8 +684,10 @@ def scan(args):
     cache.mkdir(parents=True, exist_ok=True)
     image_lock = image_pins()
     lock = image_lock["images"]
-    keys = args.linter or list(lock)
+    args.is_pull_request = is_pull_request_event()
+    keys = select_linter_keys(lock, args.linter, args.is_pull_request)
     skipped = []
+    skipped_scans = []
     base = args.base
     if base:
         if not re.fullmatch("[0-9a-f]{40}", base):
@@ -740,11 +701,11 @@ def scan(args):
         args.changed_files = [
             name for name in args.diff if (source / name).is_file() and not (source / name).is_symlink()
         ]
-        selected = pr_linters(args, merge_base, image_lock, keys)
+        selected = pr_linters(args, image_lock, keys)
         skipped = [key for key in keys if key not in selected]
         # The repository scans dominate the PR's critical path. Start both
         # before the shorter file checks fill the executor.
-        keys = sorted(selected, key=lambda key: key not in ("REPOSITORY_SEMGREP", "REPOSITORY_TRIVY"))
+        keys = sorted(selected, key=lambda key: key != "REPOSITORY_SEMGREP")
         LOGGER.info("Selected %d linters; skipped %d without changed inputs", len(keys), len(skipped))
     cpus = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else (os.cpu_count() or 1)
     docker_info = docker("info", "--format", "{{.NCPU}}\n{{json .SecurityOptions}}")
@@ -757,10 +718,8 @@ def scan(args):
         remove_stale(lock, cache)
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
             tasks = []
-            semgrep_image = None
-            if args.semgrep_config and "REPOSITORY_SEMGREP" in keys:
-                semgrep_image = executor.submit(image_for, "REPOSITORY_SEMGREP", lock["REPOSITORY_SEMGREP"])
-                tasks.append(executor.submit(scan_semgrep_rules, semgrep_image, args))
+            semgrep_image, local_semgrep_tasks, skipped_scans = schedule_semgrep(executor, args, lock, keys)
+            tasks.extend(local_semgrep_tasks)
             for key in keys:
                 image_task = semgrep_image if key == "REPOSITORY_SEMGREP" else None
                 tasks.append(executor.submit(scan_linter, key, lock[key], args, image_task))
@@ -770,6 +729,7 @@ def scan(args):
         "seconds": round(time.monotonic() - start, 2),
         "linters": results,
         "skipped_linters": skipped,
+        "skipped_scans": skipped_scans,
         "cache_disk_bytes": sizes,
         "image_logical_bytes": sum({row["image_id"]: row["image_bytes"] for row in results}.values()),
         "registry_layer_bytes": sum(row["registry_layer_bytes"] for row in results)
@@ -779,7 +739,7 @@ def scan(args):
     }
     LOGGER.info("STOCK_CONTAINERS %s", json.dumps(metrics))
     (reports / "containers.json").write_text(json.dumps(metrics, indent=2) + "\n")
-    summary(results, reports)
+    summary(results, reports, skipped_scans)
     return int(any(item["exit"] for item in results))
 
 
@@ -798,11 +758,9 @@ def benchmark_current(args):
         "DEFAULT_BRANCH",
         "VALIDATE_ALL_CODEBASE",
         "APPLY_FIXES",
-        "TRIVY_CACHE_DIR",
         "SEMGREP_ENABLE_VERSION_CHECK",
         "REPOSITORY_SEMGREP_ARGUMENTS",
         "REPOSITORY_SEMGREP_TIMEOUT_SECONDS",
-        "REPOSITORY_TRIVY_CUSTOM_CONFIG_FILE",
     ):
         if name in os.environ:
             options += ["-e", name]
@@ -818,7 +776,6 @@ def benchmark_current(args):
                 "image_logical_bytes": image["Size"],
                 "cache_disk_bytes": 0,
                 "actions_cache_bytes": 0,
-                "embedded_trivy_db": True,
             }
         ),
     )
@@ -832,7 +789,6 @@ def main():
     parser.add_argument("--reports", type=Path)
     parser.add_argument("--cache", type=Path)
     parser.add_argument("--base", default="")
-    parser.add_argument("--trivy-config", type=Path, help="Repository-relative Trivy configuration")
     parser.add_argument("--consumer-config", type=Path, help="Match an existing repository MegaLinter policy via uv")
     parser.add_argument("--semgrep-config", type=Path, help="Repository-relative Semgrep rules")
     parser.add_argument("--semgrep-pr-scope", choices=("auto", "full"), default="auto")
@@ -854,12 +810,6 @@ def main():
         parser.error("--semgrep-targets requires --semgrep-config")
     if args.semgrep_config:
         args.semgrep_config = checkout_file(args.source.resolve(), args.semgrep_config)
-    if args.trivy_config:
-        source = args.source.resolve()
-        config = (source / args.trivy_config).resolve()
-        if args.trivy_config.is_absolute() or not config.is_relative_to(source) or not config.is_file():
-            parser.error("--trivy-config must select a file inside the source checkout")
-        args.trivy_config = config.relative_to(source)
     sys.exit(scan(args))
 
 
