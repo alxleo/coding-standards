@@ -3,6 +3,7 @@ name: Workflow Check
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, edited]
   merge_group:
   workflow_dispatch:
 
@@ -16,16 +17,27 @@ jobs:
 
   workflow-check:
     needs: change-scope
-    if: ${{ !cancelled() && needs.change-scope.outputs.markdown-only != 'true' }}
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # This is a required status; CI's self-lint cannot see the future squash title.
+      - name: Validate pull request title
+        if: github.event_name == 'pull_request'
+        env:
+          PULL_REQUEST_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          printf '%s\n' "$PULL_REQUEST_TITLE" |
+            npx --yes --package=@commitlint/cli@21.2.1 commitlint \
+              --config lint-configs/commitlint-pr-title.config.mjs
       - name: Lint GitHub Actions workflows
+        if: ${{ !cancelled() && needs.change-scope.outputs.markdown-only != 'true' }}
         uses: docker://rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
       - name: Audit GitHub Actions security
+        if: ${{ !cancelled() && needs.change-scope.outputs.markdown-only != 'true' }}
         uses: docker://ghcr.io/zizmorcore/zizmor:1.32.0@sha256:3014cc8f68f663935f69b3c3e0e41f5ce102b268d97db13db0f62208747f860d
         with:
           args: >-
