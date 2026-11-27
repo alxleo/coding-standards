@@ -100,7 +100,7 @@ runs:
         STOCK_PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         STOCK_PERSISTENT: ${{ runner.environment == 'self-hosted' && inputs.ephemeral != 'true' }}
         STOCK_SMOKE: ${{ inputs.smoke }}
-        DISABLE_LINTERS: ${{ github.event_name == 'pull_request' && 'REPOSITORY_SEMGREP' || '' }}
+        DISABLE_LINTERS: ${{ startsWith(github.event_name, 'pull_request') && 'REPOSITORY_SEMGREP' || '' }}
         ENABLE_DISABLE_LINTERS_PRIORITY: DISABLE
         VALIDATE_ALL_CODEBASE: ${{ inputs.base-sha == '' && (github.event_name != 'pull_request' || inputs.source-ref != '') }}
         REPOSITORY_BETTERLEAKS_PR_COMMITS_SCAN: "true"

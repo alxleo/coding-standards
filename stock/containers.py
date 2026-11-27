@@ -351,6 +351,25 @@ def scoped_semgrep_paths(args):
     return args.changed_files
 
 
+def semgrep_include_arguments(paths, targets):
+    include = []
+    for path in (*paths, *targets):
+        pattern = re.sub(r"([\\*?\[\]])", r"\\\1", path)
+        include.append(f"--include=/{pattern}")
+    return include
+
+
+def tracked_semgrep_targets(source, pathspecs):
+    if not pathspecs:
+        return []
+    inventory = command("git", "ls-files", "-z", "--", *pathspecs, cwd=source)
+    targets = inventory.stdout.rstrip("\0").split("\0") if inventory.stdout else []
+    if not targets:
+        message = "Semgrep target pathspecs matched no tracked files"
+        raise ValueError(message)
+    return targets
+
+
 def scan_semgrep_rules(image_task, args):
     """Run the configured local rules with Semgrep's CLI."""
     key = "REPOSITORY_SEMGREP_LOCAL"
@@ -358,25 +377,14 @@ def scan_semgrep_rules(image_task, args):
     reports.mkdir(parents=True, exist_ok=True)
     report = reports / "findings.json"
     report.unlink(missing_ok=True)
-    targets = []
-    if args.semgrep_targets:
-        inventory = command("git", "ls-files", "-z", "--", *args.semgrep_targets, cwd=args.source)
-        targets = inventory.stdout.rstrip("\0").split("\0") if inventory.stdout else []
-        if not targets:
-            message = "Semgrep target pathspecs matched no tracked files"
-            raise ValueError(message)
-
+    targets = args.semgrep_targets
     paths = scoped_semgrep_paths(args)
-    include = []
-    if paths:
+    include = semgrep_include_arguments(paths, targets) if paths else []
+    if paths and sum(len(os.fsencode(option)) + 1 for option in include) > 32 * 1024:
         # Keep Semgrep's normal ignore rules for changed files. Only explicit
         # targets should bypass its default test exclusions.
-        for path in (*paths, *targets):
-            pattern = re.sub(r"([\\*?\[\]])", r"\\\1", path)
-            include.append(f"--include=/{pattern}")
-        if sum(len(os.fsencode(option)) + 1 for option in include) > 32 * 1024:
-            include = []
-            paths = None
+        include = []
+        paths = None
     LOGGER.info("Semgrep local scope: %s", "changed files and explicit targets" if paths is not None else "full tree")
     ref, image, _, _ = image_task.result()
     options = [
@@ -593,8 +601,8 @@ def selected_file(source, name, rules):
     return True
 
 
-def pr_linters(args, merge_base, lock, keys):
-    source, files = args.source, args.diff
+def pr_linters(args, lock, keys):
+    source = args.source
     # A consumer-supplied config can change descriptor filters or switch a linter to project mode.
     if (source / "stock.mega-linter.yml").is_file():
         return keys
@@ -614,13 +622,43 @@ def pr_linters(args, merge_base, lock, keys):
     ]
 
 
-def select_linter_keys(lock, requested, base):
+def select_linter_keys(lock, requested, is_pull_request):
     if requested:
         unknown = sorted(set(requested).difference(lock))
         if unknown:
-            raise ValueError(f"Unsupported stock linter selection: {', '.join(unknown)}")
-        return list(requested)
-    return [key for key in lock if not (base and key == "REPOSITORY_SEMGREP")]
+            message = f"Unsupported stock linter selection: {', '.join(unknown)}"
+            raise ValueError(message)
+        return [key for key in requested if not (is_pull_request and key == "REPOSITORY_SEMGREP")]
+    return [key for key in lock if not (is_pull_request and key == "REPOSITORY_SEMGREP")]
+
+
+def is_pull_request_event():
+    return os.environ.get("GITHUB_EVENT_NAME", "").startswith("pull_request")
+
+
+def local_semgrep_allowed(args):
+    if not args.is_pull_request:
+        return True
+    paths = scoped_semgrep_paths(args)
+    if paths is None:
+        return False
+    includes = semgrep_include_arguments(paths, args.semgrep_targets) if paths else []
+    target_args = [f"./{path}" for path in args.semgrep_targets]
+    arguments = [*includes, *target_args]
+    return sum(len(os.fsencode(option)) + 1 for option in arguments) <= 32 * 1024
+
+
+def schedule_semgrep(executor, args, lock, keys):
+    if args.semgrep_config:
+        args.semgrep_targets = tracked_semgrep_targets(args.source, args.semgrep_targets)
+    run_local = bool(args.semgrep_config) and local_semgrep_allowed(args)
+    if args.semgrep_config and not run_local:
+        LOGGER.info("Skipping local Semgrep because pull-request rules are not file-scoped")
+    image_task = None
+    if "REPOSITORY_SEMGREP" in keys or run_local:
+        image_task = executor.submit(image_for, "REPOSITORY_SEMGREP", lock["REPOSITORY_SEMGREP"])
+    tasks = [executor.submit(scan_semgrep_rules, image_task, args)] if run_local else []
+    return image_task, tasks
 
 
 def scan_linter(key, digest, args, image_task=None):
@@ -646,7 +684,8 @@ def scan(args):
     cache.mkdir(parents=True, exist_ok=True)
     image_lock = image_pins()
     lock = image_lock["images"]
-    keys = select_linter_keys(lock, args.linter, args.base)
+    args.is_pull_request = is_pull_request_event()
+    keys = select_linter_keys(lock, args.linter, args.is_pull_request)
     skipped = []
     base = args.base
     if base:
@@ -661,7 +700,7 @@ def scan(args):
         args.changed_files = [
             name for name in args.diff if (source / name).is_file() and not (source / name).is_symlink()
         ]
-        selected = pr_linters(args, merge_base, image_lock, keys)
+        selected = pr_linters(args, image_lock, keys)
         skipped = [key for key in keys if key not in selected]
         # The repository scans dominate the PR's critical path. Start both
         # before the shorter file checks fill the executor.
@@ -678,10 +717,8 @@ def scan(args):
         remove_stale(lock, cache)
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
             tasks = []
-            semgrep_image = None
-            if args.semgrep_config and "REPOSITORY_SEMGREP" in keys:
-                semgrep_image = executor.submit(image_for, "REPOSITORY_SEMGREP", lock["REPOSITORY_SEMGREP"])
-                tasks.append(executor.submit(scan_semgrep_rules, semgrep_image, args))
+            semgrep_image, local_semgrep_tasks = schedule_semgrep(executor, args, lock, keys)
+            tasks.extend(local_semgrep_tasks)
             for key in keys:
                 image_task = semgrep_image if key == "REPOSITORY_SEMGREP" else None
                 tasks.append(executor.submit(scan_linter, key, lock[key], args, image_task))

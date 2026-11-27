@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from urllib.parse import unquote, urlsplit
 
 import pytest
@@ -19,7 +20,13 @@ ROOT = TESTS.parent.parent
 FIXTURE = TESTS / "fixture"
 EXPECTED = json.loads((TESTS / "expected.json").read_text())
 sys.path.insert(0, str(ROOT / "stock"))
-from containers import consumer_policy, select_linter_keys
+from containers import (  # noqa: E402
+    consumer_policy,
+    is_pull_request_event,
+    local_semgrep_allowed,
+    select_linter_keys,
+    tracked_semgrep_targets,
+)
 
 LINTERS = (
     "ACTION_ZIZMOR",
@@ -69,6 +76,8 @@ def commit(source):
 
 
 def scan(source, reports, cache, *options, linters=LINTERS):
+    scan_env = os.environ.copy()
+    scan_env["GITHUB_EVENT_NAME"] = "stock-contract"
     result = run(
         "uv",
         "run",
@@ -89,6 +98,7 @@ def scan(source, reports, cache, *options, linters=LINTERS):
         ":(glob)tests/**/*.py",
         *(option for key in linters for option in ("--linter", key)),
         *options,
+        env=scan_env,
         check=False,
     )
     assert (reports / "containers.json").is_file(), result.stderr[-10000:]
@@ -97,14 +107,10 @@ def scan(source, reports, cache, *options, linters=LINTERS):
 
 def test_retired_trivy_cannot_be_selected_by_consumer_config(tmp_path):
     config = tmp_path / ".mega-linter.yml"
-    config.write_text(
-        "ENABLE_LINTERS:\n"
-        "  - REPOSITORY_TRIVY\n"
-        "  - REPOSITORY_TRIVY_CUSTOM\n"
-    )
+    config.write_text("ENABLE_LINTERS:\n  - REPOSITORY_TRIVY\n  - REPOSITORY_TRIVY_CUSTOM\n")
     consumer = consumer_policy(tmp_path, Path(".mega-linter.yml"))
     images = image_pins()["images"]
-    selected = select_linter_keys(images, None, "0123456789abcdef")
+    selected = select_linter_keys(images, None, is_pull_request=True)
 
     assert {"REPOSITORY_TRIVY", "REPOSITORY_TRIVY_CUSTOM"} <= consumer.blocking
     assert "REPOSITORY_TRIVY" not in images
@@ -112,7 +118,7 @@ def test_retired_trivy_cannot_be_selected_by_consumer_config(tmp_path):
     assert "REPOSITORY_SEMGREP" not in selected
     for key in ("REPOSITORY_TRIVY", "REPOSITORY_TRIVY_CUSTOM"):
         with pytest.raises(ValueError, match="Unsupported stock linter selection"):
-            select_linter_keys(images, (key,), "0123456789abcdef")
+            select_linter_keys(images, (key,), is_pull_request=True)
 
 
 def test_stock_semgrep_smoke_is_explicit():
@@ -122,10 +128,68 @@ def test_stock_semgrep_smoke_is_explicit():
 
     assert selectors["version"] == image_lock["version"]
     assert selectors["selectors"].keys() == images.keys()
-    assert "REPOSITORY_SEMGREP" not in select_linter_keys(images, None, "0123456789abcdef")
-    assert select_linter_keys(images, ("REPOSITORY_SEMGREP",), "0123456789abcdef") == [
-        "REPOSITORY_SEMGREP"
-    ]
+    assert "REPOSITORY_SEMGREP" not in select_linter_keys(images, None, is_pull_request=True)
+    assert select_linter_keys(images, ("REPOSITORY_SEMGREP",), is_pull_request=False) == ["REPOSITORY_SEMGREP"]
+
+
+@pytest.mark.parametrize("event", ["pull_request", "pull_request_target"])
+def test_pull_request_source_ref_without_base_skips_full_semgrep(tmp_path, monkeypatch, event):
+    monkeypatch.setenv("GITHUB_EVENT_NAME", event)
+    args = SimpleNamespace(
+        is_pull_request=is_pull_request_event(),
+        base="",
+        semgrep_pr_scope="auto",
+        consumer=None,
+        semgrep_targets=[],
+        semgrep_config=Path("policy/semgrep.yml"),
+        source=tmp_path,
+        diff=[],
+        changed_files=[],
+    )
+    images = image_pins()["images"]
+
+    assert args.is_pull_request
+    assert "REPOSITORY_SEMGREP" not in select_linter_keys(images, None, is_pull_request=args.is_pull_request)
+    assert not local_semgrep_allowed(args)
+
+
+def local_rules_args(source, targets, changed_files):
+    config = source / "policy" / "semgrep.yml"
+    config.parent.mkdir(parents=True, exist_ok=True)
+    config.write_text("rules:\n  - id: local-rule\n    pattern: $X\n")
+    return SimpleNamespace(
+        is_pull_request=True,
+        base="0123456789abcdef",
+        semgrep_pr_scope="auto",
+        consumer=object(),
+        semgrep_targets=targets,
+        semgrep_config=Path("policy/semgrep.yml"),
+        source=source,
+        diff=[],
+        changed_files=changed_files,
+    )
+
+
+def test_pull_request_runs_local_rules_when_paths_are_file_scoped(tmp_path):
+    args = local_rules_args(tmp_path, ["tests/test_code.py"], ["src/code.py"])
+
+    assert local_semgrep_allowed(args)
+
+
+def test_pull_request_skips_local_rules_when_expanded_targets_exceed_limit(tmp_path):
+    source = tmp_path / "source"
+    source.mkdir()
+    run("git", "init", "--quiet", cwd=source)
+    (source / "tests").mkdir()
+    prefix = "tests/long_target_name_used_to_exercise_semgrep_command_limits_"
+    for index in range(1100):
+        (source / f"{prefix}{index:04d}.py").touch()
+    run("git", "add", "--all", cwd=source)
+    targets = tracked_semgrep_targets(source, ["tests/"])
+    args = local_rules_args(source, targets, [])
+
+    assert len(targets) == 1100
+    assert not local_semgrep_allowed(args)
 
 
 def sarif_findings(key, report):
@@ -179,7 +243,7 @@ def test_stock_scanners(tmp_path):
     source.mkdir()
     run("git", "init", "--quiet", cwd=source)
     copy_fixture(FIXTURE / "base", source)
-    first = commit(source)
+    commit(source)
     (source / "changed.py").write_text('marker = "allowed"\n')
     base = commit(source)
     cache = tmp_path / "cache"
@@ -187,7 +251,7 @@ def test_stock_scanners(tmp_path):
     commit(source)
     digest = image_pins()["images"]["REPOSITORY_SEMGREP"].removeprefix("sha256:")
     rules = cache / f"semgrep-{digest}"
-    rules.mkdir()
+    rules.mkdir(parents=True)
     for name in ("security-audit", "trailofbits"):
         (rules / f"{name}.yaml").write_text("rules: []\n")
     observed = {}
