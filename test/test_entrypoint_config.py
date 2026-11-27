@@ -81,12 +81,12 @@ def test_consumer_enable_list_cannot_reactivate_trivy(workspace):
         merged = _read_merged_config()
 
     assert set(merged["ENABLE_LINTERS"]) == {"REPOSITORY_TRIVY", "REPOSITORY_TRIVY_CUSTOM"}
-    assert set(merged["DISABLE_LINTERS"]) == {
+    assert set(os.environ["DISABLE_LINTERS"].split(",")) == {
         "REPOSITORY_TRIVY",
         "REPOSITORY_TRIVY_CUSTOM",
         "REPOSITORY_TRIVY_SBOM",
     }
-    assert merged["ENABLE_DISABLE_LINTERS_PRIORITY"] == "DISABLE"
+    assert os.environ["ENABLE_DISABLE_LINTERS_PRIORITY"] == "DISABLE"
 
 
 @pytest.mark.parametrize("event", ["pull_request", "pull_request_target", "schedule"])
@@ -113,15 +113,28 @@ def test_legacy_consumer_scanner_policy(workspace, monkeypatch, event, environme
     assert os.environ["ENABLE_DISABLE_LINTERS_PRIORITY"] == "DISABLE"
 
 
-def test_legacy_scanner_policy_keeps_inherited_exclusions(workspace, monkeypatch):
-    (workspace / ".mega-linter.yml").write_text("EXTENDS: [local-policy.yml]\n")
+@pytest.mark.parametrize("shared_syntax", [None, "flow", "block"])
+def test_legacy_scanner_policy_keeps_inherited_exclusions(workspace, monkeypatch, shared_syntax):
+    from scripts.entrypoint import EXTENDS_URL  # noqa: PLC0415
+
+    extends = {
+        None: "EXTENDS: [local-policy.yml]",
+        "flow": f"EXTENDS: [{EXTENDS_URL}, local-policy.yml]",
+        "block": f"EXTENDS:\n  - {EXTENDS_URL}\n  - local-policy.yml",
+    }
+    (workspace / ".mega-linter.yml").write_text(extends[shared_syntax] + "\n")
     loader = Mock()
     loader.get_list.return_value = ["YAML_YAMLLINT"]
     monkeypatch.setitem(sys.modules, "megalinter", SimpleNamespace(config=loader))
     monkeypatch.setenv("GITHUB_EVENT_NAME", "pull_request")
 
-    _run_setup()
+    with patch("scripts.entrypoint.BAKED_CONFIG", DEFAULT_CONFIG):
+        _run_setup()
 
+    if shared_syntax is not None:
+        merged = _read_merged_config()
+        assert merged["EXTENDS"] == ["local-policy.yml"]
+        assert "DISABLE_LINTERS" not in merged
     loader.init_config.assert_called_once_with("coding-standards-scanner-policy", str(workspace))
     loader.get_list.assert_called_once_with("coding-standards-scanner-policy", "DISABLE_LINTERS")
     assert {"YAML_YAMLLINT", "REPOSITORY_SEMGREP"} <= set(os.environ["DISABLE_LINTERS"].split(","))

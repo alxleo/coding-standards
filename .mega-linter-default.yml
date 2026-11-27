@@ -95,13 +95,6 @@ ENABLE_LINTERS:
   # Git
   - REPOSITORY_GIT_DIFF
 
-# Old consumer ENABLE lists can still name retired Trivy descriptors.
-ENABLE_DISABLE_LINTERS_PRIORITY: DISABLE
-DISABLE_LINTERS:
-  - REPOSITORY_TRIVY
-  - REPOSITORY_TRIVY_CUSTOM
-  - REPOSITORY_TRIVY_SBOM
-
 # ── Blocking policy (two tiers) ──────────────────────────────
 # Tier 1: everything not listed below BLOCKS the build
 # Tier 2: warn but don't fail

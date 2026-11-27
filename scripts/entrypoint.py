@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import shlex
 import subprocess
 import sys
@@ -229,8 +228,7 @@ def _setup() -> None:
         _configure_git("credential.helper", f"store --file={cred_path}")
 
     # Config resolution (zero-config by default).
-    # MegaLinter resolves EXTENDS relative to workspace — absolute paths break.
-    # Strip the shared EXTENDS and resolve consumer settings against the baked YAML.
+    # Use the baked shared config and leave consumer-specific EXTENDS intact.
     consumer_config = workspace / ".mega-linter.yml"
     if not consumer_config.exists():
         os.environ["MEGALINTER_CONFIG"] = str(BAKED_CONFIG)
@@ -238,15 +236,14 @@ def _setup() -> None:
             baked = yaml.safe_load(BAKED_CONFIG.read_text())
             _inherit_semgrep_arguments(baked.get(SEMGREP_ARGUMENTS, []), {})
     elif EXTENDS_URL in consumer_config.read_text():
-        content = consumer_config.read_text()
-        content = re.sub(
-            r"EXTENDS:\s*\n\s*-\s*" + re.escape(EXTENDS_URL) + r"\s*\n?",
-            "",
-            content,
-        )
-        # Write a merged config: baked defaults + consumer overrides (without EXTENDS).
+        overrides = yaml.safe_load(consumer_config.read_text()) or {}
+        extends = overrides.pop("EXTENDS", [])
+        if isinstance(extends, str):
+            extends = extends.split(",")
+        consumer_policies = [source for source in extends if source != EXTENDS_URL]
+        if consumer_policies:
+            overrides["EXTENDS"] = consumer_policies
         baked = yaml.safe_load(BAKED_CONFIG.read_text())
-        overrides = yaml.safe_load(content) if content.strip() else {}
         _inherit_semgrep_arguments(baked.get(SEMGREP_ARGUMENTS, []), overrides)
         if overrides:
             consumer_rules_path = overrides.pop("LINTER_RULES_PATH", None)
