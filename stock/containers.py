@@ -515,8 +515,56 @@ def zizmor_arguments(consumer, advisory):
     ]
 
 
+def run_tool(key, args, source, options, command_line):
+    if key != "PYTHON_PYRIGHT" or args.pyright_project is None:
+        return run_scanner(options, command_line)
+
+    with tempfile.TemporaryDirectory(prefix="stock-pyright-") as directory:
+        environment = Path(directory)
+        image = command_line[0]
+        owner = [] if args.rootless else ["--user", f"{os.getuid()}:{os.getgid()}"]
+        setup = run_scanner(
+            [
+                *mount(source, SOURCE),
+                *mount(environment, "/stock-env", writable=True),
+                *owner,
+                "--cap-drop=ALL",
+                "--env",
+                "UV_PROJECT_ENVIRONMENT=/stock-env/.venv",
+                "--entrypoint",
+                "uv",
+            ],
+            [
+                image,
+                "sync",
+                "--project",
+                str(args.pyright_project),
+                "--locked",
+                "--no-install-project",
+                "--no-cache",
+                "--link-mode",
+                "copy",
+            ],
+        )
+        LOGGER.info("%s", setup.stdout.rstrip())
+        setup.check_returncode()
+        return run_scanner(
+            [
+                *options,
+                *mount(environment, "/stock-env"),
+                "--env",
+                "PYTHON_PYRIGHT_ARGUMENTS=--level error --pythonpath /stock-env/.venv/bin/python",
+            ],
+            command_line,
+        )
+
+
+def scan_base(key, args):
+    return "" if key == "PYTHON_PYRIGHT" and args.pyright_full else args.base
+
+
 def scan_one(key, digest, args, source, image_task):
-    reports, base, advisory = args.reports, args.base, args.advisory
+    reports, base, advisory = args.reports, scan_base(key, args), args.advisory
     if args.consumer:
         blocking = args.consumer.blocking
         advisory = advisory or (key not in blocking and CURRENT_KEYS.get(key) not in blocking)
@@ -576,7 +624,7 @@ def scan_one(key, digest, args, source, image_task):
         options += ["--env", f"{name}={value}"]
 
     start = time.monotonic()
-    proc = run_scanner(options, command_line)
+    proc = run_tool(key, args, source, options, command_line)
     (report_dir / "console.log").write_text(proc.stdout)
     elapsed = round(time.monotonic() - start, 2)
     status = proc.returncode
@@ -721,6 +769,7 @@ def pr_linters(args, merge_base, lock, keys):
         key
         for key in keys
         if selectors[key] is None
+        or (key == "PYTHON_PYRIGHT" and args.pyright_full)
         or any(
             selected_file(source, name, selectors[key])
             for name in (args.diff if key == "ACTION_ZIZMOR" else args.changed_files)
@@ -742,14 +791,13 @@ def scan_linter(key, digest, args, image_task=None):
         return scan_one(key, digest, args, source, image_task)
 
 
-def prepare_pyright_project(args, keys):
-    if args.pyright_project is None or "PYTHON_PYRIGHT" not in keys:
-        return
-    source = args.source
-    project = checkout_file(source, args.pyright_project / "pyproject.toml").parent
-    checkout_file(source, project / "uv.lock")
-    setup = command("uv", "sync", "--project", str(project), "--locked", "--no-install-project", cwd=source)
-    LOGGER.info("%s", setup.stdout.rstrip())
+def pyright_inputs_changed(args):
+    config = args.consumer.configs.get("PYTHON_PYRIGHT") if args.consumer else None
+    inputs = {Path("pyrightconfig.json"), args.consumer_config, config, Path("stock.mega-linter.yml")}
+    if args.pyright_project is not None:
+        inputs.update(args.pyright_project / name for name in ("pyproject.toml", "uv.lock", ".python-version"))
+        inputs.add(Path(".python-version"))
+    return not inputs.isdisjoint(map(Path, args.diff))
 
 
 def scan(args):
@@ -763,6 +811,7 @@ def scan(args):
     lock = image_lock["images"]
     keys = args.linter or list(lock)
     skipped = []
+    args.pyright_full = False
     base = args.base
     if base:
         if not re.fullmatch("[0-9a-f]{40}", base):
@@ -776,13 +825,13 @@ def scan(args):
         args.changed_files = [
             name for name in args.diff if (source / name).is_file() and not (source / name).is_symlink()
         ]
+        args.pyright_full = pyright_inputs_changed(args)
         selected = pr_linters(args, merge_base, image_lock, keys)
         skipped = [key for key in keys if key not in selected]
         # The repository scans dominate the PR's critical path. Start both
         # before the shorter file checks fill the executor.
         keys = sorted(selected, key=lambda key: key not in ("REPOSITORY_SEMGREP", "REPOSITORY_TRIVY"))
         LOGGER.info("Selected %d linters; skipped %d without changed inputs", len(keys), len(skipped))
-    prepare_pyright_project(args, keys)
     cpus = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else (os.cpu_count() or 1)
     docker_info = docker("info", "--format", "{{.NCPU}}\n{{json .SecurityOptions}}")
     daemon_cpus, security_options = docker_info.stdout.splitlines()
@@ -898,6 +947,10 @@ def main():
         if args.trivy_config.is_absolute() or not config.is_relative_to(source) or not config.is_file():
             parser.error("--trivy-config must select a file inside the source checkout")
         args.trivy_config = config.relative_to(source)
+    if args.pyright_project is not None:
+        source = args.source.resolve()
+        args.pyright_project = checkout_file(source, args.pyright_project / "pyproject.toml").parent
+        checkout_file(source, args.pyright_project / "uv.lock")
     sys.exit(scan(args))
 
 
