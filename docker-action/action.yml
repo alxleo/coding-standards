@@ -75,4 +75,5 @@ runs:
           -e WORKSPACE_UID="${workspace_uid}" \
           -e WORKSPACE_GID="${workspace_gid}" \
           "${env_args[@]}" \
+          -e GITHUB_EVENT_NAME \
           "${CS_IMAGE}"

@@ -27,6 +27,7 @@ BAKED_CONFIG = Path("/opt/coding-standards/.mega-linter-default.yml")
 EXTENDS_URL = "https://raw.githubusercontent.com/alxleo/coding-standards/main/.mega-linter-default.yml"
 REQUIRED_LOCAL_CONFIGS_KEY = "CODING_STANDARDS_REQUIRED_LOCAL_CONFIGS"
 SEMGREP_ARGUMENTS = "REPOSITORY_SEMGREP_ARGUMENTS"
+RETIRED_LINTERS = ("REPOSITORY_TRIVY", "REPOSITORY_TRIVY_CUSTOM", "REPOSITORY_TRIVY_SBOM")
 
 app = typer.Typer(
     name="coding-standards",
@@ -171,6 +172,21 @@ def _inherit_semgrep_arguments(shared: list[str], overrides: dict[str, Any]) -> 
         overrides[SEMGREP_ARGUMENTS] = _with_shared_semgrep_arguments(shared, overrides[SEMGREP_ARGUMENTS])
 
 
+def _apply_scanner_policy(workspace: Path, consumer_config: Path) -> None:
+    configured = os.environ.get("DISABLE_LINTERS")
+    if configured is None:
+        config_path = workspace / (os.environ.get("MEGALINTER_CONFIG") or consumer_config)
+        if config_path.is_file():
+            config = yaml.safe_load(config_path.read_text()) or {}
+            configured = config.get("DISABLE_LINTERS")
+    disabled = configured.split(",") if isinstance(configured, str) else (configured or [])
+    rejected = [*RETIRED_LINTERS]
+    if os.environ.get("GITHUB_EVENT_NAME", "").startswith("pull_request"):
+        rejected.append("REPOSITORY_SEMGREP")
+    os.environ["DISABLE_LINTERS"] = ",".join(dict.fromkeys([*disabled, *rejected]))
+    os.environ["ENABLE_DISABLE_LINTERS_PRIORITY"] = "DISABLE"
+
+
 def _setup() -> None:
     """Pre-flight: git safe.directory, config resolution, semgrep discovery."""
     workspace = _workspace()
@@ -222,6 +238,8 @@ def _setup() -> None:
         with tempfile.NamedTemporaryFile(suffix=".yml", prefix="mega-linter-merged-", delete=False, mode="w") as f:
             yaml.dump(baked, f, default_flow_style=False)
             os.environ["MEGALINTER_CONFIG"] = f.name
+
+    _apply_scanner_policy(workspace, consumer_config)
 
     # Auto-discover consumer semgrep rules
     semgrep_dir = workspace / ".semgrep"

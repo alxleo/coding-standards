@@ -330,25 +330,39 @@ def run_scanner(options, command_line):
     )
 
 
-def scoped_semgrep_paths(args):
-    if args.semgrep_pr_scope == "full" or not (args.base and args.consumer and args.semgrep_targets):
-        return None
+def semgrep_scope(args):
+    if not args.is_pull_request:
+        return None, None
+    paths = args.changed_files
+    reason = None
+    if args.semgrep_pr_scope == "full":
+        reason = "full-tree scans are disabled on pull requests"
+    elif not args.base:
+        reason = "pull-request base commit is unavailable"
     scope_files = {".gitattributes", ".gitignore", ".gitmodules", ".semgrepignore"}
-    if any(path == args.semgrep_config or path.name in scope_files for path in map(Path, args.diff)):
-        return None
-    import yaml  # noqa: PLC0415 - the consumer policy uses the same optional dependency
+    if not reason and any(path == args.semgrep_config or path.name in scope_files for path in map(Path, args.diff)):
+        reason = "Semgrep rules or path-ignore files changed"
+    if not reason:
+        import yaml  # noqa: PLC0415 - the consumer policy uses the same optional dependency
 
-    config = yaml.safe_load((args.source / args.semgrep_config).read_text())
-    rules = config.get("rules", []) if isinstance(config, dict) else []
-    if not rules or any(
-        not isinstance(rule, dict)
-        or rule.get("mode", "search") != "search"
-        or rule.get("options", {}).get("interfile")
-        or {"project-depends-on", "r2c-internal-project-depends-on"}.intersection(rule)
-        for rule in rules
-    ):
-        return None
-    return args.changed_files
+        config = yaml.safe_load((args.source / args.semgrep_config).read_text())
+        rules = config.get("rules", []) if isinstance(config, dict) else []
+        if not rules or any(
+            not isinstance(rule, dict)
+            or rule.get("mode", "search") != "search"
+            or rule.get("options", {}).get("interfile")
+            or {"project-depends-on", "r2c-internal-project-depends-on"}.intersection(rule)
+            for rule in rules
+        ):
+            reason = "Semgrep rules require project-wide analysis"
+    if not reason and not paths and not args.semgrep_targets:
+        reason = "no changed files or explicit targets to scan"
+    if not reason:
+        includes = semgrep_include_arguments(paths, args.semgrep_targets)
+        target_args = [f"./{path}" for path in args.semgrep_targets]
+        if sum(len(os.fsencode(option)) + 1 for option in (*includes, *target_args)) > 32 * 1024:
+            reason = "file-scoped arguments exceed the command limit"
+    return (None, reason) if reason else (paths, None)
 
 
 def semgrep_include_arguments(paths, targets):
@@ -370,7 +384,7 @@ def tracked_semgrep_targets(source, pathspecs):
     return targets
 
 
-def scan_semgrep_rules(image_task, args):
+def scan_semgrep_rules(image_task, args, paths):
     """Run the configured local rules with Semgrep's CLI."""
     key = "REPOSITORY_SEMGREP_LOCAL"
     reports = args.reports / key.lower()
@@ -378,13 +392,7 @@ def scan_semgrep_rules(image_task, args):
     report = reports / "findings.json"
     report.unlink(missing_ok=True)
     targets = args.semgrep_targets
-    paths = scoped_semgrep_paths(args)
     include = semgrep_include_arguments(paths, targets) if paths else []
-    if paths and sum(len(os.fsencode(option)) + 1 for option in include) > 32 * 1024:
-        # Keep Semgrep's normal ignore rules for changed files. Only explicit
-        # targets should bypass its default test exclusions.
-        include = []
-        paths = None
     LOGGER.info("Semgrep local scope: %s", "changed files and explicit targets" if paths is not None else "full tree")
     ref, image, _, _ = image_task.result()
     options = [
@@ -546,11 +554,12 @@ def scan_one(key, digest, args, source, image_task):
     }
 
 
-def summary(results, reports):
+def summary(results, reports, skipped_scans):
     text = ["### Stock lint", "", "| Linter | Result | Seconds |", "| --- | --- | ---: |"]
     for item in results:
         key = item["linter"]
         text.append(f"| {key} | {'exit ' + str(item['exit']) if item['exit'] else 'ok'} | {item['seconds']} |")
+    text.extend(f"| {item['linter']} | skipped: {item['reason']} | — |" for item in skipped_scans)
     for item in results:
         report = reports / item["linter"].lower() / REPORT
         if report.is_file():
@@ -636,29 +645,20 @@ def is_pull_request_event():
     return os.environ.get("GITHUB_EVENT_NAME", "").startswith("pull_request")
 
 
-def local_semgrep_allowed(args):
-    if not args.is_pull_request:
-        return True
-    paths = scoped_semgrep_paths(args)
-    if paths is None:
-        return False
-    includes = semgrep_include_arguments(paths, args.semgrep_targets) if paths else []
-    target_args = [f"./{path}" for path in args.semgrep_targets]
-    arguments = [*includes, *target_args]
-    return sum(len(os.fsencode(option)) + 1 for option in arguments) <= 32 * 1024
-
-
 def schedule_semgrep(executor, args, lock, keys):
     if args.semgrep_config:
         args.semgrep_targets = tracked_semgrep_targets(args.source, args.semgrep_targets)
-    run_local = bool(args.semgrep_config) and local_semgrep_allowed(args)
-    if args.semgrep_config and not run_local:
-        LOGGER.info("Skipping local Semgrep because pull-request rules are not file-scoped")
+    paths, skip_reason = semgrep_scope(args) if args.semgrep_config else (None, None)
+    run_local = bool(args.semgrep_config) and skip_reason is None
+    skipped = []
+    if skip_reason:
+        LOGGER.info("Skipping local Semgrep: %s", skip_reason)
+        skipped.append({"linter": "REPOSITORY_SEMGREP_LOCAL", "reason": skip_reason})
     image_task = None
     if "REPOSITORY_SEMGREP" in keys or run_local:
         image_task = executor.submit(image_for, "REPOSITORY_SEMGREP", lock["REPOSITORY_SEMGREP"])
-    tasks = [executor.submit(scan_semgrep_rules, image_task, args)] if run_local else []
-    return image_task, tasks
+    tasks = [executor.submit(scan_semgrep_rules, image_task, args, paths)] if run_local else []
+    return image_task, tasks, skipped
 
 
 def scan_linter(key, digest, args, image_task=None):
@@ -687,6 +687,7 @@ def scan(args):
     args.is_pull_request = is_pull_request_event()
     keys = select_linter_keys(lock, args.linter, args.is_pull_request)
     skipped = []
+    skipped_scans = []
     base = args.base
     if base:
         if not re.fullmatch("[0-9a-f]{40}", base):
@@ -717,7 +718,7 @@ def scan(args):
         remove_stale(lock, cache)
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
             tasks = []
-            semgrep_image, local_semgrep_tasks = schedule_semgrep(executor, args, lock, keys)
+            semgrep_image, local_semgrep_tasks, skipped_scans = schedule_semgrep(executor, args, lock, keys)
             tasks.extend(local_semgrep_tasks)
             for key in keys:
                 image_task = semgrep_image if key == "REPOSITORY_SEMGREP" else None
@@ -728,6 +729,7 @@ def scan(args):
         "seconds": round(time.monotonic() - start, 2),
         "linters": results,
         "skipped_linters": skipped,
+        "skipped_scans": skipped_scans,
         "cache_disk_bytes": sizes,
         "image_logical_bytes": sum({row["image_id"]: row["image_bytes"] for row in results}.values()),
         "registry_layer_bytes": sum(row["registry_layer_bytes"] for row in results)
@@ -737,7 +739,7 @@ def scan(args):
     }
     LOGGER.info("STOCK_CONTAINERS %s", json.dumps(metrics))
     (reports / "containers.json").write_text(json.dumps(metrics, indent=2) + "\n")
-    summary(results, reports)
+    summary(results, reports, skipped_scans)
     return int(any(item["exit"] for item in results))
 
 

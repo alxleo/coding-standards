@@ -35,6 +35,7 @@ def workspace(tmp_path, monkeypatch):
     monkeypatch.delenv("MEGALINTER_CONFIG", raising=False)
     monkeypatch.delenv(SEMGREP_ARGUMENTS, raising=False)
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.delenv("GITHUB_EVENT_NAME", raising=False)
     monkeypatch.delenv("ENABLE_LINTERS", raising=False)
     monkeypatch.delenv("DISABLE_LINTERS", raising=False)
     monkeypatch.delenv("ENABLE_DISABLE_LINTERS_PRIORITY", raising=False)
@@ -77,8 +78,36 @@ def test_consumer_enable_list_cannot_reactivate_trivy(workspace):
         merged = _read_merged_config()
 
     assert set(merged["ENABLE_LINTERS"]) == {"REPOSITORY_TRIVY", "REPOSITORY_TRIVY_CUSTOM"}
-    assert set(merged["DISABLE_LINTERS"]) == {"REPOSITORY_TRIVY", "REPOSITORY_TRIVY_CUSTOM"}
+    assert set(merged["DISABLE_LINTERS"]) == {
+        "REPOSITORY_TRIVY",
+        "REPOSITORY_TRIVY_CUSTOM",
+        "REPOSITORY_TRIVY_SBOM",
+    }
     assert merged["ENABLE_DISABLE_LINTERS_PRIORITY"] == "DISABLE"
+
+
+@pytest.mark.parametrize("event", ["pull_request", "pull_request_target", "schedule"])
+@pytest.mark.parametrize("environment_override", [False, True])
+def test_legacy_consumer_scanner_policy(workspace, monkeypatch, event, environment_override):
+    _write_consumer_config(
+        workspace,
+        {
+            "ENABLE_LINTERS": ["REPOSITORY_TRIVY", "REPOSITORY_SEMGREP", "PYTHON_RUFF", "YAML_YAMLLINT"],
+            "DISABLE_LINTERS": ["YAML_YAMLLINT"],
+        },
+    )
+    monkeypatch.setenv("GITHUB_EVENT_NAME", event)
+    if environment_override:
+        monkeypatch.setenv("DISABLE_LINTERS", "PYTHON_RUFF")
+
+    _run_setup()
+
+    disabled = set(os.environ["DISABLE_LINTERS"].split(","))
+    assert {"REPOSITORY_TRIVY", "REPOSITORY_TRIVY_CUSTOM", "REPOSITORY_TRIVY_SBOM"} <= disabled
+    assert ("REPOSITORY_SEMGREP" in disabled) == event.startswith("pull_request")
+    assert ("YAML_YAMLLINT" in disabled) is not environment_override
+    assert ("PYTHON_RUFF" in disabled) is environment_override
+    assert os.environ["ENABLE_DISABLE_LINTERS_PRIORITY"] == "DISABLE"
 
 
 def test_setup_continues_after_git_config_timeout(

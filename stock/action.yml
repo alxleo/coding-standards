@@ -80,7 +80,7 @@ runs:
       with:
         version: "2026.10.23"
         working_directory: policy/stock
-        install_args: ${{ inputs.runtime == 'per-linter' && (inputs.consumer-config != '' && 'conftest github:pmd/pmd java uv' || 'conftest github:pmd/pmd java') || 'conftest github:pmd/pmd' }}
+        install_args: ${{ inputs.runtime == 'per-linter' && ((inputs.consumer-config != '' || inputs.semgrep-config != '') && 'conftest github:pmd/pmd java uv' || 'conftest github:pmd/pmd java') || 'conftest github:pmd/pmd' }}
         cache: ${{ runner.environment != 'self-hosted' || inputs.ephemeral == 'true' }}
         cache_save: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
 
@@ -100,7 +100,6 @@ runs:
         STOCK_PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         STOCK_PERSISTENT: ${{ runner.environment == 'self-hosted' && inputs.ephemeral != 'true' }}
         STOCK_SMOKE: ${{ inputs.smoke }}
-        DISABLE_LINTERS: ${{ startsWith(github.event_name, 'pull_request') && 'REPOSITORY_SEMGREP' || '' }}
         ENABLE_DISABLE_LINTERS_PRIORITY: DISABLE
         VALIDATE_ALL_CODEBASE: ${{ inputs.base-sha == '' && (github.event_name != 'pull_request' || inputs.source-ref != '') }}
         REPOSITORY_BETTERLEAKS_PR_COMMITS_SCAN: "true"
@@ -134,6 +133,8 @@ runs:
           launcher=(python3)
           if [[ -n "$STOCK_CONSUMER_CONFIG" ]]; then
             options+=(--consumer-config "$STOCK_CONSUMER_CONFIG")
+          fi
+          if [[ -n "$STOCK_CONSUMER_CONFIG" || -n "$STOCK_SEMGREP_CONFIG" ]]; then
             launcher=(uv run --script)
           fi
           "${launcher[@]}" ../policy/stock/containers.py --source "$PWD" --cache "$cache" --reports "$GITHUB_WORKSPACE/stock-reports" "${options[@]}"
@@ -147,6 +148,25 @@ runs:
           echo 'semgrep-config and semgrep-targets require the per-linter runtime.'
           exit 2
         fi
+        required_disables=REPOSITORY_TRIVY,REPOSITORY_TRIVY_SBOM
+        if [[ "${GITHUB_EVENT_NAME:-}" == pull_request* ]]; then
+          required_disables+=,REPOSITORY_SEMGREP
+        fi
+        configured_disables="${DISABLE_LINTERS-}"
+        if [[ ! -v DISABLE_LINTERS && -f "$MEGALINTER_CONFIG" ]]; then
+          configured_disables="$(python3 - "$MEGALINTER_CONFIG" <<'PY'
+        import sys
+        from pathlib import Path
+
+        import yaml
+
+        config = yaml.safe_load(Path(sys.argv[1]).read_text()) or {}
+        disabled = config.get("DISABLE_LINTERS") or []
+        print(disabled if isinstance(disabled, str) else ",".join(disabled))
+        PY
+          )"
+        fi
+        export DISABLE_LINTERS="$required_disables${configured_disables:+,$configured_disables}"
         if [[ -n "$STOCK_BASE_SHA" ]]; then
           [[ "$STOCK_BASE_SHA" =~ ^[0-9a-f]{40}$ ]]
           git cat-file -e "$STOCK_BASE_SHA^{commit}"
