@@ -33,7 +33,8 @@ No `.mega-linter.yml` needed — the image auto-detects your stack.
 Call [Pull request scope](.github/workflows/pr-scope.yml) from a job in an
 existing workflow. Pin `alxleo/coding-standards/.github/workflows/pr-scope.yml`
 to a reviewed commit and give the calling job `contents: read`. Add that job
-to `needs` for each build or lint job you want to skip.
+to `needs` for each build or lint job you want to skip. Set the optional
+`runner` input to reuse an existing Linux runner label.
 
 ```yaml
 needs: change-scope

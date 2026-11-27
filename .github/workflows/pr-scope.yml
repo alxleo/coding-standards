@@ -2,6 +2,11 @@ name: Pull request scope
 
 on:
   workflow_call:
+    inputs:
+      runner:
+        description: Linux runner label for the scope check
+        default: ubuntu-latest
+        type: string
     outputs:
       markdown-only:
         description: True when a pull request changes at least one file and all changed paths end in .md (case-insensitive).
@@ -13,7 +18,7 @@ permissions:
 jobs:
   classify:
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 5
     outputs:
       markdown-only: ${{ steps.changes.outputs.markdown == 'true' && steps.changes.outputs.other == 'false' }}
