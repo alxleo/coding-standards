@@ -5,8 +5,10 @@ from __future__ import annotations
 import os
 import shlex
 import subprocess
+import sys
 from pathlib import Path
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 import pytest
 import yaml
@@ -39,6 +41,7 @@ def workspace(tmp_path, monkeypatch):
     monkeypatch.delenv("ENABLE_LINTERS", raising=False)
     monkeypatch.delenv("DISABLE_LINTERS", raising=False)
     monkeypatch.delenv("ENABLE_DISABLE_LINTERS_PRIORITY", raising=False)
+    monkeypatch.delenv("EXTENDS", raising=False)
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(tmp_path / "gitconfig"))
     monkeypatch.setattr("scripts.entrypoint.tempfile.tempdir", tmp_path)
 
@@ -108,6 +111,20 @@ def test_legacy_consumer_scanner_policy(workspace, monkeypatch, event, environme
     assert ("YAML_YAMLLINT" in disabled) == (environment_override is None)
     assert ("PYTHON_RUFF" in disabled) == (environment_override is not None)
     assert os.environ["ENABLE_DISABLE_LINTERS_PRIORITY"] == "DISABLE"
+
+
+def test_legacy_scanner_policy_keeps_inherited_exclusions(workspace, monkeypatch):
+    (workspace / ".mega-linter.yml").write_text("EXTENDS: [local-policy.yml]\n")
+    loader = Mock()
+    loader.get_list.return_value = ["YAML_YAMLLINT"]
+    monkeypatch.setitem(sys.modules, "megalinter", SimpleNamespace(config=loader))
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "pull_request")
+
+    _run_setup()
+
+    loader.init_config.assert_called_once_with("coding-standards-scanner-policy", str(workspace))
+    loader.get_list.assert_called_once_with("coding-standards-scanner-policy", "DISABLE_LINTERS")
+    assert {"YAML_YAMLLINT", "REPOSITORY_SEMGREP"} <= set(os.environ["DISABLE_LINTERS"].split(","))
 
 
 def test_setup_continues_after_git_config_timeout(

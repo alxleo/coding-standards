@@ -173,13 +173,28 @@ def _inherit_semgrep_arguments(shared: list[str], overrides: dict[str, Any]) -> 
         overrides[SEMGREP_ARGUMENTS] = _with_shared_semgrep_arguments(shared, overrides[SEMGREP_ARGUMENTS])
 
 
+def _file_disabled_linters(workspace: Path) -> str | list[str] | None:
+    config_name = os.environ.get("MEGALINTER_CONFIG", ".mega-linter.yml")
+    config_path = workspace / config_name
+    values = (yaml.safe_load(config_path.read_text()) or {}) if config_path.is_file() else {}
+    if "EXTENDS" not in values and "EXTENDS" not in os.environ and not config_name.startswith("https://"):
+        return values.get("DISABLE_LINTERS")
+
+    # Delegate consumer-specific inheritance to the pinned MegaLinter loader.
+    from megalinter import config as megalinter_config  # noqa: PLC0415
+
+    policy = "coding-standards-scanner-policy"
+    try:
+        megalinter_config.init_config(policy, str(workspace))
+        return megalinter_config.get_list(policy, "DISABLE_LINTERS")
+    finally:
+        megalinter_config.delete(policy)
+
+
 def _apply_scanner_policy(workspace: Path) -> None:
     configured = os.environ.get("DISABLE_LINTERS")
     if configured is None:
-        config_path = workspace / os.environ.get("MEGALINTER_CONFIG", ".mega-linter.yml")
-        if config_path.is_file():
-            config = yaml.safe_load(config_path.read_text()) or {}
-            configured = config.get("DISABLE_LINTERS")
+        configured = _file_disabled_linters(workspace)
     if isinstance(configured, str):
         disabled = json.loads(configured) if configured.startswith("[") else configured.split(",")
     else:
